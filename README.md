@@ -13,8 +13,10 @@ A form is that structure written down, and no form is the format. This
 repository holds the text form, JSON, which a tracker writes and a
 player's tools read.
 
-This repository depends on nothing but Java, and names no player. A
-player names the version of this it reads.
+It names no player. A player names the version of this it reads.
+
+The one dependency is a JSON library, which reads and writes the tree the
+text form maps to. Nothing in the structure depends on it.
 
 ## What is here
 
@@ -23,15 +25,19 @@ src/main/java/org/ymxs/YMXS.java    the structure, nested in one interface
 src/main/java/org/ymxs/Chip.java    what the YM2149 and the MC68901 give
 src/main/java/org/ymxs/Tunes.java   what a structure holds, read off it
 src/main/java/org/ymxs/Check.java   what a structure has to satisfy
-src/main/java/org/ymxs/Text.java    the text form, written and read
+src/main/java/org/ymxs/Json.java    the structure to a JSON tree and back
+src/main/java/org/ymxs/Text.java    that tree written and read as text
+src/main/java/org/ymxs/Csv.java     the table form, written and read
 src/main/java/org/ymxs/ym/          an example: a YM register dump read in
 doc/SPEC.md                         what a player does with a structure
 doc/text.md                         the text form, written out
+doc/csv.md                          the table form, written out
 doc/ym.md                           the example, written out
 doc/tunes/                          tunes in that form, read back by the tests
 src/main/java/org/ymxs/tool/        the tools
 bin/ym-to-ymxs                      a dump into the text form
 bin/ymxs-check                      what a tune gets wrong, and what it breaks
+bin/ymxs-convert                    one form into the other
 ```
 
 `YMXS.java` holds the structure and nothing else: bare records and sealed
@@ -42,9 +48,9 @@ they read it.
 
 ## Building
 
-Java 23 and Maven, and nothing else. `mvn test` reads every tune under
-`doc/tunes` back, holds SPEC.md's listing to the records, and holds the
-documents to the house style.
+Java 23 and Maven. `mvn test` reads every tune under `doc/tunes` back in
+both forms, holds SPEC.md's listing to the records, reads a dump the test
+writes itself, and holds the documents to the house style.
 
 ## Where the figures come from
 

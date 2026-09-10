@@ -122,9 +122,14 @@ the parts that moved is a form's work, and this form does not do it.
 
 ## The layout
 
-A form writes one run a line and one event a line, and wraps a run's
-values at twenty. That is what `Text` writes and what the tunes under
-`doc/tunes` hold; a reader takes any JSON of this shape.
+This form writes one run a line and one event a line, and wraps a run's
+values at twenty, so a reader looks down a stream or across a row without
+a tool. A reader takes any JSON of this shape.
+
+`Json` maps the structure to a JSON tree and back, `Layout` says where the
+lines break, and a JSON library does the escaping, the parsing and the
+writing. [The table form](csv.md) is the same content the other way
+round.
 
 ## What is turned away
 

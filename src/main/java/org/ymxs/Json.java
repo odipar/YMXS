@@ -1,287 +1,362 @@
 package org.ymxs;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
+import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Retune;
+import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.Single;
+import org.ymxs.YMXS.Source;
+import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Stop;
+import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Tune;
 
 /**
- * A reader of JSON, enough of it for the text form ({@link Text}). It
- * gives a {@code Map<String, Object>} for an object, a {@code
- * List<Object>} for an array, a {@link String}, a {@link Long}, a {@link
- * Double}, a {@link Boolean}, or {@link #NULL}.
+ * The structure to a JSON tree and back. What that tree is written as and
+ * read from is {@link Text}'s, and escaping, parsing and laying out are
+ * the JSON library's; this maps, and nothing else.
  *
- * <p>JSON's null is a value here rather than a Java null, so nothing this
- * gives back is null and a reader of it needs no test for one.
+ * <p>A tune is written stream by stream. A register's stream is a list of
+ * runs, a run being a stretch of rows that all set it, and the number
+ * before a run's values is the rows between the end of the run before it
+ * and its own first row. The effects are written the other way, as events
+ * at their own row, since an event is a thing a reader looks for by row
+ * and there are few of them.
  *
- * <p>Writing is {@link Text}'s: what a form writes is laid out a run a
- * line and a value column wrapped, which a general writer would not do.
+ * <p>A source is written by its number, 1 upward into the sources a tune's
+ * rows start ({@link Tunes#sources}). The name beside it is what a writer
+ * called it and reaches nothing else.
  */
-final class Json {
+public final class Json {
 
-    /** JSON's null. */
-    static final Object NULL = new Object() {
-        @Override
-        public String toString() {
-            return "null";
-        }
-    };
+    /** What the tree names itself. */
+    public static final String FORMAT = "ymxs";
 
-    private final String text;
-    private int at;
+    /** The version of the structure this maps. */
+    public static final int VERSION = 1;
 
-    private Json(String text) {
-        this.text = text;
+    private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
+
+    private Json() {
     }
 
-    /** The value {@code text} holds.
-     *
-     * @throws IllegalArgumentException where it is not JSON, or holds more
-     *     than one value
-     */
-    static Object read(String text) {
-        Json json = new Json(text);
-        json.space();
-        Object value = json.value();
-        json.space();
-        if (json.at != text.length()) {
-            throw json.wrong("one value, and more text after it");
+    // ---------------------------------------------------------------- out
+
+    /** {@code multi} as a JSON tree. */
+    public static JsonNode of(Multi multi) {
+        ObjectNode out = MAKE.objectNode();
+        out.put("format", FORMAT);
+        out.put("version", VERSION);
+        ArrayNode tunes = out.putArray("tunes");
+        for (Tune tune : multi.tunes()) {
+            tunes.add(of(tune));
         }
-        return value;
+        return out;
     }
 
-    /** The string at {@code key} of an object. */
-    static String text(Map<String, Object> of, String key) {
-        Object value = of.get(key);
-        if (value instanceof String said) {
-            return said;
+    /** One tune as a JSON tree. */
+    public static ObjectNode of(Tune tune) {
+        ObjectNode out = MAKE.objectNode();
+        out.put("title", tune.title());
+        out.put("composer", tune.composer());
+        out.put("writer", tune.writer());
+        out.put("rate", tune.rate());
+        out.put("rows", Tunes.size(tune.table()));
+        put(out, "repeat", tune.table().repeat());
+        List<Source> sources = Tunes.sources(tune);
+        ArrayNode held = out.putArray("sources");
+        for (Source source : sources) {
+            ObjectNode one = held.addObject();
+            one.put("name", Tunes.name(source));
+            put(one, "repeat", Tunes.table(source).repeat());
+            ArrayNode values = one.putArray("rows");
+            for (int value : Tunes.values(source)) {
+                values.add(value);
+            }
         }
-        throw new IllegalArgumentException(key + " is " + said(value) + ", and a text is asked");
+        for (Register register : Register.values()) {
+            stream(out, tune, register);
+        }
+        events(out, tune, sources);
+        return out;
     }
 
-    /** The whole number at {@code key} of an object. */
-    static int number(Map<String, Object> of, String key) {
-        Object value = of.get(key);
-        if (value instanceof Long counted) {
-            return Math.toIntExact(counted);
-        }
-        throw new IllegalArgumentException(key + " is " + said(value)
-                + ", and a whole number is asked");
-    }
-
-    /** The object at {@code key} of an object. */
-    @SuppressWarnings("unchecked")
-    static Map<String, Object> object(Map<String, Object> of, String key) {
-        Object value = of.get(key);
-        if (value instanceof Map<?, ?> held) {
-            return (Map<String, Object>) held;
-        }
-        throw new IllegalArgumentException(key + " is " + said(value)
-                + ", and an object is asked");
-    }
-
-    /** The array at {@code key} of an object. */
-    @SuppressWarnings("unchecked")
-    static List<Object> array(Map<String, Object> of, String key) {
-        Object value = of.get(key);
-        if (value instanceof List<?> held) {
-            return (List<Object>) held;
-        }
-        throw new IllegalArgumentException(key + " is " + said(value)
-                + ", and an array is asked");
-    }
-
-    /** What a value is, for a complaint. */
-    static String said(@Nullable Object value) {
-        if (value == null) {
-            return "not there";
-        }
-        if (value == NULL) {
-            return "null";
-        }
-        if (value instanceof Map) {
-            return "an object";
-        }
-        if (value instanceof List) {
-            return "an array";
-        }
-        return String.valueOf(value);
-    }
-
-    /** A text of {@code value}, quoted and escaped as JSON has it. */
-    static String quote(String value) {
-        StringBuilder out = new StringBuilder("\"");
-        for (int i = 0; i < value.length(); i++) {
-            char one = value.charAt(i);
-            switch (one) {
-                case '"' -> out.append("\\\"");
-                case '\\' -> out.append("\\\\");
-                case '\n' -> out.append("\\n");
-                case '\r' -> out.append("\\r");
-                case '\t' -> out.append("\\t");
-                default -> {
-                    if (one < 0x20) {
-                        out.append(String.format("\\u%04x", (int) one));
-                    } else {
-                        out.append(one);
-                    }
+    /** One register's runs: a stretch of rows that all set it, after a gap
+     *  of the rows since the run before it ended. */
+    private static void stream(ObjectNode out, Tune tune, Register register) {
+        List<Row> rows = Tunes.rows(tune);
+        ArrayNode runs = MAKE.arrayNode();
+        int at = 0;
+        int end = 0;
+        while (at < rows.size()) {
+            if (!rows.get(at).registers().containsKey(register)) {
+                at++;
+                continue;
+            }
+            int from = at;
+            List<Integer> run = new ArrayList<>();
+            while (at < rows.size() && rows.get(at).registers().containsKey(register)) {
+                run.add(rows.get(at).registers().get(register));
+                at++;
+            }
+            ArrayNode one = runs.addArray();
+            one.add(from - end);
+            end = at;
+            if (run.size() == 1) {
+                one.add(run.get(0));
+            } else {
+                ArrayNode values = one.addArray();
+                for (int value : run) {
+                    values.add(value);
                 }
             }
         }
-        return out.append('"').toString();
+        if (!runs.isEmpty()) {
+            out.set(name(register), runs);
+        }
     }
 
-    private Object value() {
-        if (at >= text.length()) {
-            throw wrong("a value");
+    /** The effects as events, each at its own row. */
+    private static void events(ObjectNode out, Tune tune, List<Source> sources) {
+        List<Row> rows = Tunes.rows(tune);
+        ArrayNode events = out.putArray("effects");
+        for (int at = 0; at < rows.size(); at++) {
+            Map<Timer, Effect> here = Tunes.effects(rows.get(at));
+            if (here.isEmpty()) {
+                continue;
+            }
+            ArrayNode event = events.addArray();
+            event.add(at);
+            ObjectNode timers = event.addObject();
+            for (Map.Entry<Timer, Effect> one : here.entrySet()) {
+                timers.set(one.getKey().name(), of(one.getValue(), sources));
+            }
         }
-        char one = text.charAt(at);
-        return switch (one) {
-            case '{' -> object();
-            case '[' -> array();
-            case '"' -> string();
-            case 't' -> word("true", Boolean.TRUE);
-            case 'f' -> word("false", Boolean.FALSE);
-            case 'n' -> word("null", NULL);
-            default -> number();
+    }
+
+    /** What a row states of one effect: the shape it names, and what that
+     *  shape holds. */
+    private static ObjectNode of(Effect effect, List<Source> sources) {
+        ObjectNode out = MAKE.objectNode();
+        switch (effect) {
+            case Start start -> {
+                ObjectNode said = out.putObject("start");
+                said.put("target", Tunes.name(start.target()));
+                said.put("source", sources.indexOf(start.source()) + 1);
+                said.put("prescaler", Chip.divides(start.prescaler()));
+                said.put("count", start.count());
+                said.put("timerReset", start.timerReset());
+                said.put("placeReset", start.placeReset());
+            }
+            case Retune retune -> {
+                ObjectNode said = out.putObject("retune");
+                said.put("prescaler", Chip.divides(retune.prescaler()));
+                said.put("count", retune.count());
+                said.put("timerReset", retune.timerReset());
+                said.put("placeReset", retune.placeReset());
+            }
+            case Stop ignored -> out.putObject("stop");
+        }
+        return out;
+    }
+
+    // ----------------------------------------------------------------- in
+
+    /** The multi {@code tree} holds.
+     *
+     * @throws IllegalArgumentException where the tree is not this form, or
+     *     states a structure no player plays
+     */
+    public static Multi multi(JsonNode tree) {
+        String format = text(tree, "format");
+        if (!format.equals(FORMAT)) {
+            throw new IllegalArgumentException("a tree of " + format + ", and this reads "
+                    + FORMAT);
+        }
+        int version = number(tree, "version");
+        if (version != VERSION) {
+            throw new IllegalArgumentException("version " + version + ", and this reads "
+                    + VERSION);
+        }
+        List<Tune> tunes = new ArrayList<>();
+        for (JsonNode one : array(tree, "tunes")) {
+            tunes.add(tune(one));
+        }
+        return Check.must(new Multi(tunes));
+    }
+
+    /** One tune out of a JSON tree. */
+    public static Tune tune(JsonNode tree) {
+        int count = number(tree, "rows");
+        List<Source> sources = new ArrayList<>();
+        for (JsonNode one : array(tree, "sources")) {
+            List<Integer> values = new ArrayList<>();
+            for (JsonNode value : array(one, "rows")) {
+                values.add(value.intValue());
+            }
+            sources.add(new Single(text(one, "name"),
+                    new Table<>(values, repeat(one))));
+        }
+        List<Map<Register, Integer>> registers = new ArrayList<>();
+        List<Map<Timer, Effect>> effects = new ArrayList<>();
+        for (int at = 0; at < count; at++) {
+            registers.add(new EnumMap<>(Register.class));
+            effects.add(new EnumMap<>(Timer.class));
+        }
+        for (Register register : Register.values()) {
+            JsonNode runs = tree.get(name(register));
+            if (runs == null) {
+                continue;
+            }
+            int at = 0;
+            for (JsonNode run : runs) {
+                at += run.get(0).intValue();
+                JsonNode values = run.get(1);
+                if (values.isArray()) {
+                    for (JsonNode value : values) {
+                        put(registers, count, at++, register, value.intValue());
+                    }
+                } else {
+                    put(registers, count, at++, register, values.intValue());
+                }
+            }
+        }
+        for (JsonNode event : array(tree, "effects")) {
+            int at = event.get(0).intValue();
+            if (at < 0 || at >= count) {
+                throw new IllegalArgumentException("an effect at row " + at + ", and the tune"
+                        + " holds " + count + " rows");
+            }
+            JsonNode timers = event.get(1);
+            for (Map.Entry<String, JsonNode> one : timers.properties()) {
+                effects.get(at).put(Timer.valueOf(one.getKey()),
+                        effect(one.getValue(), sources, at));
+            }
+        }
+        List<Row> rows = new ArrayList<>();
+        for (int at = 0; at < count; at++) {
+            rows.add(new Row(registers.get(at), effects.get(at)));
+        }
+        return new Tune(text(tree, "title"), text(tree, "composer"), text(tree, "writer"),
+                number(tree, "rate"), new Table<>(rows, repeat(tree)));
+    }
+
+    private static Effect effect(JsonNode tree, List<Source> sources, int at) {
+        if (tree.size() != 1) {
+            throw new IllegalArgumentException("the effect at row " + at + " states "
+                    + tree.size() + " things, and it states one of start, retune and stop");
+        }
+        String shape = tree.properties().iterator().next().getKey();
+        JsonNode of = tree.get(shape);
+        return switch (shape) {
+            case "start" -> {
+                int number = number(of, "source");
+                if (number < 1 || number > sources.size()) {
+                    throw new IllegalArgumentException("row " + at + " starts source "
+                            + number + ", and the tune holds " + sources.size());
+                }
+                yield new Start(target(text(of, "target")), sources.get(number - 1),
+                        Chip.prescaler(number(of, "prescaler")), number(of, "count"),
+                        flag(of, "timerReset"), flag(of, "placeReset"));
+            }
+            case "retune" -> new Retune(Chip.prescaler(number(of, "prescaler")),
+                    number(of, "count"), flag(of, "timerReset"), flag(of, "placeReset"));
+            case "stop" -> Tunes.STOP;
+            default -> throw new IllegalArgumentException("row " + at + " states \"" + shape
+                    + "\" of an effect, and it states one of start, retune and stop");
         };
     }
 
-    private Object object() {
-        Map<String, Object> out = new LinkedHashMap<>();
-        at++;
-        space();
-        if (at < text.length() && text.charAt(at) == '}') {
-            at++;
-            return out;
-        }
-        while (true) {
-            space();
-            String key = string();
-            space();
-            take(':');
-            space();
-            out.put(key, value());
-            space();
-            if (at < text.length() && text.charAt(at) == ',') {
-                at++;
-                continue;
+    // -------------------------------------------------------------- both
+
+    /** A register's name in a form: {@code r0} to {@code r13}. */
+    public static String name(Register register) {
+        return "r" + Chip.number(register);
+    }
+
+    /** A target by the name it is written under, {@code setR0} upward. */
+    public static YMXS.Target target(String said) {
+        for (Register register : Register.values()) {
+            YMXS.Target target = Tunes.setting(register);
+            if (Tunes.name(target).equals(said)) {
+                return target;
             }
-            take('}');
-            return out;
+        }
+        throw new IllegalArgumentException("no target is called \"" + said + "\"");
+    }
+
+    private static void put(List<Map<Register, Integer>> rows, int count, int at,
+                            Register register, int value) {
+        if (at < 0 || at >= count) {
+            throw new IllegalArgumentException(name(register) + " sets row " + at + ", and the"
+                    + " tune holds " + count + " rows");
+        }
+        rows.get(at).put(register, value);
+    }
+
+    private static void put(ObjectNode out, String key, OptionalInt repeat) {
+        if (repeat.isPresent()) {
+            out.put(key, repeat.getAsInt());
+        } else {
+            out.putNull(key);
         }
     }
 
-    private Object array() {
-        List<Object> out = new ArrayList<>();
-        at++;
-        space();
-        if (at < text.length() && text.charAt(at) == ']') {
-            at++;
-            return out;
+    private static OptionalInt repeat(JsonNode tree) {
+        JsonNode value = tree.get("repeat");
+        if (value == null || value.isNull()) {
+            return OptionalInt.empty();
         }
-        while (true) {
-            space();
-            out.add(value());
-            space();
-            if (at < text.length() && text.charAt(at) == ',') {
-                at++;
-                continue;
-            }
-            take(']');
-            return out;
+        if (!value.isIntegralNumber()) {
+            throw new IllegalArgumentException("repeat is " + value + ", and a row number or"
+                    + " null is asked");
         }
+        return OptionalInt.of(value.intValue());
     }
 
-    private String string() {
-        take('"');
-        StringBuilder out = new StringBuilder();
-        while (at < text.length() && text.charAt(at) != '"') {
-            char one = text.charAt(at++);
-            if (one != '\\') {
-                out.append(one);
-                continue;
-            }
-            if (at >= text.length()) {
-                throw wrong("an escape");
-            }
-            char next = text.charAt(at++);
-            switch (next) {
-                case '"', '\\', '/' -> out.append(next);
-                case 'b' -> out.append('\b');
-                case 'f' -> out.append('\f');
-                case 'n' -> out.append('\n');
-                case 'r' -> out.append('\r');
-                case 't' -> out.append('\t');
-                case 'u' -> {
-                    if (at + 4 > text.length()) {
-                        throw wrong("four hex digits");
-                    }
-                    out.append((char) Integer.parseInt(text.substring(at, at + 4), 16));
-                    at += 4;
-                }
-                default -> throw wrong("an escape");
-            }
+    private static String text(JsonNode tree, String key) {
+        JsonNode value = tree.get(key);
+        if (value == null || !value.isTextual()) {
+            throw new IllegalArgumentException(key + " is " + value + ", and a text is asked");
         }
-        take('"');
-        return out.toString();
+        return value.textValue();
     }
 
-    private Object number() {
-        int from = at;
-        if (at < text.length() && (text.charAt(at) == '-' || text.charAt(at) == '+')) {
-            at++;
+    private static int number(JsonNode tree, String key) {
+        JsonNode value = tree.get(key);
+        if (value == null || !value.isIntegralNumber()) {
+            throw new IllegalArgumentException(key + " is " + value + ", and a whole number"
+                    + " is asked");
         }
-        boolean real = false;
-        while (at < text.length()) {
-            char one = text.charAt(at);
-            if (one >= '0' && one <= '9') {
-                at++;
-            } else if (one == '.' || one == 'e' || one == 'E' || one == '-' || one == '+') {
-                real = real || one == '.' || one == 'e' || one == 'E';
-                at++;
-            } else {
-                break;
-            }
-        }
-        if (at == from) {
-            throw wrong("a number");
-        }
-        String said = text.substring(from, at);
-        return real ? (Object) Double.valueOf(said) : (Object) Long.valueOf(said);
+        return value.intValue();
     }
 
-    private Object word(String said, Object value) {
-        if (!text.startsWith(said, at)) {
-            throw wrong(said);
+    private static boolean flag(JsonNode tree, String key) {
+        JsonNode value = tree.get(key);
+        if (value == null || !value.isBoolean()) {
+            throw new IllegalArgumentException(key + " is " + value + ", and true or false"
+                    + " is asked");
         }
-        at += said.length();
+        return value.booleanValue();
+    }
+
+    private static JsonNode array(JsonNode tree, String key) {
+        JsonNode value = tree.get(key);
+        if (value == null || !value.isArray()) {
+            throw new IllegalArgumentException(key + " is " + value + ", and an array is"
+                    + " asked");
+        }
         return value;
-    }
-
-    private void take(char one) {
-        if (at >= text.length() || text.charAt(at) != one) {
-            throw wrong("'" + one + "'");
-        }
-        at++;
-    }
-
-    private void space() {
-        while (at < text.length() && Character.isWhitespace(text.charAt(at))) {
-            at++;
-        }
-    }
-
-    private IllegalArgumentException wrong(String asked) {
-        int line = 1;
-        for (int i = 0; i < at && i < text.length(); i++) {
-            if (text.charAt(i) == '\n') {
-                line++;
-            }
-        }
-        return new IllegalArgumentException("line " + line + ": " + asked + " is asked, and"
-                + " the text holds " + (at < text.length()
-                        ? "'" + text.charAt(at) + "'" : "no more"));
     }
 }

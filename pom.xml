@@ -13,6 +13,7 @@
         <maven.compiler.target>23</maven.compiler.target>
         <maven.compiler.release>23</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jackson.version>2.18.2</jackson.version>
         <jspecify.version>1.0.0</jspecify.version>
         <errorprone.version>2.36.0</errorprone.version>
         <nullaway.version>0.12.3</nullaway.version>
@@ -23,6 +24,13 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <!-- JSON in and out. The forms map to and from its tree; what
+                 is escaped, parsed and laid out is its work. -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>

@@ -42,9 +42,17 @@ final class ShapeTest {
         List<String> wide = new ArrayList<>();
         for (Path at : documents) {
             List<String> lines = Files.readAllLines(at);
+            boolean fenced = false;
             for (int line = 0; line < lines.size(); line++) {
                 String said = lines.get(line);
-                if (said.startsWith("|") || said.startsWith("    ") || said.contains("](")) {
+                if (said.startsWith("```")) {
+                    fenced = !fenced;
+                    continue;
+                }
+                // A table's cells, a block of code and a link hold what
+                // they hold: none of the three rewraps.
+                if (fenced || said.startsWith("|") || said.startsWith("    ")
+                        || said.contains("](")) {
                     continue;
                 }
                 if (said.length() > WIDTH) {

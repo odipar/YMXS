@@ -23,8 +23,8 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The example against a dump built here, so that what it reads stands in
- * the test rather than in a file. {@link Dumps} writes the dump.
+ * The example against a dump built here, so that its bytes stand in the
+ * test rather than in a file. {@link Dumps} writes the dump.
  */
 final class ReadTest {
 
@@ -108,7 +108,7 @@ final class ReadTest {
                 Tunes.rows(tune).get(1).effects().get(Timer.D));
         assertEquals(Tunes.setting(Register.R9), start.target());
         assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
-                "a recording silences its own voice's tone and noise while it runs, which"
+                "a recording silences the tone and noise of its voice while it runs, which"
                         + " for voice B is bits 1 and 4");
     }
 

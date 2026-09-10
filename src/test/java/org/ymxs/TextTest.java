@@ -26,14 +26,14 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * JSON against the structure: every tune under {@code doc/tunes}
- * read and written back, and a tune built here with all three shapes of
- * effect in it.
+ * JSON against the structure: every tune under {@code doc/tunes} read and
+ * written back, and a tune built here containing all three shapes of
+ * effect.
  */
 final class TextTest {
 
     /** What the tunes under {@code doc/tunes} come to, read back so that
-     *  a tune added or a form changed says so. */
+     *  a tune added or a form changed fails here. */
     private static final int STARTS = 177;
     private static final int RETUNES = 76;
     private static final int STOPS = 165;

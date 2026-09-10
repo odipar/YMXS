@@ -11,16 +11,16 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * What every document answers to whatever it says: one wrap width, and a
- * link that leads somewhere.
+ * What every document satisfies, independent of its content: one wrap
+ * width, and a link that resolves.
  *
- * <p>A figure in a document belongs to the test that owns it, and the
- * documents are found rather than listed, so a document that is there is
+ * <p>A figure in a document belongs to the test that owns it. The
+ * documents are found rather than listed, so every document present is
  * read.
  */
 final class ShapeTest {
 
-    /** The width AGENTS.md asks for, past which a line is wide. */
+    /** The width AGENTS.md requires, past which a line is wide. */
     private static final int WIDTH = 78;
 
     private static List<Path> documents() throws IOException {
@@ -61,7 +61,7 @@ final class ShapeTest {
             }
         }
         assertTrue(wide.isEmpty(), () -> String.join("\n", wide)
-                + "\nAGENTS.md asks one width, kept.");
+                + "\nAGENTS.md requires one width.");
     }
 
     @Test

@@ -11,15 +11,15 @@ import org.ymxs.tool.Tool;
 
 /**
  * {@code ym-to-ymxs}: a YM5!/YM6! register dump on standard input, JSON on
- * standard output. A distributed {@code .ym} is usually an archive with
- * the dump inside, and either reads.
+ * standard output. A distributed {@code .ym} is usually an archive
+ * containing the dump, and both forms read.
  *
- * <p>One dump is one tune, so what comes out is a multi of one.
- * {@code ymxs-merge} puts several together.
+ * <p>One dump is one tune, so the output is a multi of one.
+ * {@code ymxs-merge} combines several.
  *
- * <p>{@code -r} makes a tune that plays once, and {@code -rROW} one that
- * repeats to that row; without either, a tune repeats to the frame the
- * dump names.
+ * <p>{@code -r} produces a tune that plays once, and {@code -rROW} one
+ * that repeats to that row; without either, a tune repeats to the frame
+ * the dump marks.
  */
 public final class Main {
 
@@ -67,7 +67,7 @@ public final class Main {
 
     /** What the dump came to, on standard error. */
     private static void said(Tool tool, Dump.Song song, Read.Reading reading) {
-        if (!tool.says()) {
+        if (!tool.reports()) {
             return;
         }
         Tune tune = reading.tune();
@@ -87,6 +87,6 @@ public final class Main {
             out.append(", ").append(said.cutAtRepeat())
                     .append(" recordings cut at the row the tune repeats to");
         }
-        tool.say(out.toString());
+        tool.report(out.toString());
     }
 }

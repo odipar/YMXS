@@ -8,50 +8,50 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * What every tool here shares: it reads its one input on standard input,
- * writes its one output on standard output, and says what it did and what
- * went wrong on standard error. So a tool stands in a pipe, and a run read
- * into a file is the tool's output alone.
+ * What every tool here shares: it reads one input on standard input,
+ * writes one output on standard output, and reports progress and faults on
+ * standard error. A tool therefore composes in a pipe, and a redirected
+ * run contains the output alone.
  *
- * <p>What it exits with:
+ * <p>The exit codes:
  *
  * <table><caption>exits</caption>
- * <tr><td>0</td><td>it did what it was asked</td></tr>
- * <tr><td>1</td><td>what it read is wrong, and the tool says how</td></tr>
+ * <tr><td>0</td><td>the tool completed</td></tr>
+ * <tr><td>1</td><td>the input is wrong, and the fault is reported</td></tr>
  * <tr><td>2</td><td>the call is wrong, or reading or writing failed</td></tr>
  * </table>
  *
- * <p>{@code -silent} cuts what a tool says down to what is wrong.
+ * <p>{@code -silent} reduces the report to faults.
  */
 public final class Tool {
 
-    /** It did what it was asked. */
+    /** The tool completed. */
     public static final int DONE = 0;
 
-    /** What it read is wrong. */
+    /** The input is wrong. */
     public static final int WRONG = 1;
 
     /** The call is wrong, or reading or writing failed. */
     public static final int FAILED = 2;
 
-    /** The flag that cuts what a tool says down to what is wrong. */
+    /** The flag that reduces the report to faults. */
     public static final String SILENT = "-silent";
 
     private final String named;
-    private boolean says = true;
+    private boolean reports = true;
 
     private Tool(String named) {
         this.named = named;
     }
 
-    /** A tool of this name. The flags every tool reads come off {@code
-     *  args}, and the rest stay there. */
+    /** A tool of this name. The flags every tool reads are removed from
+     *  {@code args}; the rest remain. */
     public static Tool of(String named, List<String> args, String... flags) {
         Tool tool = new Tool(named);
         List<String> rest = new ArrayList<>();
         for (String arg : args) {
             if (arg.equals(SILENT)) {
-                tool.says = false;
+                tool.reports = false;
             } else {
                 rest.add(arg);
             }
@@ -89,23 +89,22 @@ public final class Tool {
         }
     }
 
-    /** What the tool did, on standard error, unless it was asked to be
-     *  silent. */
-    public void say(String said) {
-        if (says) {
+    /** Progress, on standard error, unless {@code -silent} was passed. */
+    public void report(String said) {
+        if (reports) {
             System.err.println(named + ": " + said);
         }
     }
 
-    /** Whether the tool says what it did. */
-    public boolean says() {
-        return says;
+    /** Whether the tool reports progress. */
+    public boolean reports() {
+        return reports;
     }
 
     /**
-     * What is wrong, on standard error, and an exit of {@code with}. This
-     * never returns; it is written as though it did so that a caller can
-     * throw it and a compiler can see the path ends.
+     * A fault, on standard error, and an exit of {@code with}. This never
+     * returns; it is declared as though it did, so that a caller can throw
+     * it and a compiler can see the path ends.
      */
     public RuntimeException wrong(int with, String said) {
         System.err.println(named + ": " + said);
@@ -113,7 +112,7 @@ public final class Tool {
         throw new UncheckedIOException(new IOException(said));
     }
 
-    /** How the tool is called, on standard error, and an exit of 2. */
+    /** The calling convention, on standard error, and an exit of 2. */
     public RuntimeException usage(String said) {
         return wrong(FAILED, said);
     }

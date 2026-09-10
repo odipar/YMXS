@@ -3,19 +3,19 @@ package org.ymxs.ym;
 import java.nio.charset.StandardCharsets;
 
 /**
- * A YM5!/YM6! register dump, read in the file's own terms.
+ * A YM5!/YM6! register dump, read in the terms of the file.
  *
  * <p>The layout is a fixed header, extra data, the digidrum samples, three
  * strings ended by a zero, and then the frames: either sixteen vectors of
  * one register each, or one record of sixteen bytes a frame. Both come out
  * as sixteen register vectors.
  *
- * <p>A distributed {@code .ym} is usually an archive with that inside, and
- * {@link Lha} unpacks one, so what this is handed reads either way.
+ * <p>A distributed {@code .ym} is usually an archive containing the dump,
+ * and {@link Lha} unpacks one, so both forms read here.
  */
 public final class Dump {
 
-    /** What the header said, the frames as read, and the samples as
+    /** The header fields, the frames as read, and the samples as
      *  stored.
      *
      *  <p>{@code registers[r][frame]} is R{@code r} as the file has it,
@@ -29,7 +29,7 @@ public final class Dump {
      * @param attributes the header's flag bits
      * @param drums the digidrum samples as stored
      * @param name what the dump calls the tune
-     * @param author who the dump says wrote it
+     * @param author the author the dump records
      * @param registers the frames, a vector a register
      */
     public record Song(String format, int frames, int playerHz, long loopFrame,
@@ -92,7 +92,7 @@ public final class Dump {
         for (int i = 0; i < digidrums; i++) {
             long size = u32();
             if (size < 0 || size > data.length - at) {
-                throw new Unreadable("digidrum " + i + " asks for " + size + " bytes and the"
+                throw new Unreadable("digidrum " + i + " declares " + size + " bytes and the"
                         + " file is shorter than that");
             }
             drums[i] = new byte[(int) size];
@@ -140,7 +140,7 @@ public final class Dump {
 
     private void need(long bytes, String what) {
         if (bytes > data.length - at) {
-            throw new Unreadable(what + " asks for " + bytes + " bytes and "
+            throw new Unreadable(what + " declares " + bytes + " bytes and "
                     + (data.length - at) + " are left");
         }
     }

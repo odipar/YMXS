@@ -21,8 +21,8 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * CSV against JSON. Both write the same structure, so
- * a tune written one way and read the other is the tune it was.
+ * CSV against JSON. Both write the same structure, so a tune written in
+ * one form and read from the other is an equal tune.
  */
 final class CsvTest {
 
@@ -92,7 +92,7 @@ final class CsvTest {
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
                 "rows", "timerA", "timerD"), named,
-                "a source opens its own table, and so does a timer any row uses");
+                "each source opens a table, and so does each timer a row uses");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
 
@@ -169,7 +169,7 @@ final class CsvTest {
                 "2,2,,,,,,"),
                 rows,
                 "a shape, a target and the two resets are the numbers JSON writes,"
-                        + " and a cell is empty where that form says none");
+                        + " and a cell is empty where that form writes -1");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
 
@@ -213,7 +213,7 @@ final class CsvTest {
         List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### rows"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of("0,,,,,,,,56,,,,,,", "2,,,,,,,,49,,,,,,"), rows,
-                "the row column says which row, so a row that sets none is left out");
+                "the row column is the row number, so a row that sets none is left out");
         assertEquals(Tunes.multi(tune), Csv.read(csv), "and it reads back to three rows");
     }
 

@@ -33,6 +33,26 @@ lists, the verb reads, the bits keep their value.
 Established technical vocabulary is not this. A resource has an *owner*, a
 caller *claims* it, a register *survives* a call.
 
+A thing does no human act either. It does not *say*, *ask*, *tell*, *want*,
+*lean on*, *keep to*, *hand over*, *work out* or *would rather*. Formal
+equivalents: a field *is* a value, a check *requires* a whole number, a
+player *assumes* a rule, a document *defines* an operation, a reader
+*verifies* a column.
+
+## No possessive decoration
+
+`a table of its own` is `a table`, and `the two chips' own figures` are `the
+figures of the two chips`. Drop *own* wherever the sentence stands without
+it, and prefer *each*, *separate* or *a* to a possessive: `each timer is a
+separate object`, `each source opens a table`.
+
+## Formal and short
+
+State the fact in as few words as carry it. `Each one says which version of
+this format it reads` is `A player pins a version of this format`. Cut a
+clause that adds a person's viewpoint: `for a reader who would rather open
+one in a spreadsheet` is `for reading in a spreadsheet`.
+
 ## Say it once
 
 Four habits that say an idea twice:
@@ -109,16 +129,20 @@ been struck so far.
 |---|---|
 | `what a tune holds` | `the tune data structure` |
 | `the rate the tune states` | `the tune's rate` |
-| `what the two chips give` | `the two chips' own figures` |
+| `what the two chips give` | `the figures of the two chips` |
 | `a value the register takes` | `a value that fits the register` |
 | `a reader takes any JSON of this shape` | `a reader reads any JSON of this shape` |
 | `it states nothing about how a tune is written down` | dropped; the paragraph says what is there |
 | `A form is that structure written down, and no form is the format.` | `A form is that structure written down.` |
 | `What is turned away` | `What is an error` |
 | `the text form`, `the table form` | `JSON`, `CSV` |
-| `a timer no row uses opens none` | `a timer any row uses opens a table of its own` |
-| `Writing a tune down is a separate job, and a form does it.` | dropped; the form paragraph already says it |
-| `Each player names the version of this it reads.` | `Each one says which version of this format it reads.` |
+| `a timer no row uses opens none` | `each timer a row uses opens a table` |
+| `Writing a tune down is a separate job, and a form does it.` | dropped; the paragraph below it defines a form |
+| `Each player names the version of this it reads.` | `A player is a separate program, and pins a version of this format.` |
+| `a table of its own` | `a table` |
+| `for a reader who would rather open one in a spreadsheet` | `for reading in a spreadsheet` |
+| `frames says how long every column is` | `frames is the length of every column` |
+| `tool.say(...)`, `tool.says()` | `tool.report(...)`, `tool.reports()` |
 
 ## A specification defines operations
 

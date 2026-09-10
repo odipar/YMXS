@@ -9,85 +9,86 @@ import java.util.OptionalInt;
  * doc/SPEC.md defines what a player or an emulator does with them on an
  * Atari ST's YM2149 and MC68901.
  *
- * <p>The records here have no method of their own beyond their
- * accessors. A structure is read by a function outside it: {@link Chip}
- * for the two chips' own figures, {@link Tunes} for what is read off a
- * structure, and {@link Check} for the rules a structure must satisfy.
- * Each reads by pattern matching, so a shape added to a sealed interface
- * stops them compiling until they read it.
+ * <p>The records here have no methods beyond their accessors. A structure
+ * is read by a function outside it: {@link Chip} for the figures of the
+ * two chips, {@link Tunes} for what is read off a structure, and
+ * {@link Check} for the rules a structure must satisfy. Each reads by
+ * pattern matching, so a shape added to a sealed interface stops them
+ * compiling until they read it.
  *
- * <p>How a tune is written down is a form. doc/json.md is one; a player's
- * own is another. A form's convenience shaped none of this, and every
- * limit here comes from the two chips.
+ * <p>A form writes a tune down. doc/json.md defines one; a player's binary
+ * layout is another. No part of this is arranged for a form, and every
+ * limit here follows from the two chips.
  */
 public interface YMXS {
 
-    /** Several tunes, which is what a host plays as a tune with subtunes.
-     *  A multi of one tune is a tune on its own. */
+    /** Several tunes, which a host plays as a tune with subtunes. A multi
+     *  of one tune is a single tune. */
     record Multi(List<Tune> tunes) { }
 
-    /** One tune: what it is called, and its rows, one a frame at the
-     *  tune's rate. Its sources are the ones its rows start
+    /** One tune: its title, and its rows, one a frame at the tune's rate.
+     *  Its sources are the ones its rows start
      *  ({@link Tunes#sources}). */
     record Tune(String title, String composer, String writer, int rate,
                 Table<Row> table) { }
 
-    /** Rows, and the row they repeat to once the last row is done, or
-     *  empty for a table that plays once. A tune's rows are one of these
-     *  and so are a source's: the tune's advance one a frame and the
-     *  source's one a tick, and that is the whole difference. */
+    /** Rows, and the row they repeat to after the last row, or empty for
+     *  a table that plays once. A tune's rows are one of these and so are
+     *  a source's: the tune's advance one a frame, the source's one a
+     *  tick, and that is the whole difference. */
     record Table<T>(List<T> rows, OptionalInt repeat) { }
 
-    /** One row: the registers it sets, and what it does to the effect on
-     *  each timer. A register absent from the one map is one the row does
-     *  not write, and a timer absent from the other is one it leaves
-     *  running as it runs. */
+    /** One row: the registers it sets, and its operation on the effect of
+     *  each timer. A register absent from the first map is one the row
+     *  does not write; a timer absent from the second is one the row
+     *  leaves running. */
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
-    /** What a row does to the effect on one timer. An effect is a source
-     *  connected to a target on one timer, at the rate its prescaler and
-     *  count come to, and a row does one of three things to it. */
+    /** One row's operation on the effect of one timer. An effect is a
+     *  source connected to a target on one timer, at the rate its
+     *  prescaler and count come to, and a row performs one of three
+     *  operations on it. */
     sealed interface Effect permits Start, Retune, Stop { }
 
     /** The row runs {@code source} on {@code target} at that rate, from
-     *  this row on. The target and the rate stand in every start, whether
-     *  or not they moved, since this says what the effect is and not
-     *  which of its parts changed. */
+     *  this row on. Every start records the target and the rate, changed
+     *  or not, since a start defines the effect rather than the parts of
+     *  it that differ. */
     record Start(Target target, Source source, Prescaler prescaler, int count,
                  boolean timerReset, boolean placeReset) implements Effect { }
 
-    /** The row leaves the effect running the source and the target it
-     *  has, at the rate in this record. A note that bends moves the
-     *  count; a note struck again at the rate it already runs at resets
-     *  the place alone. */
+    /** The row leaves the effect on its source and target, at the rate in
+     *  this record. A bend changes the count; a note struck again at the
+     *  rate already running changes the place alone. */
     record Retune(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) implements Effect { }
 
     /** The row stops the effect: its timer stops, and the effect is idle
-     *  until a later row starts a source on it. That is all of it. */
+     *  until a later row starts a source on it. */
     record Stop() implements Effect { }
 
     /** What a timer's tick calls with a source's row: a procedure that
-     *  reads one row and writes it. A later version has targets reaching
-     *  the MC68901's own registers, and targets that read a row of more
-     *  than one value. */
+     *  reads one row and writes it. A later version defines targets
+     *  reaching the MC68901 registers, and targets that read a row of
+     *  more than one value. */
     sealed interface Target permits SetRegister { }
 
-    /** The targets this version has, {@code setR0} to {@code setR13},
+    /** The targets of this version, {@code setR0} to {@code setR13},
      *  which write a source's row to one YM2149 register. */
     record SetRegister(Register register) implements Target { }
 
     /** A table a tick advances a row at a time, its target writing each
-     *  row. A later version has sources of more than one value a row. */
+     *  row. A later version defines sources of more than one value a
+     *  row. */
     sealed interface Source permits Single { }
 
-    /** The sources this version has: one value a row, which is the row
-     *  every target of this version reads. */
+    /** The sources of this version: one value a row, the row shape every
+     *  target of this version reads. */
     record Single(String name, Table<Integer> table) implements Source { }
 
     /** One of the fourteen YM2149 registers a row sets and a target
-     *  writes. Two of the chip's sixteen are its I/O ports and are no
-     *  tune's. */
+     *  writes. Two of the chip's sixteen are its I/O ports, outside a
+     *  tune. */
     enum Register {
         R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
     }

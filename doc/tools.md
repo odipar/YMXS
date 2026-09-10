@@ -1,9 +1,9 @@
 # The tools
 
-Every tool reads its one input on standard input, writes its one output on
-standard output, and says what it did and what is wrong on standard error.
-So each stands in a pipe, and a run read into a file is the tool's output
-alone.
+Every tool reads one input on standard input, writes one output on
+standard output, and reports progress and faults on standard error. Each
+tool therefore composes in a pipe, and a redirected run contains the
+output alone.
 
 ```bash
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
@@ -17,7 +17,7 @@ bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 | `ymxs-csv-to-json` | CSV | JSON |
 | `ymxs-merge` | several tunes, one file after another | one multi |
 
-Each is a shell script with a Java class in it:
+Each tool is a shell script naming a Java class:
 
 ```sh
 #!/bin/sh
@@ -25,48 +25,47 @@ Each is a shell script with a Java class in it:
 exec "$(dirname -- "$0")/run" org.ymxs.tool.ToCsv "$@"
 ```
 
-`bin/run` is what they all go through. It builds where a source or the pom
-is newer than the last build, then runs the class named on its command
-line. Everything a tool does is Java's.
+Every tool runs through `bin/run`. It builds where a source or the pom is
+newer than the last build, then runs the class named on its command line.
+All tool behaviour is Java.
 
-A pipe starts every tool in it at once, so two of them can need the same
-build. `bin/run` locks by making a directory, which either happens
-or does not: the first one through builds and the rest wait on it.
+A pipe starts every tool at once, so two may require the same build.
+`bin/run` locks by creating a directory, an atomic operation: the first
+process builds and the rest wait.
 
 ## What a tool exits with
 
 | | |
 |---|---|
-| 0 | it did what it was asked |
-| 1 | what it read is wrong, and it says how |
+| 0 | the tool completed |
+| 1 | the input is wrong, and the fault is reported |
 | 2 | the call is wrong, or reading or writing failed |
 
-Where what it read is wrong, standard output stays empty, so a pipe stops
-rather than passing something broken further.
+On a wrong input, standard output stays empty, so the pipe stops rather
+than passing broken data on.
 
-## What a tool says
+## What a tool reports
 
-What it did, and what it found, on standard error. `-silent` cuts that
-down to what is wrong.
+Progress and findings, on standard error. `-silent` reduces this to
+faults.
 
 ```
 ym-to-ymxs: YM5! "Turrican" by "Jochen Hippel", 1920 rows at 50 Hz, 3 sources, timers [D]
 ymxs-check: 1 tune, 1920 rows, 3 sources
-ymxs-check: every rule a writer keeps to is kept
+ymxs-check: every rule of SPEC.md 6 is satisfied
 ```
 
 ## Errors and warnings
 
-`ymxs-check` keeps the two apart, because they are not the same fault.
+`ymxs-check` separates the two.
 
-An **error** is a tune no player plays: text that is not this form, or a
-structure the two chips cannot play. Standard output stays empty and the
-exit is 1.
+An **error** is a tune no player plays: text outside this form, or a
+structure outside the two chips. Standard output stays empty and the exit
+is 1.
 
-A **warning** is a tune that plays, but not as written: it breaks one of
-the rules [SPEC.md 6](SPEC.md) asks of a writer. The
-tune goes through and the exit is 0, since a player plays it and only its
-writer can tell whether it is what was meant.
+A **warning** is a tune that plays, but not as written: it breaks a rule
+of [SPEC.md 6](SPEC.md). The tune passes through and the exit is 0, since
+a player plays it and only the writer can judge the result.
 
 ```
 ymxs-check: warning: row 1: Timer A runs on R8, and this row sets it
@@ -74,10 +73,10 @@ ymxs-check: warning: row 1: Timer A runs on R8, and this row sets it
 
 ## Several tunes
 
-A multi has several tunes in it, and every tool reads one thing. JSON puts no
-count in front of a stream of values, so several of these files handed
-over as one read as several multis, and `ymxs-merge` puts their tunes into
-one:
+A multi contains several tunes, and each tool reads one input. JSON puts
+no count in front of a stream of values, so several such files
+concatenated read as several multis. `ymxs-merge` combines their tunes
+into one:
 
 ```bash
 { bin/ym-to-ymxs < one.ym; bin/ym-to-ymxs < two.ym; } | bin/ymxs-merge > both.json

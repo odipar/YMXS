@@ -17,20 +17,20 @@ import org.ymxs.Tunes;
 import org.ymxs.YMXS.Multi;
 
 /**
- * The tools as a reader runs them: input on standard input, output on
- * standard output, what they did and what is wrong on standard error.
+ * The tools as invoked in practice: input on standard input, output on
+ * standard output, progress and faults on standard error.
  *
- * <p>Every one of them stands in a pipe, so this runs them in one and
- * reads what comes out of the end.
+ * <p>Each tool composes in a pipe, so this runs them in one and reads the
+ * output of the last.
  *
  * <p>They run out of {@code target/classes}, so this runs where they have
- * been built and skips where they have not: a build inside a build is not
- * something a test starts.
+ * been built and skips where they have not: a test starts no build inside
+ * a build.
  */
 @EnabledIf("theToolsAreBuilt")
 final class PipeTest {
 
-    /** Whether the tools can run without a build of their own. */
+    /** Whether the tools can run without a further build. */
     static boolean theToolsAreBuilt() {
         return Files.exists(Path.of("target/classes/org/ymxs/tool/Tool.class"))
                 && Files.exists(Path.of("target/classpath.txt"));
@@ -94,7 +94,7 @@ final class PipeTest {
         Ran once = pipe(packed(), "ym-to-ymxs");
         Ran twice = pipe(packed(), "ym-to-ymxs", "ymxs-check");
         assertEquals(once.out(), twice.out(), "the same text, character for character");
-        assertTrue(twice.said().contains("every rule a writer keeps to is kept"),
+        assertTrue(twice.said().contains("every rule of SPEC.md 6 is satisfied"),
                 twice.said());
     }
 

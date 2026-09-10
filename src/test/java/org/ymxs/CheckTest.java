@@ -16,11 +16,12 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * What a structure has to satisfy, and what is said where it does not.
+ * The rules a structure must satisfy, and the fault reported where it does
+ * not.
  *
- * <p>The records carry no check of their own, so a structure is what it
- * is and this reads it. One call reports everything wrong with a tune
- * rather than the first of it, which is what a writer mending one wants.
+ * <p>The records perform no check, so a structure is whatever it is and
+ * this reads it. One call reports every fault in a tune rather than the
+ * first.
  */
 final class CheckTest {
 
@@ -76,7 +77,7 @@ final class CheckTest {
                 Check.of(new YMXS.Multi(List.of())));
     }
 
-    // ------------------------------ what SPEC.md 6 asks of a writer
+    // ------------------------------------- the rules of SPEC.md 6
 
     private static final Source SQUARE = Tunes.repeating("square", List.of(15, 0), 0);
     private static final Source OTHER = Tunes.repeating("other", List.of(12, 0), 0);
@@ -115,7 +116,7 @@ final class CheckTest {
                         Tunes.setting(Register.R13), buzzer, Prescaler.BY_4, 100, true, true))),
                 Tunes.row(Map.of(Register.R13, 9)));
         assertEquals(List.of(), Check.writing(tune),
-                "the frame's own write to R13 restarts the envelope beside the ticks'");
+                "the frame's write to R13 restarts the envelope alongside the ticks'");
     }
 
     @Test

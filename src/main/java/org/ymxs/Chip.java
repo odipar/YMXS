@@ -4,8 +4,8 @@ import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 
 /**
- * The two chips' own figures. Every value here is the YM2149's or the
- * MC68901's, and none of it is any form's.
+ * The figures of the two chips. Every value here is the YM2149's or the
+ * MC68901's, and none of it belongs to a form.
  *
  * <p>Each function reads its argument by pattern matching over every
  * case, so a register or a prescaler added to {@link YMXS} stops this
@@ -29,8 +29,8 @@ public final class Chip {
      *  registers, one the divider's low bits and one its high, because a
      *  row may set one and not the other. A volume is five bits: four a
      *  level, and one that reads the level from the envelope generator
-     *  instead. R7's own bits 7 and 6 are the host's I/O port directions,
-     *  which no tune moves, so a row sets six of its bits. */
+     *  instead. In R7, bits 7 and 6 are the host's I/O port directions,
+     *  which no tune moves, so a row sets six bits. */
     public static int most(Register register) {
         return switch (register) {
             case R0, R2, R4, R11, R12 -> 255;
@@ -40,7 +40,7 @@ public final class Chip {
         };
     }
 
-    /** What {@code register} reaches, in words. */
+    /** What {@code register} reaches, as text. */
     public static String reaches(Register register) {
         return switch (register) {
             case R0, R1 -> "voice A's tone period";
@@ -56,14 +56,15 @@ public final class Chip {
         };
     }
 
-    /** The register's number, 0 to 13, as the chip numbers them. */
+    /** The register number, 0 to 13, as the chip numbers them. */
     public static int number(Register register) {
         return register.ordinal();
     }
 
     /** The register numbered {@code at}.
      *
-     * @throws IllegalArgumentException where the chip has no such register
+     * @throws IllegalArgumentException where the chip defines no such
+     *     register
      */
     public static Register register(int at) {
         Register[] all = Register.values();
@@ -89,7 +90,7 @@ public final class Chip {
 
     /** The prescaler that divides by {@code by}.
      *
-     * @throws IllegalArgumentException where no timer divides by it
+     * @throws IllegalArgumentException where no prescaler divides by it
      */
     public static Prescaler prescaler(int by) {
         for (Prescaler one : Prescaler.values()) {
@@ -108,15 +109,15 @@ public final class Chip {
     }
 
     /**
-     * The frames a source of {@code rows} rows runs to at this rate,
+     * The frames a source of {@code rows} rows runs for at this rate,
      * where the player is called {@code called} times a second: rounded
-     * up, with a sixteenth of a frame for the start running into its own
-     * frame.
+     * up, with a sixteenth of a frame for a start that falls inside the
+     * frame it begins in.
      *
      * <p>This is a reckoning and not a reading. A tune marks the row a
-     * source starts on and no row for its end, so how long one that plays
-     * once runs is worked out from its rate, and anything read off that
-     * says so.
+     * source starts on and no row for its end, so the duration of one that
+     * plays once follows from its rate, and any reading resting on that is
+     * reported as such.
      */
     public static int frames(int rows, Prescaler prescaler, int count, int called) {
         long divisor = (long) divides(prescaler) * count;

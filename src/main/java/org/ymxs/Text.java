@@ -7,16 +7,15 @@ import org.ymxs.YMXS.Multi;
 
 /**
  * A {@link Multi} written as JSON, and read back (doc/json.md). It is one
- * way of writing the structure down rather than the structure itself, so
- * it stays out of {@link YMXS}.
+ * way of writing the structure down rather than the structure itself, and
+ * so stays outside {@link YMXS}.
  *
  * <p>{@link Json} maps the structure to a JSON tree and back;
- * {@link Layout} says where the lines break. Escaping, parsing and writing
- * are the JSON library's, and this is the two ends of it.
+ * {@link Layout} fixes the line breaks; the escaping, the parsing and the
+ * writing are the JSON library's. This class is the two ends of that.
  *
- * <p>A multi written and read back is the multi it was. The other
- * direction, a text read and written back, is the same text where the text
- * was written by this.
+ * <p>Writing a multi and reading it back returns an equal multi. Reading
+ * text written by this class and writing it back returns identical text.
  */
 public final class Text {
 
@@ -27,7 +26,7 @@ public final class Text {
     private Text() {
     }
 
-    /** {@code multi} as text. */
+    /** {@code multi} as JSON text. */
     public static String write(Multi multi) {
         try {
             return WRITER.writeValueAsString(Json.of(multi)) + "\n";

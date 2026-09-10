@@ -5,13 +5,13 @@ import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 
 /**
- * One of the two effect slots in a dump's frame, read as what it
- * sounds: a kind, the voice it sounds on, the register its ticks write,
+ * One of the two effect slots in a dump's frame, read as the sound it
+ * produces: a kind, the voice it sounds on, the register its ticks write,
  * the value its source is built from, and the timer's rate.
  *
  * <p>YM6 files each slot's kind in bits 7 and 6 of the register it is
- * filed in. YM5 has no kind bits: its first slot is a square wave and its
- * second a recording. A slot whose prescaler or count is 0 is one no
+ * filed in. YM5 defines no kind bits: its first slot is a square wave and
+ * its second a recording. A slot whose prescaler or count is 0 is one no
  * player runs.
  *
  * @param kind {@link #NONE}, {@link #SQUARE}, {@link #RECORDING},
@@ -30,19 +30,18 @@ public record Slot(int kind, int voice, Register target, int data, Prescaler pre
     public static final int NONE = 0;
 
     /** A square wave on a volume register: a level and a silence at the
-     *  timer's rate. The scene calls it a SID voice. */
+     *  timer's rate, known as a SID voice. */
     public static final int SQUARE = 1;
 
-    /** A recording through a volume register. The scene calls it a
-     *  digidrum. */
+    /** A recording through a volume register, known as a digidrum. */
     public static final int RECORDING = 2;
 
     /** A shape this reader cannot read: the player it was written for
      *  runs an empty handler for it. */
     public static final int SINUS = 3;
 
-    /** The envelope restarted at the timer's rate. The scene calls it a
-     *  sync buzzer. */
+    /** The envelope restarted at the timer's rate, known as a sync
+     *  buzzer. */
     public static final int BUZZER = 4;
 
     /** A slot no player runs. */

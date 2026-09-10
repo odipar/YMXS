@@ -11,20 +11,18 @@ import org.ymxs.YMXS.Tune;
 
 /**
  * {@code ymxs-check}: a tune on standard input, the same text on standard
- * output, and what it gets wrong on standard error. It stands in a pipe
- * without changing what runs through it.
+ * output, and the faults on standard error. It stands in a pipe and leaves
+ * what passes through it unchanged.
  *
- * <p>Two kinds of wrong, and they are not the same fault.
+ * <p>It separates two kinds of fault.
  *
- * <p><b>An error</b> is a tune no player plays: text that is not this
- * form, or a structure the two chips cannot play. Standard output stays
- * empty and the exit is 1, so a pipe stops rather than carrying something
- * broken further.
+ * <p><b>An error</b> is a tune no player plays: text outside this form, or
+ * a structure outside the two chips. Standard output stays empty and the
+ * exit is 1, so the pipe stops rather than passing broken data on.
  *
  * <p><b>A warning</b> is a tune that plays, but not as written: it breaks
- * one of the rules doc/SPEC.md 6 asks of a writer.
- * The tune goes through and the exit is 0, since a player plays it and
- * only the writer can say whether it is what was meant.
+ * a rule of doc/SPEC.md 6. The tune passes through and the exit is 0,
+ * since a player plays it and only the writer can judge the result.
  */
 public final class Checking {
 
@@ -48,7 +46,7 @@ public final class Checking {
             rows += Tunes.size(tune.table());
             sources += Tunes.sources(tune).size();
         }
-        tool.say(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
+        tool.report(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
                 + rows + " rows, " + sources + (sources == 1 ? " source" : " sources"));
         int warnings = 0;
         for (int at = 0; at < multi.tunes().size(); at++) {
@@ -58,7 +56,7 @@ public final class Checking {
                 warnings++;
             }
         }
-        tool.say(warnings == 0 ? "every rule a writer keeps to is kept"
+        tool.report(warnings == 0 ? "every rule of SPEC.md 6 is satisfied"
                 : warnings + (warnings == 1 ? " warning" : " warnings"));
     }
 }

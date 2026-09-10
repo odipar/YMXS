@@ -26,12 +26,12 @@ import org.ymxs.YMXS.Tune;
 /**
  * What is read off a structure, read rather than stored. Every function
  * here is pure: it reads a structure and returns a value, leaving its
- * argument as it was.
+ * argument unchanged.
  *
  * <p>Each reads a sealed interface by pattern matching over every shape,
  * so a shape added to {@link YMXS} stops this compiling until it is read
- * here. That makes an added shape a change to the specification rather
- * than a value that turns up in a file.
+ * here. An added shape is therefore a change to the specification rather
+ * than a value that appears in a file.
  */
 public final class Tunes {
 
@@ -62,8 +62,7 @@ public final class Tunes {
         return new Table<>(rows, OptionalInt.empty());
     }
 
-    /** A row that sets these registers and leaves every effect
-     *  alone. */
+    /** A row that sets these registers and leaves every effect alone. */
     public static Row row(Map<Register, Integer> registers) {
         return new Row(registers, Map.of());
     }
@@ -71,9 +70,9 @@ public final class Tunes {
     /**
      * The effects this row sets, in the order the timers are declared.
      *
-     * <p>A row is built on a plain map, so what order it iterates in is
-     * the caller's business and not the row's. A form that writes a row twice
-     * has to write it the same way both times, so it reads the row through
+     * <p>A row is built on a plain map, whose iteration order belongs to
+     * the caller rather than the row. A form that writes one row twice
+     * must write it identically both times, and reads the row through
      * this.
      */
     public static Map<Timer, Effect> effects(Row row) {
@@ -99,8 +98,7 @@ public final class Tunes {
         return out;
     }
 
-    /** Whether the row sets no register and leaves every effect
-     *  alone. */
+    /** Whether the row sets no register and leaves every effect alone. */
     public static boolean isEmpty(Row row) {
         return row.registers().isEmpty() && row.effects().isEmpty();
     }
@@ -113,9 +111,9 @@ public final class Tunes {
     }
 
     /**
-     * The sources this tune runs: the ones its rows start, in the order a
-     * row first starts each. A source no row starts is outside the tune,
-     * so this is the whole of them.
+     * The sources this tune runs: the ones its rows start, in first-start
+     * order. Only a source started by some row belongs to the tune, so
+     * this is the complete list.
      */
     public static List<Source> sources(Tune tune) {
         List<Source> out = new ArrayList<>();
@@ -154,10 +152,10 @@ public final class Tunes {
         return all.get(number - 1);
     }
 
-    /** The timers this tune claims, which is every timer a row starts a
-     *  source on. A player claims them before the first row, and a tune
-     *  that leaves Timer C alone can be hosted from the operating system's
-     *  200 Hz clock. */
+    /** The timers this tune claims: every timer a row starts a source on.
+     *  A player claims them before the first row, and a tune that leaves
+     *  Timer C alone can be hosted from the operating system's 200 Hz
+     *  clock. */
     public static Set<Timer> timers(Tune tune) {
         Set<Timer> claimed = EnumSet.noneOf(Timer.class);
         for (Row row : rows(tune)) {
@@ -177,7 +175,7 @@ public final class Tunes {
         return new Multi(List.of(tune));
     }
 
-    /** Tune {@code number}, 1 upward, which is the number a host asks for.
+    /** Tune {@code number}, 1 upward, the number a host selects.
      *
      * @throws IllegalArgumentException where the multi has no such tune
      */
@@ -198,21 +196,21 @@ public final class Tunes {
 
     /** The target numbered {@code number}.
      *
-     * @throws IllegalArgumentException where this version has none
+     * @throws IllegalArgumentException where this version defines none
      */
     public static Target target(int number) {
         return new SetRegister(Chip.register(number));
     }
 
-    /** The number this target is named by, of the 0 to 127 the format
-     *  numbers. */
+    /** The number of this target, within the 0 to 127 the format
+     *  reserves. */
     public static int number(Target target) {
         return switch (target) {
             case SetRegister set -> Chip.number(set.register());
         };
     }
 
-    /** What this target is called: {@code setR0} to {@code setR13}. */
+    /** The name of this target: {@code setR0} to {@code setR13}. */
     public static String name(Target target) {
         return switch (target) {
             case SetRegister set -> "set" + set.register();
@@ -226,8 +224,8 @@ public final class Tunes {
         };
     }
 
-    /** The largest value that fits one of those. A source this target
-     *  runs keeps within it. */
+    /** The largest value that fits one of those values. A source run by
+     *  this target stays within it. */
     public static int most(Target target) {
         return switch (target) {
             case SetRegister set -> Chip.most(set.register());
@@ -236,8 +234,8 @@ public final class Tunes {
 
     // ----------------------------------------------------------- a source
 
-    /** What a writer calls this source. It reaches the tools' reports
-     *  alone, and no part of what a player reads. */
+    /** The source name. It appears in the tools' reports, and in no part
+     *  of what a player reads. */
     public static String name(Source source) {
         return switch (source) {
             case Single single -> single.name();
@@ -294,14 +292,13 @@ public final class Tunes {
         };
     }
 
-    /** The row strikes a note: the source from its first row, the timer
-     *  from a whole period. */
+    /** A struck note: the source from its first row, the timer from a
+     *  whole period. */
     public static Start struck(Target target, Source source, Prescaler prescaler, int count) {
         return new Start(target, source, prescaler, count, true, true);
     }
 
-    /** The row moves the count and leaves both resets as they are: a note
-     *  that bends. */
+    /** A bend: the count changes and both resets stay clear. */
     public static Retune bend(Prescaler prescaler, int count) {
         return new Retune(prescaler, count, false, false);
     }

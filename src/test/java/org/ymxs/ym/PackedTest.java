@@ -14,12 +14,11 @@ import org.ymxs.Tunes;
 import org.ymxs.YMXS.Tune;
 
 /**
- * A {@code .ym} as it was distributed: an archive with the dump inside.
+ * A {@code .ym} as distributed: an archive containing the dump.
  *
  * <p>{@code src/test/resources/packed.ym} is 162 bytes of {@code -lh5-},
  * and the tune inside it is the one in {@code doc/tunes/circus.json}, so
- * what comes out of the unpacking is read against a tune that was read
- * another way.
+ * the result of the unpacking is compared against a tune read another way.
  */
 final class PackedTest {
 

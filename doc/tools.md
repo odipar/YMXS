@@ -9,15 +9,22 @@ output alone.
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 ```
 
-| tool | reads | writes |
-|---|---|---|
-| `ym-to-ymxs` | a YM register dump, packed or not | JSON |
-| `ymxs-check` | JSON | the same text, unchanged |
-| `ymxs-json-to-csv` | JSON | CSV |
-| `ymxs-csv-to-json` | CSV | JSON |
-| `ymxs-merge` | several tunes, one file after another | one multi |
+| tool | reads | writes | Java | Go |
+|---|---|---|---|---|
+| a YM register dump, packed or not, into JSON | a dump | JSON | `bin/ym-to-ymxs` | `ym-to-ymxs` |
+| a tune checked, and passed on unchanged | JSON | the same text | `bin/ymxs-check` | `ymxs-check` |
+| JSON into the tables | JSON | CSV | `bin/ymxs-json-to-csv` | `ymxs-json-to-csv` |
+| the tables into JSON | CSV | JSON | `bin/ymxs-csv-to-json` | `ymxs-csv-to-json` |
+| several tunes into one multi | several tunes, one file after another | one multi | `bin/ymxs-merge` | `ymxs-merge` |
 
-Each tool is a shell script naming a Java class:
+## The two trees
+
+The tools are written twice: in Java under `src/`, and in Go under `go/`.
+Java is the reference, and `ParityTest` runs the two against each other on
+the dumps and the tunes of `doc/tunes`, so one input has one output in
+both.
+
+A Java tool is a shell script naming a class:
 
 ```sh
 #!/bin/sh
@@ -25,13 +32,21 @@ Each tool is a shell script naming a Java class:
 exec "$(dirname -- "$0")/run" org.ymxs.tool.ToCsv "$@"
 ```
 
-Every tool runs through `bin/run`. It builds where a source or the pom is
+Every one runs through `bin/run`. It builds where a source or the pom is
 newer than the last build, then runs the class named on its command line.
-All tool behaviour is Java.
-
-A pipe starts every tool at once, so two may require the same build.
-`bin/run` locks by creating a directory, an atomic operation: the first
+A pipe starts every tool at once, so two may require the same build;
+`bin/run` locks by creating a directory, an atomic operation, so the first
 process builds and the rest wait.
+
+A Go tool is an executable: it runs as it stands, where a Java tool runs
+through `bin/run`. `release/publish.sh` builds them for six platforms, one
+zip each, from a version the pom names:
+
+```bash
+release/publish.sh                    # win, osx and linux, x64 and arm64
+TARGETS="linux-x64" release/publish.sh
+go build ./cmd/...                    # from go/, for this machine alone
+```
 
 ## What a tool exits with
 

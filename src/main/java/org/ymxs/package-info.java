@@ -19,13 +19,12 @@
  *  Source  what a tick advances a Table of, sealed on Single
  * </pre>
  *
- * <p>Those records have no method of their own beyond the accessors a
- * record gives. A reading of a structure is taken by a function outside
- * it: {@link org.ymxs.Chip} for what the two chips give,
- * {@link org.ymxs.Tunes} for the readings taken off a structure, and
- * {@link org.ymxs.Check} for the rules a structure must satisfy. Each
- * reads by pattern matching over every shape, so a shape added stops them
- * compiling until they read it.
+ * <p>Those records have no method of their own beyond their accessors. A
+ * structure is read by a function outside it: {@link org.ymxs.Chip} for
+ * the two chips' own figures, {@link org.ymxs.Tunes} for what is read off
+ * a structure, and {@link org.ymxs.Check} for the rules a structure must
+ * satisfy. Each reads by pattern matching over every shape, so a shape
+ * added stops them compiling until they read it.
  *
  * <p>A tune's sources are the ones its rows start, in the order a row
  * first starts each. A source no row starts is outside the tune.
@@ -36,28 +35,28 @@
  * <p>A row lists what it sets, and the rest is left alone. A register no
  * row has set keeps what the chip was left at; a register a row set keeps
  * that value until another row sets it, or until an effect's ticks write
- * it. So {@link org.ymxs.YMXS.Row} takes maps rather than a value a
- * register: a key that is absent is a value the row does not set.
+ * it. So {@link org.ymxs.YMXS.Row} is built on maps rather than a value
+ * a register: a key that is absent is a value the row does not set.
  *
- * <p>{@link org.ymxs.Check} gives what is wrong with a structure rather
- * than throwing at the first of it, so one call gives everything a writer
- * has to mend. What SPEC.md 6 asks of a writer reads across rows rather
+ * <p>{@link org.ymxs.Check} reports what is wrong with a structure rather
+ * than throwing at the first of it, so one call reports everything a
+ * writer has to mend. What SPEC.md 6 asks of a writer reads across rows rather
  * than within one, and it does not read that yet.
  *
- * <p><b>A form's convenience shaped none of this.</b> The records give the
+ * <p><b>A form's convenience shaped none of this.</b> The records are the
  * music; turning it into something small to store and cheap to play is the
- * work of the program that writes that form. A tune gives its rate where a
- * host is told one rate for a whole file; a Start gives its target and its
- * rate where a form need not write them again; a source keeps its own
- * values where a form packs them. Each is a writer reading the structure
+ * work of the program that writes that form. A tune has a rate of its own
+ * where a host is told one rate for a whole file; a Start names its target
+ * and its rate where a form need not write them again; a source keeps its
+ * own values where a form packs them. Each is a writer reading the structure
  * and working out what to put in its own bytes.
  *
  * <p>Every limit here comes from the two chips and the music, and none
  * from a form. What a form can write is that form's own business, and a
  * structure it cannot write is still a tune. These records are bound by
- * what a register takes, what a timer counts, that an effect hands a
- * source's row to a target that takes it, and that a tune runs the sources
- * its rows start.
+ * what fits a register, what a timer counts, that an effect hands a
+ * source's row to a target of that same shape, and that a tune runs the
+ * sources its rows start.
  *
  * <p>One field is Optional: the row a {@link org.ymxs.YMXS.Table} repeats to,
  * where empty is a table that plays once. A name, a title and a composer

@@ -30,12 +30,12 @@ public final class Main {
         List<String> rest = new ArrayList<>(Arrays.asList(args));
         Tool tool = Tool.of("ym-to-ymxs", rest, "-r");
         OptionalInt repeat = OptionalInt.empty();
-        boolean given = false;
+        boolean chosen = false;
         for (String arg : rest) {
             if (arg.equals("-r")) {
-                given = true;
+                chosen = true;
             } else if (arg.startsWith("-r")) {
-                given = true;
+                chosen = true;
                 try {
                     repeat = OptionalInt.of(Integer.parseInt(arg.substring(2)));
                 } catch (NumberFormatException wrong) {
@@ -43,15 +43,15 @@ public final class Main {
                 }
             } else {
                 throw tool.usage("ym-to-ymxs reads a dump on standard input and writes"
-                        + " JSON on standard output. It takes -rROW, -r and -silent,"
-                        + " and \"" + arg + "\" is none of them.");
+                        + " JSON on standard output. Its flags are -rROW, -r and"
+                        + " -silent, and \"" + arg + "\" is none of them.");
             }
         }
         Dump.Song song;
         Read.Reading reading;
         try {
             song = Dump.read(tool.bytes());
-            reading = Read.of(song, "ym-to-ymxs", given ? repeat : OptionalInt.of(row(song)));
+            reading = Read.of(song, "ym-to-ymxs", chosen ? repeat : OptionalInt.of(row(song)));
         } catch (Dump.Unreadable | IllegalArgumentException no) {
             throw tool.wrong(Tool.WRONG, String.valueOf(no.getMessage()));
         }
@@ -59,7 +59,7 @@ public final class Main {
         said(tool, song, reading);
     }
 
-    /** The row a dump repeats to, or 0 where it gives none this reads. */
+    /** The row a dump repeats to, or 0 where it marks none this reads. */
     private static int row(Dump.Song song) {
         long loop = song.loopFrame();
         return loop >= 0 && loop < song.frames() ? (int) loop : 0;

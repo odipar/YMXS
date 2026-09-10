@@ -9,7 +9,7 @@ import org.ymxs.YMXS.Register;
  * sounds: a kind, the voice it sounds on, the register its ticks write,
  * the value its source is built from, and the timer's rate.
  *
- * <p>YM6 gives each slot a kind in bits 7 and 6 of the register it is
+ * <p>YM6 files each slot's kind in bits 7 and 6 of the register it is
  * filed in. YM5 has no kind bits: its first slot is a square wave and its
  * second a recording. A slot whose prescaler or count is 0 is one no
  * player runs.
@@ -37,7 +37,7 @@ public record Slot(int kind, int voice, Register target, int data, Prescaler pre
      *  digidrum. */
     public static final int RECORDING = 2;
 
-    /** A shape this reader does not take: the player it was written for
+    /** A shape this reader cannot read: the player it was written for
      *  runs an empty handler for it. */
     public static final int SINUS = 3;
 

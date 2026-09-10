@@ -6,8 +6,8 @@ package org.ymxs.ym;
  *
  * <p>A port of the ST-Sound library's LZH depacker by Arnaud Carré, which
  * is based on LZH code by Haruhiko Okumura (1991) and Kerwin F. Medina
- * (1996). It reads a level-0 header, the kind every YM archive in the wild
- * gives, reads its checksum back, and inflates the {@code -lh5-} method;
+ * (1996). It reads a level-0 header, the kind in every YM archive in the
+ * wild, reads its checksum back, and inflates the {@code -lh5-} method;
  * an {@code -lh0-} member is stored as it stands and copied out.
  *
  * <p>This is plumbing and no part of the format. It is here so that

@@ -12,10 +12,10 @@ maps onto the structure, and because the figures in the records and in
 bin/ym-to-ymxs < tune.ym > tune.json
 ```
 
-A dump on standard input, JSON on standard output. What it came
-to goes to standard error. `-rROW` makes a tune that repeats to that row
-and `-r` one that plays once; without either, a tune repeats to the frame
-the dump gives.
+A dump on standard input, JSON on standard output. What it came to goes
+to standard error. `-rROW` makes a tune that repeats to that row and `-r`
+one that plays once; without either, a tune repeats to the frame the dump
+marks.
 
 A distributed `.ym` is usually an archive with the dump inside, and
 either reads: `Lha` unpacks one where it is handed one. That is plumbing,
@@ -55,23 +55,23 @@ format uses them for the counts.
 | a square wave at level `n` | a source of `n` and 0, repeating to row 0 |
 | the envelope restarted | a source of the shape, repeating to row 0 |
 | a recording | a source of the sample's levels and a closing row at mid-scale, playing once |
-| the frame the dump gives | the row the tune repeats to |
+| the frame the dump marks | the row the tune repeats to |
 
 A source is built once for each distinct thing a slot sounds, so two
 square waves at one level are one source and at two levels are two.
 
 ## What it works out
 
-A dump gives less than a tune does, so three things are reckoned rather
+A dump has less in it than a tune, so three things are reckoned rather
 than read:
 
-- **How long a recording runs.** A dump gives the start alone.
-  The frames its rows take at its rate are how long it runs, and that
-  settles whether the timer is stopped by a later row.
+- **How long a recording runs.** A dump marks the start alone. The frames
+  its rows run to at its rate are how long it runs, and that settles
+  whether the timer is stopped by a later row.
 - **Which slot has a voice.** The player a dump was written for runs one
   thing a voice, so a recording on a voice keeps a square wave off it.
 - **What the row a tune repeats to sets.** It sets every register but the
-  ones an effect is running on, and gives every effect that ran up to it
+  ones an effect is running on, and sets every effect that ran up to it
   or runs into the wrap, so the wrap lands where the rows have already put
   the chip.
 

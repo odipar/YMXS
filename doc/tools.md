@@ -2,8 +2,8 @@
 
 Every tool reads its one input on standard input, writes its one output on
 standard output, and says what it did and what is wrong on standard error.
-So each stands in a pipe, and a run read into a file gives the tool's
-output alone.
+So each stands in a pipe, and a run read into a file is the tool's output
+alone.
 
 ```bash
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
@@ -26,11 +26,11 @@ exec "$(dirname -- "$0")/run" org.ymxs.tool.ToCsv "$@"
 ```
 
 `bin/run` is what they all go through. It builds where a source or the pom
-is newer than the last build, then runs the class it is given. Everything
-a tool does is Java's.
+is newer than the last build, then runs the class named on its command
+line. Everything a tool does is Java's.
 
 A pipe starts every tool in it at once, so two of them can need the same
-build. `bin/run` takes a lock by making a directory, which either happens
+build. `bin/run` locks by making a directory, which either happens
 or does not: the first one through builds and the rest wait on it.
 
 ## What a tool exits with
@@ -60,12 +60,12 @@ ymxs-check: every rule a writer keeps to is kept
 `ymxs-check` keeps the two apart, because they are not the same fault.
 
 An **error** is a tune no player plays: text that is not this form, or a
-structure the two chips do not take. Standard output stays empty and the
+structure the two chips cannot play. Standard output stays empty and the
 exit is 1.
 
 A **warning** is a tune that plays, but not as written: it breaks one of
 the rules [SPEC.md 6](SPEC.md) asks of a writer. The
-tune goes through and the exit is 0, since a player takes it and only its
+tune goes through and the exit is 0, since a player plays it and only its
 writer can tell whether it is what was meant.
 
 ```

@@ -6,7 +6,7 @@
  * figures in the records and in the documents were read off dumps, so a
  * reader can run them again.
  *
- * <p>A dump gives one frame of the YM2149's registers at a time, with two
+ * <p>A dump is one frame of the YM2149's registers at a time, with two
  * effect slots filed in the bits the chip does not use. Reading it is
  * three steps: a frame's registers become a row's, a slot becomes a
  * {@link org.ymxs.YMXS.Start}, a {@link org.ymxs.YMXS.Retune} or a

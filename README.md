@@ -1,8 +1,7 @@
 # YMXS
 
 The format: the tune data structure, and how a player or an emulator maps
-it to an Atari ST's YM2149 and MC68901. Writing a tune down is a separate
-job, and a form does it.
+it to an Atari ST's YM2149 and MC68901.
 
 `src/main/java/org/ymxs/` is the specification: records that define the
 structure, in terms a compiler checks. [doc/SPEC.md](doc/SPEC.md) defines
@@ -12,8 +11,8 @@ where a test reads that listing back against the records themselves.
 A form is that structure written down. This repository has JSON, which a
 tracker writes and a player's tools read.
 
-A player is a separate program. Each player names the version of this it
-reads.
+A player is a separate program. Each one says which version of this
+format it reads.
 
 The one dependency is a JSON library, which reads and writes the tree a
 tune maps to. The structure itself compiles without it.
@@ -23,8 +22,8 @@ tune maps to. The structure itself compiles without it.
 | | |
 |---|---|
 | [`YMXS.java`](src/main/java/org/ymxs/YMXS.java) | the structure, defined for a player in [SPEC.md](doc/SPEC.md) |
-| [`Chip`](src/main/java/org/ymxs/Chip.java) | what the two chips give |
-| [`Tunes`](src/main/java/org/ymxs/Tunes.java) | the readings taken off a structure |
+| [`Chip`](src/main/java/org/ymxs/Chip.java) | the two chips' own figures |
+| [`Tunes`](src/main/java/org/ymxs/Tunes.java) | what is read off a structure |
 | [`Check`](src/main/java/org/ymxs/Check.java) | the rules a structure must satisfy |
 | [`Json`](src/main/java/org/ymxs/Json.java) [`Text`](src/main/java/org/ymxs/Text.java) | JSON, written out in [json.md](doc/json.md) |
 | [`Csv`](src/main/java/org/ymxs/Csv.java) | CSV, in [csv.md](doc/csv.md) |
@@ -33,9 +32,9 @@ tune maps to. The structure itself compiles without it.
 | [`doc/tunes/`](doc/tunes) | six tunes in both forms, which the tests read back |
 
 `YMXS.java` is bare records and sealed interfaces, whose only methods are
-the accessors a record gives. A reading of a structure is taken by a
-function outside it, by pattern matching, so a shape added to `YMXS` stops
-those functions compiling until they read it.
+their accessors. A structure is read by a function outside it, by pattern
+matching, so a shape added to `YMXS` stops those functions compiling until
+they read it.
 
 ## Building
 

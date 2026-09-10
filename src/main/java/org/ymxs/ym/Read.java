@@ -27,7 +27,7 @@ import org.ymxs.YMXS.Tune;
  * A dump read into a {@link Tune}: one row a frame, and a source for each
  * distinct thing the dump's effect slots sound.
  *
- * <p>A dump gives every register of every frame, so a row here sets a
+ * <p>A dump has every register of every frame in it, so a row here sets a
  * register where the dump's value moved. A register an effect is running
  * on is the effect's, and no row sets it until the row that stops it,
  * which is what SPEC.md 6 asks of a writer.
@@ -36,24 +36,25 @@ import org.ymxs.YMXS.Tune;
  * wave becomes a source of a level and a silence; one that restarts the
  * envelope, a source of the shape; one that plays a recording, a source
  * of the sample's levels and a closing row at mid-scale, which owns the
- * voice's volume for as long as its rows take at its rate and silences
+ * voice's volume for as long as its rows run at its rate and silences
  * the voice's tone and noise meanwhile.
  *
  * <p>A recording on a voice keeps a square wave off it: the dump's player
  * runs one thing a voice, and the recording is the one it runs.
  *
  * <p>The row a tune repeats to sets every register but the ones an effect
- * is running on, and gives every effect that ran up to it or runs into
+ * is running on, and sets every effect that ran up to it or runs into
  * the wrap, so the wrap lands where the rows have already put the chip.
  */
 public final class Read {
 
-    /** The bits a dump keeps for its own flags, which no register takes. */
-    private static final int[] TAKES = {0xFF, 0x0F, 0xFF, 0x0F, 0xFF, 0x0F, 0x1F, 0x3F,
-                                        0x1F, 0x1F, 0x1F, 0xFF, 0xFF, 0x0F};
+    /** The bits that fit each register. A dump keeps the rest for its
+     *  own flags. */
+    private static final int[] FITS = {0xFF, 0x0F, 0xFF, 0x0F, 0xFF, 0x0F, 0x1F, 0x3F,
+                                       0x1F, 0x1F, 0x1F, 0xFF, 0xFF, 0x0F};
 
     /** The level a recording's last row leaves its register at: mid-scale,
-     *  so the frame's write that takes the register back does not click. */
+     *  so the frame's write that sets the register back does not click. */
     private static final int PARK = 13;
 
     /** The timer each of the dump's two slots runs on. */
@@ -85,7 +86,7 @@ public final class Read {
         }
     }
 
-    /** The tune in {@code song}, repeating to the frame the dump gives.
+    /** The tune in {@code song}, repeating to the frame the dump marks.
      *  {@code writer} is what the tune says made it. */
     public static Tune of(Dump.Song song, String writer) {
         long loop = song.loopFrame();
@@ -93,8 +94,8 @@ public final class Read {
         return of(song, writer, OptionalInt.of(repeat)).tune();
     }
 
-    /** The same, with the row to repeat to given, and what the reading
-     *  came to beside the tune. */
+    /** The same, for a caller that names the row to repeat to, and what
+     *  the reading came to beside the tune. */
     public static Reading of(Dump.Song song, String writer, OptionalInt repeat) {
         Read read = new Read(song, repeat.orElse(song.frames()));
         List<Map<Register, Integer>> registers = new ArrayList<>();
@@ -176,7 +177,7 @@ public final class Read {
                         cutAtRepeat++;
                     }
                     if (drum && f < drumEnd[i] && !keyframe) {
-                        // the recording plays on: the dump gives only its start
+                        // the recording plays on: the dump marks only its start
                     } else if (running[i].on() || keyframe) {
                         here.put(TIMER_OF[i], Tunes.STOP);
                         running[i] = Slot.EMPTY;
@@ -190,7 +191,7 @@ public final class Read {
                             || runs[i] != sounds;
                     if (starting) {
                         // A stopped timer begins a whole period either way,
-                        // and a running one takes the new count at its next
+                        // and a running one loads the new count at its next
                         // zero, so the timer's reset is set where the
                         // timer is stopped. A square wave replacing a square
                         // wave on the same register has the row count of the
@@ -261,7 +262,7 @@ public final class Read {
         byte[][] r = song.registers();
         int[] out = new int[14];
         for (int i = 0; i < 14; i++) {
-            out[i] = r[i][frame] & TAKES[i];
+            out[i] = r[i][frame] & FITS[i];
         }
         if ((r[13][frame] & 0xFF) == 0xFF) {
             out[13] = -1;
@@ -270,7 +271,7 @@ public final class Read {
     }
 
     /** The source a slot sounds, built on first use, or null where the
-     *  dump gives none this reads. */
+     *  dump marks none this reads. */
     private @Nullable Source source(Slot slot) {
         int data = slot.kind() == Slot.RECORDING ? slot.data() & 31 : slot.data() & 15;
         if (slot.kind() == Slot.SINUS) {

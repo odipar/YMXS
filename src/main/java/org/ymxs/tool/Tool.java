@@ -11,7 +11,7 @@ import java.util.List;
  * What every tool here shares: it reads its one input on standard input,
  * writes its one output on standard output, and says what it did and what
  * went wrong on standard error. So a tool stands in a pipe, and a run read
- * into a file gives the tool's output alone.
+ * into a file is the tool's output alone.
  *
  * <p>What it exits with:
  *
@@ -44,8 +44,8 @@ public final class Tool {
         this.named = named;
     }
 
-    /** A tool of this name, taking the flags every tool takes off {@code
-     *  args} and giving back the rest. */
+    /** A tool of this name. The flags every tool reads come off {@code
+     *  args}, and the rest stay there. */
     public static Tool of(String named, List<String> args, String... flags) {
         Tool tool = new Tool(named);
         List<String> rest = new ArrayList<>();
@@ -104,8 +104,8 @@ public final class Tool {
 
     /**
      * What is wrong, on standard error, and an exit of {@code with}. This
-     * never gives back; it is written as though it did so that a caller
-     * can throw it and a compiler can see the path ends.
+     * never returns; it is written as though it did so that a caller can
+     * throw it and a compiler can see the path ends.
      */
     public RuntimeException wrong(int with, String said) {
         System.err.println(named + ": " + said);
@@ -113,7 +113,7 @@ public final class Tool {
         throw new UncheckedIOException(new IOException(said));
     }
 
-    /** What the tool takes, on standard error, and an exit of 2. */
+    /** How the tool is called, on standard error, and an exit of 2. */
     public RuntimeException usage(String said) {
         return wrong(FAILED, said);
     }

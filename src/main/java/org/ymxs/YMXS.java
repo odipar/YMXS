@@ -9,12 +9,12 @@ import java.util.OptionalInt;
  * doc/SPEC.md defines what a player or an emulator does with them on an
  * Atari ST's YM2149 and MC68901.
  *
- * <p>The records here have no method of their own beyond the accessors a
- * record gives. A reading of a structure is taken by a function outside
- * it: {@link Chip} for what the two chips give, {@link Tunes} for the
- * readings taken off a structure, and {@link Check} for the rules a
- * structure must satisfy. Each reads by pattern matching, so a shape added
- * to a sealed interface stops them compiling until they read it.
+ * <p>The records here have no method of their own beyond their
+ * accessors. A structure is read by a function outside it: {@link Chip}
+ * for the two chips' own figures, {@link Tunes} for what is read off a
+ * structure, and {@link Check} for the rules a structure must satisfy.
+ * Each reads by pattern matching, so a shape added to a sealed interface
+ * stops them compiling until they read it.
  *
  * <p>How a tune is written down is a form. doc/json.md is one; a player's
  * own is another. A form's convenience shaped none of this, and every
@@ -45,21 +45,21 @@ public interface YMXS {
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
     /** What a row does to the effect on one timer. An effect is a source
-     *  connected to a target on one timer, at the rate a prescaler and a
-     *  count give, and a row does one of three things to it. */
+     *  connected to a target on one timer, at the rate its prescaler and
+     *  count come to, and a row does one of three things to it. */
     sealed interface Effect permits Start, Retune, Stop { }
 
     /** The row runs {@code source} on {@code target} at that rate, from
-     *  this row on. The target and the rate are given whether or not they
-     *  moved, since this says what the effect is and not which of its
-     *  parts changed. */
+     *  this row on. The target and the rate stand in every start, whether
+     *  or not they moved, since this says what the effect is and not
+     *  which of its parts changed. */
     record Start(Target target, Source source, Prescaler prescaler, int count,
                  boolean timerReset, boolean placeReset) implements Effect { }
 
     /** The row leaves the effect running the source and the target it
-     *  has, at the rate given here. A note that bends gives a count that
-     *  moved; a note struck again at the rate it has gives the place's
-     *  reset. */
+     *  has, at the rate in this record. A note that bends moves the
+     *  count; a note struck again at the rate it already runs at resets
+     *  the place alone. */
     record Retune(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) implements Effect { }
 
@@ -68,9 +68,9 @@ public interface YMXS {
     record Stop() implements Effect { }
 
     /** What a timer's tick calls with a source's row: a procedure that
-     *  takes one row and writes it. A later version has targets reaching
-     *  the MC68901's own registers, and targets taking a row of more than
-     *  one value. */
+     *  reads one row and writes it. A later version has targets reaching
+     *  the MC68901's own registers, and targets that read a row of more
+     *  than one value. */
     sealed interface Target permits SetRegister { }
 
     /** The targets this version has, {@code setR0} to {@code setR13},
@@ -82,7 +82,7 @@ public interface YMXS {
     sealed interface Source permits Single { }
 
     /** The sources this version has: one value a row, which is the row
-     *  every target of this version takes. */
+     *  every target of this version reads. */
     record Single(String name, Table<Integer> table) implements Source { }
 
     /** One of the fourteen YM2149 registers a row sets and a target

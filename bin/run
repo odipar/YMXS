@@ -1,6 +1,7 @@
 #!/bin/sh
 # What every tool in this directory runs through. It builds where a source
-# or the pom is newer than the last build, and runs the class it is given.
+# or the pom is newer than the last build, and runs the class it is
+# handed on its command line.
 #
 #   bin/run org.ymxs.tool.Checking [what to hand it ...]
 #

@@ -19,13 +19,13 @@ import org.ymxs.YMXS.Tune;
  * What a structure has to satisfy, and what is said where it does not.
  *
  * <p>The records carry no check of their own, so a structure is what it
- * is and this reads it. One call gives everything wrong with a tune rather
- * than the first of it, which is what a writer mending one wants.
+ * is and this reads it. One call reports everything wrong with a tune
+ * rather than the first of it, which is what a writer mending one wants.
  */
 final class CheckTest {
 
     /** A tune with four things wrong: the rate, a register value, a count,
-     *  and a source whose values the target does not take. */
+     *  and a source whose values are past what fits the target. */
     private static Tune broken() {
         Source loud = Tunes.repeating("loud", List.of(200, 0), 0);
         return new Tune("", "", "", 0, Tunes.repeating(List.of(
@@ -39,10 +39,10 @@ final class CheckTest {
     void oneCallNamesEverythingThatIsWrong() {
         assertEquals(List.of(
                 "a rate of 0: a player is called at least once a second",
-                "row 0: R8 takes 0 to 31, and this row sets it to 99",
+                "row 0: R8 is 0 to 31, and this row sets it to 99",
                 "row 1: Timer A: a count of 400: a timer counts 1 to 256",
                 "row 1: Timer A: a source on setR8 whose row 0 is 200,"
-                        + " and the target takes 0 to 31"),
+                        + " and the target is 0 to 31"),
                 Check.of(broken()));
     }
 
@@ -105,7 +105,7 @@ final class CheckTest {
         Tune tune = of(starts(SQUARE, true),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)));
         assertEquals(List.of(), Check.writing(tune),
-                "the row that stops it takes the register back");
+                "the row that stops it sets the register back");
     }
 
     @Test
@@ -168,7 +168,7 @@ final class CheckTest {
 
     @Test
     void whatRestsOnHowLongAPlayOnceSourceRunsSaysSo() {
-        // four rows at 200 x 200 take about four frames of a 50 Hz tune
+        // four rows at 200 x 200 run about four frames of a 50 Hz tune
         Row start = new Row(Map.of(), Map.of(Timer.A, new Start(Tunes.setting(Register.R8),
                 DRUM, Prescaler.BY_200, 200, true, true)));
         Tune tune = of(start, Tunes.row(Map.of(Register.R8, 12)));
@@ -176,7 +176,7 @@ final class CheckTest {
         assertEquals(1, said.size(), said.toString());
         assertTrue(said.get(0).endsWith("reckoned from its rate"), said.get(0));
         assertEquals(4, Chip.frames(4, Prescaler.BY_200, 200, 50),
-                "the frames the reckoning gives it");
+                "the frames the reckoning comes to");
     }
 
     @Test

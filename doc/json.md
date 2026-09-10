@@ -43,17 +43,17 @@ reader who would rather open one in a spreadsheet.
 ```
 
 **A tune is written column by column, and every column is as long as the
-tune.** A row is one place taken across every column, so a reader indexes
-straight to it and no entry gives a row number.
+tune.** A row is one place across every column, so a reader indexes
+straight to it and no entry needs a row number.
 
-A column that no row fills is left out, so a register no row sets and a
-timer no row uses both drop out.
+Only the columns a row fills are written: a register some row sets, and a
+timer some row acts on.
 
 ## A tune
 
-| key | gives |
+| key | what it is |
 |---|---|
-| `title`, `composer`, `writer` | text, empty where none is given |
+| `title`, `composer`, `writer` | text, empty where a writer left it out |
 | `rate` | how often the player is called for this tune, in Hz |
 | `frames` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
@@ -66,11 +66,11 @@ it.
 
 ## The registers
 
-`rows` gives a column a register, `r0` to `r13`, each one value a row.
-**-1 stands where the row does not set that register**, and no register
-takes -1 as a value.
+`rows` is a column a register, `r0` to `r13`, each one value a row.
+**-1 stands where the row does not set that register.** -1 fits no
+register, so a column has room for it.
 
-| key | sets | takes |
+| key | sets | range |
 |---|---|---|
 | `r0`, `r2`, `r4` | a voice's tone period, fine | 0 to 255 |
 | `r1`, `r3`, `r5` | a voice's tone period, coarse | 0 to 15 |
@@ -88,7 +88,7 @@ may act on all four. Each has seven columns, one value a row, and **-1
 stands where a row leaves that timer alone**, as it does in a register's
 column.
 
-| column | gives |
+| column | what it is |
 |---|---|
 | `shape` | 0 a start, 1 a retune, 2 a stop, -1 none |
 | `target` | 0 to 13, which is `setR0` to `setR13` |
@@ -102,9 +102,9 @@ A part a shape leaves out is -1 too: a retune leaves `target` and
 
 ## A source
 
-| key | gives |
+| key | what it is |
 |---|---|
-| `name` | what a writer calls it, empty where none is given |
+| `name` | what a writer calls it, empty where a writer left it out |
 | `repeat` | the row it repeats to, or `null` for one that plays once |
 | `values` | its rows, one value a row |
 
@@ -112,7 +112,7 @@ A part a shape leaves out is -1 too: a retune leaves `target` and
 
 One column a line, wrapped at twenty values. `Json` maps the structure to
 a JSON tree and back, `Layout` says where the lines break, and a JSON
-library does the escaping, the parsing and the writing. A reader takes any
+library does the escaping, the parsing and the writing. A reader reads any
 JSON of this shape.
 
 ## What is an error
@@ -126,5 +126,5 @@ JSON of this shape.
 | a source number past the tune's `sources` | it reaches no source |
 
 Everything else is an error where the record is made: a register value
-past what the register takes, a count outside 1 to 256, a source value
-past what its target takes, a repeat row past the last row.
+past the register's range, a count outside 1 to 256, a source value past
+its target's range, a repeat row past the last row.

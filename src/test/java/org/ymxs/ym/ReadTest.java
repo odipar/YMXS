@@ -76,7 +76,7 @@ final class ReadTest {
         assertEquals(Tunes.setting(Register.R8), start.target());
         assertEquals(Prescaler.BY_4, start.prescaler());
         assertEquals(100, start.count());
-        assertTrue(start.timerReset(), "the timer was stopped, so it takes a whole period");
+        assertTrue(start.timerReset(), "the timer was stopped, so it runs a whole period");
         assertTrue(start.placeReset(), "no wave ran before it, so the place goes to row 0");
 
         for (int f = 3; f <= 5; f++) {
@@ -87,8 +87,8 @@ final class ReadTest {
         assertTrue(!Tunes.rows(tune).get(2).registers().containsKey(Register.R8),
                 "the wave owns the volume, so no row sets it while it runs");
         assertEquals(9, Tunes.rows(tune).get(6).registers().get(Register.R8),
-                "the row that stops it takes the register back, to the value the dump"
-                        + " gives there");
+                "the row that stops it sets the register back, to the value the dump"
+                        + " has there");
     }
 
     @Test
@@ -124,7 +124,7 @@ final class ReadTest {
 
     @Test
     void anArchiveThatWillNotUnpackIsSaidToBeOne() {
-        // an -lh5- header long enough to be taken for an archive, with no
+        // an -lh5- header long enough to read as an archive, with no
         // member behind it
         byte[] archive = new byte[22];
         archive[0] = 0x22;

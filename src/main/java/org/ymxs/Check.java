@@ -23,13 +23,14 @@ import org.ymxs.YMXS.Tune;
  * The rules a structure must satisfy for a player to play it, read off
  * the structure rather than stored in it.
  *
- * <p>Every function gives what is wrong rather than throwing at the first
- * of it, so one call gives everything a writer has to mend. {@link #must}
- * is the other way round, for a caller that would rather stop.
+ * <p>Every function reports what is wrong rather than throwing at the
+ * first of it, so one call reports everything a writer has to mend.
+ * {@link #must} is the other way round, for a caller that would rather
+ * stop.
  *
- * <p>What binds a structure is the two chips and the music: what a
- * register takes, what a timer counts, and that an effect hands a source's
- * row to a target that takes it. What a form can write is that form's own
+ * <p>What binds a structure is the two chips and the music: what fits a
+ * register, what a timer counts, and that an effect hands a source's row
+ * to a target of that same shape. What a form can write is that form's own
  * business, and no limit of one is here.
  *
  * <p>{@link #writing} is the other half: what SPEC.md 6 asks of a writer
@@ -79,7 +80,7 @@ public final class Check {
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             int most = Chip.most(one.getKey());
             if (one.getValue() < 0 || one.getValue() > most) {
-                said.add(one.getKey() + " takes 0 to " + most + ", and this row sets it to "
+                said.add(one.getKey() + " is 0 to " + most + ", and this row sets it to "
                         + one.getValue());
             }
         }
@@ -114,20 +115,19 @@ public final class Check {
         for (int at = 0; at < values.size(); at++) {
             if (values.get(at) < 0) {
                 said.add("row " + at + " is " + values.get(at)
-                        + ", and a register takes 0 upward");
+                        + ", and a register is 0 upward");
             }
         }
         return said;
     }
 
-    /** What a start has to agree on: the target takes the row shape the
-     *  source gives, and the source's values are values that register
-     *  takes. */
+    /** What a start has to agree on: the target reads the row shape the
+     *  source writes, and the source's values fit that register. */
     private static List<String> runs(Start start) {
         List<String> said = new ArrayList<>(of(start.source()));
         if (Tunes.columns(start.target()) != Tunes.columns(start.source())) {
             said.add("a source of " + Tunes.columns(start.source()) + " values a row on "
-                    + Tunes.name(start.target()) + ", which takes "
+                    + Tunes.name(start.target()) + ", which reads "
                     + Tunes.columns(start.target()));
             return said;
         }
@@ -136,7 +136,7 @@ public final class Check {
         for (int at = 0; at < values.size(); at++) {
             if (values.get(at) > most) {
                 said.add("a source on " + Tunes.name(start.target()) + " whose row " + at
-                        + " is " + values.get(at) + ", and the target takes 0 to " + most);
+                        + " is " + values.get(at) + ", and the target is 0 to " + most);
             }
         }
         return said;
@@ -168,8 +168,8 @@ public final class Check {
      * that breaks one of these plays, but not as its writer meant.
      *
      * <p>Three of the five are read here. Rule 2 leaves the order of two
-     * timers writing one register to the writer, so there is no reading to
-     * take. Rule 4 asks a start to set the timer's reset where the timer
+     * timers writing one register to the writer, so a check passes over
+     * it. Rule 4 asks a start to set the timer's reset where the timer
      * is stopped, and a stopped timer begins a whole period with the value
      * or without it, so either value is right.
      *
@@ -314,7 +314,7 @@ public final class Check {
 
     /** {@code multi} itself, where the check finds no fault.
      *
-     * @throws IllegalArgumentException giving everything that is
+     * @throws IllegalArgumentException reporting everything that is
      */
     public static Multi must(Multi multi) {
         List<String> said = of(multi);
@@ -326,7 +326,7 @@ public final class Check {
 
     /** {@code tune} itself, where the check finds no fault.
      *
-     * @throws IllegalArgumentException giving everything that is
+     * @throws IllegalArgumentException reporting everything that is
      */
     public static Tune must(Tune tune) {
         List<String> said = of(tune);

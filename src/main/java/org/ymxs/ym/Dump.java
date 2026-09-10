@@ -18,7 +18,7 @@ public final class Dump {
     /** What the header said, the frames as read, and the samples as
      *  stored.
      *
-     *  <p>{@code registers[r][frame]} is R{@code r} as the file gives it,
+     *  <p>{@code registers[r][frame]} is R{@code r} as the file has it,
      *  all sixteen: the two I/O ports are where this format files an
      *  effect's timer count.
      *
@@ -36,14 +36,14 @@ public final class Dump {
                        long attributes, byte[][] drums, String name, String author,
                        byte[][] registers) {
 
-        /** The registers the file gives, R0 to R15. */
+        /** The registers in the file, R0 to R15. */
         public static final int REGISTERS = 16;
 
-        /** Attribute bit 2: the samples give one four-bit value a byte. */
+        /** Attribute bit 2: the samples are one four-bit value a byte. */
         public static final int DRUMS_ARE_4_BIT = 4;
     }
 
-    /** What this reader will not take. */
+    /** What this reader cannot read. */
     public static final class Unreadable extends RuntimeException {
         public Unreadable(String said) {
             super(said);

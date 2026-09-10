@@ -24,9 +24,9 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The readings taken off a structure, read rather than stored. Every
- * function here is pure: it takes a structure and gives a value, leaving
- * its argument as it was.
+ * What is read off a structure, read rather than stored. Every function
+ * here is pure: it reads a structure and returns a value, leaving its
+ * argument as it was.
  *
  * <p>Each reads a sealed interface by pattern matching over every shape,
  * so a shape added to {@link YMXS} stops this compiling until it is read
@@ -71,8 +71,8 @@ public final class Tunes {
     /**
      * The effects this row sets, in the order the timers are declared.
      *
-     * <p>A row takes a plain map, so what order it iterates in is the
-     * caller's business and not the row's. A form that writes a row twice
+     * <p>A row is built on a plain map, so what order it iterates in is
+     * the caller's business and not the row's. A form that writes a row twice
      * has to write it the same way both times, so it reads the row through
      * this.
      */
@@ -219,15 +219,15 @@ public final class Tunes {
         };
     }
 
-    /** The values one row of a source gives this target. */
+    /** The values one row of a source has for this target. */
     public static int columns(Target target) {
         return switch (target) {
             case SetRegister ignored -> 1;
         };
     }
 
-    /** The largest value one of those takes. A source this target runs
-     *  keeps within it. */
+    /** The largest value that fits one of those. A source this target
+     *  runs keeps within it. */
     public static int most(Target target) {
         return switch (target) {
             case SetRegister set -> Chip.most(set.register());
@@ -256,7 +256,7 @@ public final class Tunes {
         return table(source).rows();
     }
 
-    /** The values one row gives. */
+    /** The values in one row. */
     public static int columns(Source source) {
         return switch (source) {
             case Single ignored -> 1;
@@ -275,7 +275,7 @@ public final class Tunes {
 
     // ----------------------------------------------------------- an effect
 
-    /** The timer's reset: the timer stops, takes the count and starts, so
+    /** The timer's reset: the timer stops, loads the count and starts, so
      *  it begins a whole period at that count. */
     public static boolean timerReset(Effect effect) {
         return switch (effect) {
@@ -285,7 +285,7 @@ public final class Tunes {
         };
     }
 
-    /** The place's reset: the next tick takes the source's first row. */
+    /** The place's reset: the next tick reads the source's first row. */
     public static boolean placeReset(Effect effect) {
         return switch (effect) {
             case Start start -> start.placeReset();

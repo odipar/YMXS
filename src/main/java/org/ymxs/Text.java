@@ -42,7 +42,7 @@ public final class Text {
      * where several files are handed to it as one.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this
-     *     form, or gives a structure no player plays
+     *     form, or is a structure no player plays
      */
     public static java.util.List<Multi> readAll(String text) {
         java.util.List<Multi> out = new java.util.ArrayList<>();
@@ -62,7 +62,7 @@ public final class Text {
     /** The multi in {@code text}.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this
-     *     form, or gives a structure no player plays
+     *     form, or is a structure no player plays
      */
     public static Multi read(String text) {
         try {

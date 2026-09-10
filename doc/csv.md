@@ -36,7 +36,7 @@ recording 0,
 
 ## How it reads
 
-- A line beginning `###` gives a table and then its columns.
+- A line beginning `###` opens a table and names its columns.
 - Every line after it is one row of that table, in ordinary
   comma-separated values, until the next such line.
 - A blank line is skipped.
@@ -58,7 +58,7 @@ together.
 
 ## The tables
 
-| table | gives |
+| table | its rows |
 |---|---|
 | `multi` | one row: what the file is, its version, and the number of tunes |
 | `tune` | one row, and it opens a tune |
@@ -67,17 +67,19 @@ together.
 | `rows` | one row a row of the tune that sets a register |
 | `timerA` to `timerD` | one row an effect on that timer |
 
-**An empty cell in `rows`** is a register that row does not set. A row
-that sets no register is left out of the table: the `row` column says
-which row a line is, and `frames` in the `tune` table gives the count.
+**An empty cell in `rows`** is a register that row does not set. Only a
+row that sets a register is a line of the table: the `row` column says
+which row a line is, and `frames` in the `tune` table says how many there
+are.
 
-**A tune without sources** opens neither a `source` nor a `value` table.
+**A `source` table and a `value` table** stand for each source a tune
+runs.
 
-**A timer opens a table of its own**, `timerA` through `timerD`, and a
-timer no row uses opens none. Its cells read as [JSON](json.md) reads
-them: `shape` 0 a start, 1 a retune, 2 a stop; `target` 0 to 13 for
-`setR0` to `setR13`; `source` 1 upward into the tune's sources;
-`timerReset` and `placeReset` 1 and 0.
+**A timer any row uses opens a table of its own**, `timerA` through
+`timerD`. Its cells read as [JSON](json.md) reads them: `shape` 0 a
+start, 1 a retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`;
+`source` 1 upward into the tune's sources; `timerReset` and `placeReset`
+1 and 0.
 
 **An empty cell there** is a part that shape leaves out, where JSON says
 -1. A retune leaves `target` and `source` empty; a stop leaves all six.

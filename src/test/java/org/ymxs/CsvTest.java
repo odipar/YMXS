@@ -59,7 +59,7 @@ final class CsvTest {
         List<String> named = lines.stream()
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
         assertEquals(List.of("multi", "tune", "rows"), named,
-                "circus runs no source and uses no timer, so it opens neither");
+                "circus is rows alone, so those are the three tables it opens");
         assertEquals(List.of("rows", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
                 Csv.cells(lines.get(2).substring(3).strip()),

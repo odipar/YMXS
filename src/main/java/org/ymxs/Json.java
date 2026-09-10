@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  * <p>A tune is written column by column. A register's column stands one
  * value a row, and a timer's columns one value a row of what the row does
  * to the effect there, {@link #NONE} where a row leaves it alone. Every
- * column is as long as the tune, so a row is one place taken across every
+ * column is as long as the tune, so a row is one place across every
  * column, and a reader indexes straight to it.
  *
  * <p>A timer is a structure of its own, {@code timerA} to {@code timerD},
@@ -69,9 +69,9 @@ public final class Json {
         return out;
     }
 
-    /** What a column gives where the row it stands on left that value
-     *  alone. No register takes it and no part of an effect is it, so it
-     *  is free for this. */
+    /** What stands in a column where the row left that value alone. It
+     *  is free for this, since it fits neither a register nor a part of
+     *  an effect. */
     public static final int NONE = -1;
 
     /** What a shape is written as. */
@@ -111,7 +111,7 @@ public final class Json {
     }
 
     /** One register's column: its value on every row, and {@link #NONE}
-     *  where the row does not set it. A register no row sets has no
+     *  where the row does not set it. Only a register some row sets has a
      *  column. */
     private static void column(ObjectNode out, String named, List<Row> rows,
                                Register register) {
@@ -128,8 +128,8 @@ public final class Json {
     }
 
     /** One timer's columns: what a row does to the effect there on every
-     *  row, and {@link #NONE} where the row leaves it alone. A timer no row
-     *  uses has no columns. */
+     *  row, and {@link #NONE} where the row leaves it alone. Only a timer
+     *  some row acts on has columns. */
     private static void timer(ObjectNode out, Tune tune, Timer timer, List<Row> rows,
                               List<Source> sources) {
         boolean any = false;
@@ -199,7 +199,7 @@ public final class Json {
     /** The multi in {@code tree}.
      *
      * @throws IllegalArgumentException where the tree is not this form, or
-     *     gives a structure no player plays
+     *     is a structure no player plays
      */
     public static Multi multi(JsonNode tree) {
         String format = text(tree, "format");
@@ -250,7 +250,7 @@ public final class Json {
                 sized(column, count, name(register));
                 for (int at = 0; at < count; at++) {
                     if (!column.get(at).isIntegralNumber()) {
-                        throw new IllegalArgumentException(name(register) + " gives "
+                        throw new IllegalArgumentException(name(register) + " is "
                                 + column.get(at) + " at row " + at + ", and a whole number"
                                 + " is asked");
                     }
@@ -292,8 +292,8 @@ public final class Json {
                     + " asked");
         }
         if (column.size() != frames) {
-            throw new IllegalArgumentException(named + " gives " + column.size()
-                    + " values, and the tune runs " + frames + " frames");
+            throw new IllegalArgumentException(named + " is " + column.size()
+                    + " values long, and the tune runs " + frames + " frames");
         }
     }
 
@@ -325,7 +325,7 @@ public final class Json {
                     column(columns, "timerReset", at, timer, frames) == 1,
                     column(columns, "placeReset", at, timer, frames) == 1);
             case STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " gives shape "
+            default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " on Timer " + timer + ", and a shape is " + START + ", "
                     + RETUNE + " or " + STOP);
         };
@@ -350,7 +350,7 @@ public final class Json {
         }
         sized(column, frames, "Timer " + timer + "'s " + named);
         if (!column.get(at).isIntegralNumber()) {
-            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " gives "
+            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " is "
                     + column.get(at) + " at row " + at + ", and a whole number is asked");
         }
         return column.get(at).intValue();

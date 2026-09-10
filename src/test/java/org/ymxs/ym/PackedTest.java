@@ -41,7 +41,7 @@ final class PackedTest {
                 OptionalInt.of(0)).tune();
         Tune read = Text.read(Files.readString(Path.of("doc/tunes/circus.json")))
                 .tunes().get(0);
-        assertEquals(read, packed, "the archive gives the tune doc/tunes/circus.json does");
+        assertEquals(read, packed, "the archive has the tune doc/tunes/circus.json does");
         assertEquals(4, Tunes.size(packed.table()));
     }
 

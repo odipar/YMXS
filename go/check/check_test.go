@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/odipar/ymxs/check"
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/check"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 func tune(rows []ymxs.Row, rate int) ymxs.Tune {

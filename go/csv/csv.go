@@ -24,9 +24,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/odipar/ymxs/check"
-	"github.com/odipar/ymxs/text"
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/check"
+	"github.com/odipar/ymxs/go/text"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // Table is what a line opening a table begins with.

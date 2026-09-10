@@ -3,7 +3,7 @@ package ym
 import (
 	"strconv"
 
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // A dump read into a tune: one row a frame, and a source for each distinct

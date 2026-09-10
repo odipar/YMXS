@@ -60,6 +60,13 @@ cd go && go test ./... && go build ./cmd/...
 release/publish.sh
 ```
 
+The Go tree is a module of its own, so another module reads the structure
+and the two forms from it:
+
+```bash
+go get github.com/odipar/ymxs/go@v0.1.0
+```
+
 ## Where the figures come from
 
 Every measurement in the javadoc and in the documents was read off 49

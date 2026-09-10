@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/odipar/ymxs/text"
-	"github.com/odipar/ymxs/tool"
-	"github.com/odipar/ymxs/ym"
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/text"
+	"github.com/odipar/ymxs/go/tool"
+	"github.com/odipar/ymxs/go/ym"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 func main() {

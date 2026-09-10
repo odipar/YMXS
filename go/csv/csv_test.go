@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/odipar/ymxs/csv"
-	"github.com/odipar/ymxs/text"
+	"github.com/odipar/ymxs/go/csv"
+	"github.com/odipar/ymxs/go/text"
 )
 
 var tunes = []string{"circus", "digidrum", "retrigger", "turrican-2", "two-tunes"}

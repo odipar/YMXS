@@ -1,6 +1,6 @@
 package ym
 
-import "github.com/odipar/ymxs/ymxs"
+import "github.com/odipar/ymxs/go/ymxs"
 
 // Slot is one of the two effect slots in a dump's frame, read as the sound
 // it produces: a kind, the voice it sounds on, the register its ticks

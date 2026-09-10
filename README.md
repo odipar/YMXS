@@ -29,6 +29,7 @@ structure compiles without it.
 | [`tool/`](src/main/java/org/ymxs/tool) [`bin/`](bin) | the tools, each a filter, defined in [tools.md](doc/tools.md) |
 | [`ym/`](src/main/java/org/ymxs/ym) | an example: a YM register dump read in, [ym.md](doc/ym.md) |
 | [`doc/tunes/`](doc/tunes) | six tunes in both forms, read back by the tests |
+| [`go/`](go) | the same tools in Go, executables a release ships ([tools.md](doc/tools.md)) |
 
 `YMXS.java` is records and sealed interfaces, with no methods beyond their
 accessors. A structure is read by a function outside it, by pattern
@@ -40,7 +41,8 @@ they read it.
 Java 23 and Maven. `mvn test` reads every tune under `doc/tunes` back in
 both forms, checks SPEC.md's listing against the records, reads a dump
 written by the test and an archive containing another, runs the tools in a
-pipe, and checks the documents against the house style.
+pipe, runs the Go tools against the Java ones byte for byte, and checks
+the documents against the house style.
 
 ```bash
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
@@ -48,6 +50,15 @@ bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 
 Every tool reads standard input and writes standard output, so the tools
 compose in a pipe. [doc/tools.md](doc/tools.md) defines them.
+
+The same tools are written in Go under [`go/`](go), and
+`release/publish.sh` builds those for Windows, macOS and Linux, x64 and
+arm64: one executable a tool, which runs with no Java installed.
+
+```bash
+cd go && go test ./... && go build ./cmd/...
+release/publish.sh
+```
 
 ## Where the figures come from
 

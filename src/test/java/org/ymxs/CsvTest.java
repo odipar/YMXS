@@ -106,7 +106,7 @@ final class CsvTest {
         String csv = Csv.write(multi);
         assertEquals(2, csv.lines().filter(said -> said.startsWith("### tune,")).count(),
                 "one table a tune opens it");
-        assertTrue(!csv.contains(",tune,"), "and no table names which tune a row belongs to");
+        assertTrue(!csv.contains(",tune,"), "and no table states which tune a row belongs to");
         assertEquals(multi, Csv.read(csv));
     }
 

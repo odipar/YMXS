@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>The records are the specification and the listing is a reader's way
  * in, so the listing is one thing stated twice. This is what keeps the
  * second true: every declaration in it is matched against the type it
- * names, component for component, and a type in the package that the
+ * gives, component for component, and a type in the package that the
  * listing leaves out fails as loudly as one it states wrongly.
  *
  * <p>The listing had gone stale within a day of being written in two

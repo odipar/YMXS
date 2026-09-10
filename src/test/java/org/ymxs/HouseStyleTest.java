@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@code AGENTS.md} states the rules - nothing acts on its own, and no
  * flourish - and this test holds the phrases struck in review under them.
- * Each entry is one struck phrase or the stem of one; a hit names the file
+ * Each entry is one struck phrase or the stem of one; a hit gives the file
  * and line. A phrase that is legitimate in a new context comes off the list
  * in the same change that uses it.
  *

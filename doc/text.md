@@ -44,8 +44,7 @@ for a reader who would rather open one in a spreadsheet.
 
 **A tune is written column by column, and every column is as long as the
 tune.** A row is what every column holds at that place, so nothing has to
-be counted to find one and no entry states a number saying where it
-stands.
+be counted to find one and no entry holds a number for where it stands.
 
 A column that no row fills is left out: a register no row sets has no
 column, and a timer no row states has none.
@@ -67,8 +66,8 @@ column, and a timer no row states has none.
 ## The registers
 
 `rows` holds a column a register, `r0` to `r13`, each one value a row.
-**-1 is a register that row does not set**, which no register takes as a
-value.
+**-1 stands where the row does not set that register**, and no register
+takes -1 as a value.
 
 | key | sets | takes |
 |---|---|---|
@@ -83,10 +82,10 @@ value.
 
 ## The effects
 
-A timer is a structure of its own, since a row states an effect on as many
-of the four as it likes: `timerA` through `timerD`. Each holds seven
-columns, one value a row, and **-1 is what a row states nothing of**, as
-it is in a register's column.
+A timer is a structure of its own, `timerA` through `timerD`, since a row
+may state an effect on all four. Each holds seven columns, one value a
+row, and **-1 stands where a row states nothing**, as it does in a
+register's column.
 
 | column | holds |
 |---|---|
@@ -97,14 +96,14 @@ it is in a register's column.
 | `count` | 1 to 256 |
 | `timerReset`, `placeReset` | 1 true, 0 false |
 
-What a shape does not hold is -1 as well: a retune holds no target and no
+A part a shape does not hold is -1 too: a retune holds no target and no
 source, and a stop holds none of the six.
 
 ## A source
 
 | key | gives |
 |---|---|
-| `name` | what a writer calls it, empty where it calls it nothing |
+| `name` | what a writer calls it, empty where none is given |
 | `repeat` | the row it repeats to, or `null` for one that plays once |
 | `values` | its rows, one value a row |
 
@@ -120,10 +119,10 @@ JSON of this shape.
 | the text | why |
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
-| a `version` this does not read | R6.1 |
+| a `version` this does not read | it is another version |
 | a column that is not as long as `frames` | a column stands one value a row |
 | a `shape` that is none of the three | there are three |
-| a source number the tune does not hold | it names nothing |
+| a source number the tune does not hold | it reaches no source |
 
 Everything else a record turns away where it is made: a register value
 past what the register takes, a count outside 1 to 256, a source value

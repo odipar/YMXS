@@ -198,7 +198,7 @@ public final class Tunes {
 
     /** The target numbered {@code number}.
      *
-     * @throws IllegalArgumentException where this version names none
+     * @throws IllegalArgumentException where this version has none
      */
     public static Target target(int number) {
         return new SetRegister(Chip.register(number));

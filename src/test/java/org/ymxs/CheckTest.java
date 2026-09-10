@@ -19,7 +19,7 @@ import org.ymxs.YMXS.Tune;
  * What a structure has to satisfy, and what is said where it does not.
  *
  * <p>The records hold no check of their own, so a structure states what it
- * states and this reads it. One call names everything wrong with a tune
+ * states and this reads it. One call gives everything wrong with a tune
  * rather than the first of it, which is what a writer mending one wants.
  */
 final class CheckTest {

@@ -1,8 +1,7 @@
 # The table form
 
 A tune as tables, for a reader who would rather open one in a spreadsheet
-than in an editor. It holds what [the text form](text.md) holds, and
-either reads into the same structure.
+than in an editor.
 
 ```
 ### multi,format,version,tunes
@@ -37,7 +36,7 @@ recording 0,
 
 ## How it reads
 
-- A line beginning `###` names a table and then its columns.
+- A line beginning `###` gives a table and then its columns.
 - Every line after it is one row of that table, in ordinary
   comma-separated values, until the next such line.
 - A blank line is nothing.
@@ -54,9 +53,9 @@ a timer as the same enumerations.
 
 **Where a table stands says what it belongs to.** A tune opens with its
 own table, and the tables after it are that tune's until the next tune
-opens. A source does the same for the values after it. So no table names
-which tune or which source a row belongs to, and a tune's tables read as
-one run of them.
+opens. A source does the same for the values after it. So no table states
+which tune or which source a row belongs to, and a tune's tables stand
+together.
 
 ## What each table holds
 
@@ -77,10 +76,10 @@ is, and `frames` in the `tune` table says how many the tune has.
 table.
 
 **A timer opens a table of its own**, `timerA` through `timerD`, and a
-timer no row states opens none. What its cells
-hold is what [the text form](text.md) holds: `shape` 0 a start, 1 a
-retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`; `source` 1
-upward into the tune's sources; `timerReset` and `placeReset` 1 and 0.
+timer no row states opens none. What its cells hold is what
+[the text form](text.md) holds: `shape` 0 a start, 1 a retune, 2 a stop;
+`target` 0 to 13 for `setR0` to `setR13`; `source` 1 upward into the
+tune's sources; `timerReset` and `placeReset` 1 and 0.
 
 **An empty cell there** is a part that shape does not hold, where the text
 form says -1. A retune holds no target and no source; a stop holds none of

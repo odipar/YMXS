@@ -24,7 +24,7 @@ import org.ymxs.YMXS.Tune;
  * structure rather than held by it.
  *
  * <p>Every function gives what is wrong rather than throwing at the first
- * of it, so one call names everything a writer has to mend. {@link #must}
+ * of it, so one call gives everything a writer has to mend. {@link #must}
  * is the other way round, for a caller that would rather stop.
  *
  * <p>What is held to is the two chips and the music: what a register
@@ -315,7 +315,7 @@ public final class Check {
 
     /** {@code multi}, where nothing is wrong with it.
      *
-     * @throws IllegalArgumentException naming everything that is
+     * @throws IllegalArgumentException giving everything that is
      */
     public static Multi must(Multi multi) {
         List<String> said = of(multi);
@@ -327,7 +327,7 @@ public final class Check {
 
     /** {@code tune}, where nothing is wrong with it.
      *
-     * @throws IllegalArgumentException naming everything that is
+     * @throws IllegalArgumentException giving everything that is
      */
     public static Tune must(Tune tune) {
         List<String> said = of(tune);

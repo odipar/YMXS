@@ -16,7 +16,7 @@ bin/ym-to-ymxs < tune.ym > tune.json
 A dump on standard input, the text form on standard output. What it came
 to goes to standard error. `-rROW` makes a tune that repeats to that row
 and `-r` one that plays once; without either, a tune repeats to the frame
-the dump names.
+the dump gives.
 
 A distributed `.ym` is usually an archive holding the dump, and either
 reads: `Lha` unpacks one where it is handed one. That is plumbing and no
@@ -56,7 +56,7 @@ format uses them for the counts.
 | a square wave at level `n` | a source of `n` and 0, repeating to row 0 |
 | the envelope restarted | a source of the shape, repeating to row 0 |
 | a recording | a source of the sample's levels and a closing row at mid-scale, playing once |
-| the frame the dump names | the row the tune repeats to |
+| the frame the dump gives | the row the tune repeats to |
 
 A source is built once for each distinct thing a slot sounds, so two
 square waves at one level are one source and at two levels are two.
@@ -67,14 +67,14 @@ A dump states less than a tune does, so three things are reckoned rather
 than read:
 
 - **How long a recording runs.** A dump states its start and not its end.
-  The frames its rows take at its rate say when it is over, which is what
-  tells a later row whether the timer is stopped.
-- **Which slot wins a voice.** The player a dump was written for runs one
+  The frames its rows take at its rate are how long it runs, and that
+  settles whether the timer is stopped by a later row.
+- **Which slot has a voice.** The player a dump was written for runs one
   thing a voice, so a recording on a voice keeps a square wave off it.
 - **What the row a tune repeats to states.** It sets every register but
   the ones an effect is running on, and states every effect that ran up to
-  it or runs into the wrap, so the wrap lands on a state a player has been
-  told.
+  it or runs into the wrap, so the wrap lands on a state the rows have
+  stated.
 
 The first is a reckoning and not a reading, and a tune whose recording is
 still sounding at the row it repeats to loses the rest of it. The tool
@@ -82,8 +82,9 @@ says how many of those there were.
 
 ## What it does not read
 
-A slot sounding a shape whose player runs an empty handler for it, and a
-recording whose sample the file does not hold. Both are counted and said.
+A slot sounding a shape the player a dump was written for runs an empty
+handler for, and a recording whose sample the file does not hold. Both are
+counted and said.
 
 ## Reading it back
 

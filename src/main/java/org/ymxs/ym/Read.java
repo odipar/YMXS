@@ -85,7 +85,7 @@ public final class Read {
         }
     }
 
-    /** The tune {@code song} holds, repeating to the frame the dump names.
+    /** The tune {@code song} holds, repeating to the frame the dump gives.
      *  {@code writer} is what the tune says made it. */
     public static Tune of(Dump.Song song, String writer) {
         long loop = song.loopFrame();
@@ -183,11 +183,11 @@ public final class Read {
                         runs[i] = null;
                     }
                 } else {
-                    Source names = java.util.Objects.requireNonNull(source[i]);
+                    Source sounds = java.util.Objects.requireNonNull(source[i]);
                     boolean starting = keyframe || slot[i].kind() == Slot.RECORDING
                             || running[i].kind() != slot[i].kind()
                             || running[i].target() != slot[i].target()
-                            || runs[i] != names;
+                            || runs[i] != sounds;
                     if (starting) {
                         // A stopped timer begins a whole period either way,
                         // and a running one takes the new count at its next
@@ -202,14 +202,14 @@ public final class Read {
                                 && lastKind[i] == Slot.SQUARE
                                 && lastTarget[i] == slot[i].target();
                         here.put(TIMER_OF[i], new Start(Tunes.setting(slot[i].target()),
-                                names, slot[i].prescaler(), slot[i].count(), stopped,
+                                sounds, slot[i].prescaler(), slot[i].count(), stopped,
                                 !unmoved));
                         running[i] = slot[i];
-                        runs[i] = names;
+                        runs[i] = sounds;
                         lastKind[i] = slot[i].kind();
                         lastTarget[i] = slot[i].target();
                         if (slot[i].kind() == Slot.RECORDING) {
-                            drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.table(names)),
+                            drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.table(sounds)),
                                     slot[i].prescaler(), slot[i].count(), song.playerHz());
                         }
                     } else if (slot[i].prescaler() != prescalerHeld[i]
@@ -271,7 +271,7 @@ public final class Read {
     }
 
     /** The source a slot sounds, built on first use, or null where the
-     *  dump names none this reads. */
+     *  dump gives none this reads. */
     private @Nullable Source source(Slot slot) {
         int data = slot.kind() == Slot.RECORDING ? slot.data() & 31 : slot.data() & 15;
         if (slot.kind() == Slot.SINUS) {

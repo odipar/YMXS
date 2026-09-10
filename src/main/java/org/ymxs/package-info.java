@@ -41,7 +41,7 @@
  * does not set.
  *
  * <p>{@link org.ymxs.Check} gives what is wrong with a structure rather
- * than throwing at the first of it, so one call names everything a writer
+ * than throwing at the first of it, so one call gives everything a writer
  * has to mend. What SPEC.md 6 asks of a writer reads across rows rather
  * than within one, and it does not read that yet.
  *

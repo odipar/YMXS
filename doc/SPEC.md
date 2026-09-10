@@ -9,8 +9,8 @@ document states the rest: what each value reaches on the two chips, what
 a frame does with a row, what a tick does with a source's row, what a
 writer keeps to, and what a reader reports.
 
-How a tune is written down is a form's, and no form is the format.
-[text.md](text.md) is one; a player's own is another.
+A form writes a tune down, and no form is the format.
+[text.md](text.md) is one form and a player's own is another.
 
 ---
 
@@ -67,7 +67,7 @@ until another row sets it or an effect's ticks write it.
 
 **A multi holds tunes and nothing else.** What a tune is called, who wrote
 it, what made it and the rate it plays at are the tune's. A file that
-takes one rate for a set of subtunes is a form working out what to write.
+states one rate for a set of subtunes states what its writer worked out.
 
 ---
 
@@ -102,10 +102,10 @@ to 3 silence the noise. R7's own bits 7 and 6 are the host's I/O port
 directions, which a player writes as it finds them and no tune moves.
 
 **The envelope shape.** Four bits, and a write to R13 restarts the
-envelope, the value it writes making no difference to that. A tune
+envelope. The value written makes no difference to that, so a row that
+sets R13 to the value it already holds restarts the envelope, and a tune
 restarts a shape it is already sounding more often than it changes to
-another, so a row that sets R13 to the value it already holds is a row
-that does something.
+another.
 
 **The envelope period's 0.** The envelope's rate is 2,000,000 divided by
 256 times the period, so period 1 sounds at 7,812.5 Hz, the fastest sweep
@@ -124,7 +124,7 @@ tune that needs a fifth stops one of the four on the row that starts it.
 ### 3.1 The targets
 
 A target is a procedure: it takes one row of a source and writes it. This
-version names fourteen, one a register, and `SetRegister` is all of them.
+version has fourteen, one a register, and `SetRegister` is all of them.
 `setR7` writes bits 5 to 0 with R7's bits 7 and 6 as the host holds them,
 which it does not move.
 
@@ -135,7 +135,7 @@ and the values a source holds are values the target's register takes.
 ### 3.2 The sources
 
 A source is a table a tick advances a row at a time, its target writing
-each row. The shapes a tune uses are shapes, and this format names no
+each row. The shapes a tune uses are shapes, and this format has no
 kinds:
 
 | the source | what it sounds |
@@ -145,7 +145,7 @@ kinds:
 | many rows played once | a recording through a volume register: a digidrum |
 
 A source holds its own values, so two square waves at two levels are two
-sources and a row names one of them.
+sources and a row states one of them.
 
 Two effects may run one source. Each timer advancing it holds its own
 place, so one starting or stopping leaves the other where it was.
@@ -181,8 +181,8 @@ wave are a whole period apart across a start, and the level the second
 writes is the new source's.
 
 A note that bends states a `Retune` with a count that moved. A note that
-is struck states a `Start` with both resets. A drum struck again at the
-rate it has states a `Start` with `placeReset` and the rate it has.
+is struck states a `Start` with both resets. A drum struck again states a
+`Start` with `placeReset` and the rate it already ran at.
 
 ---
 
@@ -271,19 +271,19 @@ a value once and tests nothing.
 
 Four rules that bound a writer of an earlier draft are gone, because the
 structure holds them where a row is made: an effect a row starts is one
-the tune runs, a source and a target a row names are ones this document
+the tune runs, a source and a target a row states are ones this document
 defines, a row that starts an effect for the first time states its target,
 and a row that stops an effect states no rate.
 
-Three of the five above are read off a tune's rows, and `bin/ymxs-check`
-names the row that breaks one. Rule 2 leaves an order to the writer, so
-there is nothing to read. Rule 4 asks for a value where a stopped timer
-begins a whole period with it or without it, so there is no way to state
-it wrongly.
+Three of the five above are read off a tune's rows, and a check gives the
+row that breaks one. Rule 2 leaves an order to the writer, so there is
+nothing to read. Rule 4 asks for a value where a stopped timer begins a
+whole period with it or without it, so there is no way to state it
+wrongly.
 
 A source that plays once states when it starts and never when it is done,
-so how long it runs is reckoned from its rate, and a reading that rests on
-that reckoning is marked as one that does.
+so how long it runs is reckoned from its rate, and a check marks a reading
+that rests on that reckoning.
 
 ---
 

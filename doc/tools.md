@@ -17,7 +17,7 @@ bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 | `ymxs-csv-to-json` | the table form | the text form |
 | `ymxs-merge` | several tunes, one file after another | one multi |
 
-Each is a shell script naming a Java class and nothing else:
+Each is a shell script with a Java class in it and nothing else:
 
 ```sh
 #!/bin/sh
@@ -29,7 +29,7 @@ exec "$(dirname -- "$0")/run" org.ymxs.tool.ToCsv "$@"
 is newer than the last build, then runs the class it is given. Everything
 a tool does is Java's.
 
-A pipe starts every tool in it at once, so two of them can owe the same
+A pipe starts every tool in it at once, so two of them can need the same
 build. `bin/run` takes a lock by making a directory, which either happens
 or does not: the first one through builds and the rest wait on it.
 
@@ -42,7 +42,7 @@ or does not: the first one through builds and the rest wait on it.
 | 2 | the call is wrong, or reading or writing failed |
 
 Where what it read is wrong, nothing goes to standard output, so a pipe
-stops rather than carrying something broken further.
+stops rather than passing something broken further.
 
 ## What a tool says
 
@@ -65,8 +65,8 @@ the exit is 1.
 
 A **warning** is a tune that plays, and plays as something other than what
 it states: one of the rules [SPEC.md 6](SPEC.md) asks of a writer. The
-tune goes through and the exit is 0, since a player takes it and only the
-writer can say whether it is what was meant.
+tune goes through and the exit is 0, since a player takes it and only its
+writer can tell whether it is what was meant.
 
 ```
 ymxs-check: warning: row 1: Timer A runs on R8, and this row sets it

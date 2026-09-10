@@ -25,8 +25,8 @@ final class Layout implements PrettyPrinter, Instantiatable<Layout> {
     private static final int ARRAYS = 4;
 
     /** Objects this deep and shallower put each field on a line of its
-     *  own: the file, a tune. */
-    private static final int OBJECTS = 3;
+     *  own: the file, a tune, and a tune's columns. */
+    private static final int OBJECTS = 4;
 
     /** Values on one line of a run before it wraps. */
     private static final int WRAP = 20;

@@ -21,17 +21,23 @@ import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The structure to a JSON tree and back. What that tree is written as and
  * read from is {@link Text}'s, and escaping, parsing and laying out are
  * the JSON library's; this maps, and nothing else.
  *
- * <p>A tune is written plainly: its sources, then the rows that set a
- * register, then the effects its rows state. Every one of those states
- * where it stands, so nothing is folded into runs or counted in gaps. It
- * is the shape {@link Csv} holds, written as JSON: a reader that has one
- * has the other.
+ * <p>A tune is written column by column. A register's column stands one
+ * value a row, null where the row does not set it; a timer's columns
+ * stand one value a row of what the row states of the effect there,
+ * {@link #NONE} where it states nothing. Every column is as long as the
+ * tune, so a row is what every column holds at that place and nothing has
+ * to be counted to find it.
+ *
+ * <p>A timer is a structure of its own, {@code timer0} to {@code timer3},
+ * because a row states an effect on as many of the four as it likes. A
+ * column that no row fills is left out.
  *
  * <p>A source is written by its number, 1 upward into the sources a tune's
  * rows start ({@link Tunes#sources}). The name beside it is what a writer
@@ -64,6 +70,15 @@ public final class Json {
         return out;
     }
 
+    /** What a column holds where the row it stands on states nothing: -1
+     *  in a timer's column, and null in a register's. */
+    public static final int NONE = -1;
+
+    /** What a shape is written as. */
+    public static final int START = 0;
+    public static final int RETUNE = 1;
+    public static final int STOP = 2;
+
     /** One tune as a JSON tree. */
     public static ObjectNode of(Tune tune) {
         ObjectNode out = MAKE.objectNode();
@@ -85,53 +100,101 @@ public final class Json {
             }
         }
         List<Row> rows = Tunes.rows(tune);
-        ArrayNode said = out.putArray("rows");
-        for (int at = 0; at < rows.size(); at++) {
-            Map<Register, Integer> sets = Tunes.registers(rows.get(at));
-            if (sets.isEmpty()) {
-                continue;
-            }
-            ObjectNode one = said.addObject();
-            one.put("row", at);
-            for (Map.Entry<Register, Integer> set : sets.entrySet()) {
-                one.put(name(set.getKey()), set.getValue());
-            }
+        ObjectNode sets = out.putObject("rows");
+        for (Register register : Register.values()) {
+            column(sets, name(register), rows, register);
         }
-        ArrayNode acts = out.putArray("effects");
-        for (int at = 0; at < rows.size(); at++) {
-            for (Map.Entry<Timer, Effect> one : Tunes.effects(rows.get(at)).entrySet()) {
-                acts.add(of(at, one.getKey(), one.getValue(), sources));
-            }
+        for (Timer timer : Timer.values()) {
+            timer(out, tune, timer, rows, sources);
         }
         return out;
     }
 
-    /** One effect a row states: where it stands, which timer, which shape,
-     *  and that shape's own values. */
-    private static ObjectNode of(int at, Timer timer, Effect effect, List<Source> sources) {
-        ObjectNode out = MAKE.objectNode();
-        out.put("row", at);
-        out.put("timer", timer.name());
-        switch (effect) {
-            case Start start -> {
-                out.put("shape", "start");
-                out.put("target", Tunes.name(start.target()));
-                out.put("source", sources.indexOf(start.source()) + 1);
-                out.put("prescaler", Chip.divides(start.prescaler()));
-                out.put("count", start.count());
-                out.put("timerReset", start.timerReset());
-                out.put("placeReset", start.placeReset());
+    /** One register's column: its value on every row, and null where the
+     *  row does not set it. A register no row sets has no column. */
+    private static void column(ObjectNode out, String named, List<Row> rows,
+                               Register register) {
+        ArrayNode values = MAKE.arrayNode();
+        boolean any = false;
+        for (Row row : rows) {
+            Integer value = row.registers().get(register);
+            if (value == null) {
+                values.addNull();
+            } else {
+                values.add(value.intValue());
+                any = true;
             }
-            case Retune retune -> {
-                out.put("shape", "retune");
-                out.put("prescaler", Chip.divides(retune.prescaler()));
-                out.put("count", retune.count());
-                out.put("timerReset", retune.timerReset());
-                out.put("placeReset", retune.placeReset());
-            }
-            case Stop ignored -> out.put("shape", "stop");
         }
-        return out;
+        if (any) {
+            out.set(named, values);
+        }
+    }
+
+    /** One timer's columns: what a row states of the effect there on every
+     *  row, and {@link #NONE} where the row states nothing. A timer no row
+     *  states has no columns. */
+    private static void timer(ObjectNode out, Tune tune, Timer timer, List<Row> rows,
+                              List<Source> sources) {
+        boolean any = false;
+        for (Row row : rows) {
+            if (row.effects().containsKey(timer)) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        ObjectNode held = out.putObject("timer" + timer.ordinal());
+        ArrayNode shape = held.putArray("shape");
+        ArrayNode target = held.putArray("target");
+        ArrayNode source = held.putArray("source");
+        ArrayNode prescaler = held.putArray("prescaler");
+        ArrayNode count = held.putArray("count");
+        ArrayNode timerReset = held.putArray("timerReset");
+        ArrayNode placeReset = held.putArray("placeReset");
+        for (Row row : rows) {
+            Effect effect = row.effects().get(timer);
+            if (effect == null) {
+                shape.add(NONE);
+                target.add(NONE);
+                source.add(NONE);
+                prescaler.add(NONE);
+                count.add(NONE);
+                timerReset.add(NONE);
+                placeReset.add(NONE);
+                continue;
+            }
+            switch (effect) {
+                case Start start -> {
+                    shape.add(START);
+                    target.add(Tunes.number(start.target()));
+                    source.add(sources.indexOf(start.source()) + 1);
+                    prescaler.add(Chip.divides(start.prescaler()));
+                    count.add(start.count());
+                    timerReset.add(start.timerReset() ? 1 : 0);
+                    placeReset.add(start.placeReset() ? 1 : 0);
+                }
+                case Retune retune -> {
+                    shape.add(RETUNE);
+                    target.add(NONE);
+                    source.add(NONE);
+                    prescaler.add(Chip.divides(retune.prescaler()));
+                    count.add(retune.count());
+                    timerReset.add(retune.timerReset() ? 1 : 0);
+                    placeReset.add(retune.placeReset() ? 1 : 0);
+                }
+                case Stop ignored -> {
+                    shape.add(STOP);
+                    target.add(NONE);
+                    source.add(NONE);
+                    prescaler.add(NONE);
+                    count.add(NONE);
+                    timerReset.add(NONE);
+                    placeReset.add(NONE);
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------------------- in
@@ -176,57 +239,118 @@ public final class Json {
             registers.add(new EnumMap<>(Register.class));
             effects.add(new EnumMap<>(Timer.class));
         }
-        for (JsonNode one : array(tree, "rows")) {
-            int at = row(count, number(one, "row"), "a row");
+        JsonNode rows = tree.get("rows");
+        if (rows != null) {
+            if (!rows.isObject()) {
+                throw new IllegalArgumentException("rows is " + kind(rows) + ", and a column"
+                        + " a register is asked");
+            }
             for (Register register : Register.values()) {
-                JsonNode value = one.get(name(register));
-                if (value != null) {
-                    registers.get(at).put(register, number(one, name(register)));
+                JsonNode column = rows.get(name(register));
+                if (column == null) {
+                    continue;
+                }
+                held(column, count, name(register));
+                for (int at = 0; at < count; at++) {
+                    if (!column.get(at).isNull()) {
+                        registers.get(at).put(register, column.get(at).intValue());
+                    }
                 }
             }
         }
-        for (JsonNode one : array(tree, "effects")) {
-            int at = row(count, number(one, "row"), "an effect");
-            effects.get(at).put(Timer.valueOf(text(one, "timer")), effect(one, sources, at));
+        for (Timer timer : Timer.values()) {
+            JsonNode held = tree.get("timer" + timer.ordinal());
+            if (held == null) {
+                continue;
+            }
+            if (!held.isObject()) {
+                throw new IllegalArgumentException("timer" + timer.ordinal() + " is "
+                        + kind(held) + ", and a column a part of an effect is asked");
+            }
+            for (int at = 0; at < count; at++) {
+                Effect effect = effect(held, at, sources, timer, count);
+                if (effect != null) {
+                    effects.get(at).put(timer, effect);
+                }
+            }
         }
-        List<Row> rows = new ArrayList<>();
+        List<Row> built = new ArrayList<>();
         for (int at = 0; at < count; at++) {
-            rows.add(new Row(registers.get(at), effects.get(at)));
+            built.add(new Row(registers.get(at), effects.get(at)));
         }
         return new Tune(text(tree, "title"), text(tree, "composer"), text(tree, "writer"),
-                number(tree, "rate"), new Table<>(rows, repeat(tree)));
+                number(tree, "rate"), new Table<>(built, repeat(tree)));
     }
 
-    private static int row(int count, int at, String what) {
-        if (at < 0 || at >= count) {
-            throw new IllegalArgumentException(what + " at row " + at + ", and the tune holds "
-                    + count + " rows");
+    /** A column stands one value a row, so it is as long as the tune. */
+    private static void held(JsonNode column, int frames, String named) {
+        if (!column.isArray()) {
+            throw new IllegalArgumentException(named + " is " + column + ", and a column is"
+                    + " asked");
         }
-        return at;
+        if (column.size() != frames) {
+            throw new IllegalArgumentException(named + " holds " + column.size()
+                    + " values, and the tune holds " + frames + " frames");
+        }
     }
 
-    /** What a row states of one effect, out of the shape it names and that
-     *  shape's own fields. */
-    private static Effect effect(JsonNode said, List<Source> sources, int at) {
-        String shape = text(said, "shape");
+    /** What one row states of the effect on one timer, or null where it
+     *  states nothing. */
+    private static @Nullable Effect effect(JsonNode held, int at, List<Source> sources,
+                                           Timer timer, int frames) {
+        int shape = column(held, "shape", at, timer, frames);
+        if (shape == NONE) {
+            return null;
+        }
         return switch (shape) {
-            case "start" -> {
-                int number = number(said, "source");
-                if (number < 1 || number > sources.size()) {
+            case START -> {
+                int source = column(held, "source", at, timer, frames);
+                if (source < 1 || source > sources.size()) {
                     throw new IllegalArgumentException("row " + at + " starts source "
-                            + number + ", and the tune holds " + sources.size());
+                            + source + ", and the tune holds " + sources.size());
                 }
-                yield new Start(target(text(said, "target")), sources.get(number - 1),
-                        Chip.prescaler(number(said, "prescaler")), number(said, "count"),
-                        flag(said, "timerReset"), flag(said, "placeReset"));
+                yield new Start(Tunes.target(column(held, "target", at, timer, frames)),
+                        sources.get(source - 1),
+                        Chip.prescaler(column(held, "prescaler", at, timer, frames)),
+                        column(held, "count", at, timer, frames),
+                        column(held, "timerReset", at, timer, frames) == 1,
+                        column(held, "placeReset", at, timer, frames) == 1);
             }
-            case "retune" -> new Retune(Chip.prescaler(number(said, "prescaler")),
-                    number(said, "count"), flag(said, "timerReset"),
-                    flag(said, "placeReset"));
-            case "stop" -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " states \"" + shape
-                    + "\" of an effect, and it states one of start, retune and stop");
+            case RETUNE -> new Retune(
+                    Chip.prescaler(column(held, "prescaler", at, timer, frames)),
+                    column(held, "count", at, timer, frames),
+                    column(held, "timerReset", at, timer, frames) == 1,
+                    column(held, "placeReset", at, timer, frames) == 1);
+            case STOP -> Tunes.STOP;
+            default -> throw new IllegalArgumentException("row " + at + " states shape "
+                    + shape + " on Timer " + timer + ", and a shape is " + START + ", "
+                    + RETUNE + " or " + STOP);
         };
+    }
+
+    /** What a node is, for a complaint. */
+    private static String kind(JsonNode node) {
+        if (node.isArray()) {
+            return "an array";
+        }
+        if (node.isObject()) {
+            return "an object";
+        }
+        return String.valueOf(node);
+    }
+
+    private static int column(JsonNode held, String named, int at, Timer timer, int frames) {
+        JsonNode column = held.get(named);
+        if (column == null) {
+            throw new IllegalArgumentException("Timer " + timer + " has no \"" + named
+                    + "\" column");
+        }
+        held(column, frames, "Timer " + timer + "'s " + named);
+        if (!column.get(at).isIntegralNumber()) {
+            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " holds "
+                    + column.get(at) + " at row " + at + ", and a whole number is asked");
+        }
+        return column.get(at).intValue();
     }
 
     // -------------------------------------------------------------- both

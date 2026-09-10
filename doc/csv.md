@@ -45,9 +45,9 @@ recording 0,
 - A column is found by its name, so the order the columns come in is the
   file's own.
 
-**These are ordinary tables**, and they are the tables
-[the text form](text.md) writes as JSON: a reader that has one form has
-the other. A row of a tune is a row here, with a column a register.
+**These are ordinary tables.** A row of a tune is a row here, with a
+column a register. [The text form](text.md) holds the same tune the other
+way round, a column at a time.
 
 **Where a table stands says what it belongs to.** A tune opens with its
 own table, and the tables after it are that tune's until the next tune

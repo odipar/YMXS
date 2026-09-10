@@ -4,8 +4,8 @@ JSON, and one way of writing the structure down. The structure is the
 records under `src/main/java/org/ymxs/`; nothing here is in them, and a
 second form would change none of them.
 
-It holds the same tables [the table form](csv.md) holds, so a reader that
-has one has the other.
+[The table form](csv.md) holds the same tune as rows rather than columns,
+for a reader who would rather open one in a spreadsheet.
 
 ```json
 {
@@ -13,36 +13,42 @@ has one has the other.
   "version": 1,
   "tunes": [
     {
-      "title": "Synthetic",
-      "composer": "Test",
+      "title": "Circus Attractions #2",
+      "composer": "Mad Max",
       "writer": "ym-to-ymxs",
       "rate": 50,
-      "frames": 400,
+      "frames": 4,
       "repeat": 0,
       "sources": [
-        {"name": "square 13", "repeat": 0, "values": [13,0]},
-        {"name": "recording 0", "repeat": null, "values": [8,9,10,11]}
+        {"name": "square 13", "repeat": 0, "values": [13,0]}
       ],
-      "rows": [
-        {"row": 0, "r0": 64, "r1": 1, "r7": 56, "r9": 12},
-        {"row": 1, "r0": 65, "r2": 49, "r6": 1}
-      ],
-      "effects": [
-        {"row": 0, "timer": "A", "shape": "start", "target": "setR8",
-         "source": 1, "prescaler": 50, "count": 60,
-         "timerReset": true, "placeReset": true},
-        {"row": 1, "timer": "A", "shape": "retune", "prescaler": 50,
-         "count": 61, "timerReset": false, "placeReset": false}
-      ]
+      "rows": {
+        "r0": [163,142,251,89],
+        "r1": [2,12,4,2],
+        "r2": [238,null,null,null],
+        "r7": [56,49,null,56]
+      },
+      "timer0": {
+        "shape": [0,1,-1,2],
+        "target": [8,-1,-1,-1],
+        "source": [1,-1,-1,-1],
+        "prescaler": [50,50,-1,-1],
+        "count": [60,61,-1,-1],
+        "timerReset": [1,0,-1,-1],
+        "placeReset": [1,0,-1,-1]
+      }
     }
   ]
 }
 ```
 
-**Everything states where it stands.** A row says which row it is and an
-effect says which row it is on, so nothing is folded into runs and no
-count is carried from one entry to the next. What a reader has to do to
-make one of these is put down what it knows, one entry at a time.
+**A tune is written column by column, and every column is as long as the
+tune.** A row is what every column holds at that place, so nothing has to
+be counted to find one and no entry states a number saying where it
+stands.
+
+A column that no row fills is left out: a register no row sets has no
+column, and a timer no row states has none.
 
 ## A tune
 
@@ -53,15 +59,15 @@ make one of these is put down what it knows, one entry at a time.
 | `frames` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
 | `sources` | the sources its rows start, in the order a row first starts each |
-| `rows` | the rows that set a register |
-| `effects` | what its rows state of the effects |
+| `rows` | a column a register |
+| `timer0` to `timer3` | a column a part of the effect on that timer |
 
-`frames` is stated because a row that sets nothing is no entry in `rows`.
+`frames` says how long every column is, and a reader holds them to it.
 
-## A row
+## The registers
 
-`row` is which row it is, and every key after it is a register that row
-sets: `r0` to `r13`, each holding the value that register takes.
+`rows` holds a column a register, `r0` to `r13`, each one value a row.
+**`null` is a register that row does not set.**
 
 | key | sets | takes |
 |---|---|---|
@@ -74,24 +80,24 @@ sets: `r0` to `r13`, each holding the value that register takes.
 | `r12` | the envelope period, coarse | 0 to 255 |
 | `r13` | the envelope shape | 0 to 15 |
 
-A register with no key is one that row does not write.
+## The effects
 
-## An effect
+A timer is a structure of its own, since a row states an effect on as many
+of the four as it likes: `timer0` is Timer A, `timer1` B, `timer2` C and
+`timer3` D. Each holds seven columns, one value a row, and **-1 is what a
+row states nothing of.**
 
-`row` is which row states it and `timer` which of `A`, `B`, `C` and `D`
-it states it against. `shape` is one of three, and what it holds after
-that is that shape's:
-
-| shape | holds |
+| column | holds |
 |---|---|
-| `start` | `target`, `source`, `prescaler`, `count`, `timerReset`, `placeReset` |
-| `retune` | `prescaler`, `count`, `timerReset`, `placeReset` |
-| `stop` | nothing |
+| `shape` | 0 a start, 1 a retune, 2 a stop, -1 nothing |
+| `target` | 0 to 13, which is `setR0` to `setR13` |
+| `source` | 1 upward into the tune's `sources` |
+| `prescaler` | one of the seven a timer divides by: 4, 10, 16, 50, 64, 100, 200 |
+| `count` | 1 to 256 |
+| `timerReset`, `placeReset` | 1 true, 0 false |
 
-`target` is the target's own name, `setR0` to `setR13`. `source` is a
-number, 1 upward into the tune's `sources`. `prescaler` is one of the
-seven a timer divides by: 4, 10, 16, 50, 64, 100 or 200. `count` is 1 to
-256.
+What a shape does not hold is -1 as well: a retune holds no target and no
+source, and a stop holds none of the six.
 
 ## A source
 
@@ -103,10 +109,10 @@ seven a timer divides by: 4, 10, 16, 50, 64, 100 or 200. `count` is 1 to
 
 ## The layout
 
-One row a line, one effect a line, and a source's values wrapped at
-twenty. `Json` maps the structure to a JSON tree and back, `Layout` says
-where the lines break, and a JSON library does the escaping, the parsing
-and the writing. A reader takes any JSON of this shape.
+One column a line, wrapped at twenty values. `Json` maps the structure to
+a JSON tree and back, `Layout` says where the lines break, and a JSON
+library does the escaping, the parsing and the writing. A reader takes any
+JSON of this shape.
 
 ## What is turned away
 
@@ -114,7 +120,7 @@ and the writing. A reader takes any JSON of this shape.
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | R6.1 |
-| a row or an effect past `frames` | the tune holds no such row |
+| a column that is not as long as `frames` | a column stands one value a row |
 | a `shape` that is none of the three | there are three |
 | a source number the tune does not hold | it names nothing |
 

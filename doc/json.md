@@ -1,11 +1,11 @@
 # JSON
 
 One way of writing the structure down. The structure is the records under
-`src/main/java/org/ymxs/`, which this document leaves untouched: a second
-form reads and writes the same records.
+`src/main/java/org/ymxs/`; this document defines a serialisation of them
+and no part of the structure itself.
 
-[CSV](csv.md) writes the same tune as rows rather than columns, for a
-reader who would rather open one in a spreadsheet.
+[CSV](csv.md) writes the same tune as rows rather than columns, for
+reading in a spreadsheet.
 
 ```json
 {
@@ -43,34 +43,34 @@ reader who would rather open one in a spreadsheet.
 ```
 
 **A tune is written column by column, and every column is as long as the
-tune.** A row is one place taken across every column, so a reader indexes
-straight to it and no entry gives a row number.
+tune.** A row is one index across every column, so no row number appears
+in the file.
 
-A column that no row fills is left out, so a register no row sets and a
-timer no row uses both drop out.
+A column appears only where some row fills it: a register some row sets, a
+timer some row acts on.
 
 ## A tune
 
-| key | gives |
+| key | what it is |
 |---|---|
-| `title`, `composer`, `writer` | text, empty where none is given |
+| `title`, `composer`, `writer` | text, empty where absent |
 | `rate` | how often the player is called for this tune, in Hz |
 | `frames` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
-| `sources` | the sources its rows start, in the order a row first starts each |
+| `sources` | the sources its rows start, in first-start order |
 | `rows` | a column a register |
 | `timerA` to `timerD` | a column a part of the effect on that timer |
 
-`frames` says how long every column is, and a reader checks each against
-it.
+`frames` is the length of every column, and a reader verifies each column
+against it.
 
 ## The registers
 
-`rows` gives a column a register, `r0` to `r13`, each one value a row.
-**-1 stands where the row does not set that register**, and no register
-takes -1 as a value.
+`rows` is a column a register, `r0` to `r13`, each one value a row.
+**-1 stands where the row does not set that register.** No register value
+is -1, so -1 is unambiguous in a column.
 
-| key | sets | takes |
+| key | sets | range |
 |---|---|---|
 | `r0`, `r2`, `r4` | a voice's tone period, fine | 0 to 255 |
 | `r1`, `r3`, `r5` | a voice's tone period, coarse | 0 to 15 |
@@ -83,12 +83,12 @@ takes -1 as a value.
 
 ## The effects
 
-A timer is a structure of its own, `timerA` through `timerD`, since a row
+Each timer is a separate object, `timerA` through `timerD`, since one row
 may act on all four. Each has seven columns, one value a row, and **-1
-stands where a row leaves that timer alone**, as it does in a register's
+stands where a row leaves that timer alone**, as in a register's
 column.
 
-| column | gives |
+| column | what it is |
 |---|---|
 | `shape` | 0 a start, 1 a retune, 2 a stop, -1 none |
 | `target` | 0 to 13, which is `setR0` to `setR13` |
@@ -97,23 +97,23 @@ column.
 | `count` | 1 to 256 |
 | `timerReset`, `placeReset` | 1 true, 0 false |
 
-A part a shape leaves out is -1 too: a retune leaves `target` and
-`source` at -1, and a stop leaves all six.
+A part absent from a shape is -1: `target` and `source` for a retune, all
+six for a stop.
 
 ## A source
 
-| key | gives |
+| key | what it is |
 |---|---|
-| `name` | what a writer calls it, empty where none is given |
+| `name` | the source name, empty where absent |
 | `repeat` | the row it repeats to, or `null` for one that plays once |
 | `values` | its rows, one value a row |
 
 ## The layout
 
 One column a line, wrapped at twenty values. `Json` maps the structure to
-a JSON tree and back, `Layout` says where the lines break, and a JSON
-library does the escaping, the parsing and the writing. A reader takes any
-JSON of this shape.
+a JSON tree and back, `Layout` fixes the line breaks, and a JSON library
+performs the escaping, the parsing and the writing. Any JSON of this shape
+is valid input.
 
 ## What is an error
 
@@ -121,10 +121,10 @@ JSON of this shape.
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | it is another version |
-| a column that is not as long as `frames` | a column stands one value a row |
-| a `shape` that is none of the three | there are three |
-| a source number past the tune's `sources` | it reaches no source |
+| a column whose length is not `frames` | a column is one value a row |
+| a `shape` outside 0, 1 and 2 | there are three shapes |
+| a source number outside the tune's `sources` | there is no such source |
 
-Everything else is an error where the record is made: a register value
-past what the register takes, a count outside 1 to 256, a source value
-past what its target takes, a repeat row past the last row.
+The remaining errors are rejected where the record is constructed: a
+register value outside its range, a count outside 1 to 256, a source value
+outside its target's range, a repeat row past the last row.

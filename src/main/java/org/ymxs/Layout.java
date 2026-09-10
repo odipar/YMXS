@@ -7,28 +7,28 @@ import java.io.IOException;
 
 /**
  * Where the JSON form breaks a line. The library writes the JSON; this
- * says only where the whitespace goes.
+ * class fixes the whitespace alone.
  *
- * <p>What it is for is reading. A tune's shape stands at the top of the
- * file, a run of one register's rows stands on a line of its own, and an
- * effect's event stands on one, so a reader looks down a stream or across
- * a row without a tool. A long run wraps, so no line runs off the screen.
+ * <p>Its purpose is reading. A tune's fixed figures stand at the top of
+ * the tune, and each column stands on one line, so a register's values are
+ * read across a line and the columns are compared down the file. A long
+ * column wraps at {@link #WRAP} values, within the width of a screen.
  *
  * <p>The rule is depth. The outer structures break their lines: the file,
- * a tune, a stream, the list of events. What stands inside those is one
- * thing on one line: a run, an event, a source.
+ * a tune, its `rows`, its timers. What stands inside those is one item a
+ * line: a column, a source.
  */
 final class Layout implements PrettyPrinter, Instantiatable<Layout> {
 
-    /** Arrays this deep and shallower put each value on a line of its own:
-     *  the tunes, a register's runs, the events. */
+    /** Arrays this deep and shallower put each value on a separate line:
+     *  the tunes, the sources. */
     private static final int ARRAYS = 4;
 
-    /** Objects this deep and shallower put each field on a line of its
-     *  own: the file, a tune, and a tune's columns. */
+    /** Objects this deep and shallower put each field on a separate
+     *  line: the file, a tune, and a tune's columns. */
     private static final int OBJECTS = 4;
 
-    /** Values on one line of a run before it wraps. */
+    /** Values on one line of a column before it wraps. */
     private static final int WRAP = 20;
 
     private static final String INDENT = "  ";

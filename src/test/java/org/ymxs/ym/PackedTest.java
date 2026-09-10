@@ -14,12 +14,11 @@ import org.ymxs.Tunes;
 import org.ymxs.YMXS.Tune;
 
 /**
- * A {@code .ym} as it was distributed: an archive with the dump inside.
+ * A {@code .ym} as distributed: an archive containing the dump.
  *
  * <p>{@code src/test/resources/packed.ym} is 162 bytes of {@code -lh5-},
  * and the tune inside it is the one in {@code doc/tunes/circus.json}, so
- * what comes out of the unpacking is read against a tune that was read
- * another way.
+ * the result of the unpacking is compared against a tune read another way.
  */
 final class PackedTest {
 
@@ -41,7 +40,7 @@ final class PackedTest {
                 OptionalInt.of(0)).tune();
         Tune read = Text.read(Files.readString(Path.of("doc/tunes/circus.json")))
                 .tunes().get(0);
-        assertEquals(read, packed, "the archive gives the tune doc/tunes/circus.json does");
+        assertEquals(read, packed, "the archive has the tune doc/tunes/circus.json does");
         assertEquals(4, Tunes.size(packed.table()));
     }
 

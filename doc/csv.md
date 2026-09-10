@@ -1,7 +1,6 @@
 # CSV
 
-A tune as tables, for a reader who would rather open one in a spreadsheet
-than in an editor.
+A tune as tables, for reading in a spreadsheet.
 
 ```
 ### multi,format,version,tunes
@@ -36,59 +35,57 @@ recording 0,
 
 ## How it reads
 
-- A line beginning `###` gives a table and then its columns.
+- A line beginning `###` opens a table and names its columns.
 - Every line after it is one row of that table, in ordinary
   comma-separated values, until the next such line.
 - A blank line is skipped.
 - A cell is quoted where it has a comma or a quote, and two quotes
   inside a quoted cell stand for one.
-- A column is found by its name, so the order the columns come in is the
-  file's own.
+- A column is found by name, so column order follows the file.
 
 **These are ordinary tables.** A row of a tune is a row here, with a
 column a register. [JSON](json.md) writes the same tune the other way
-round, a column at a time, and a filled cell reads the same in both: the
-same numbers, and a shape, a target and a timer as the same enumerations.
+round, a column at a time, and a filled cell is identical in both: the
+same numbers, and the same enumerations for a shape, a target and a timer.
 
-**Where a table stands says what it belongs to.** A tune opens with its
-own table, and the tables after it are that tune's until the next tune
-opens. A source does the same for the values after it. So a table needs
-no column for its tune or its source, and a tune's tables stand
-together.
+**Position determines what a table belongs to.** A tune opens with a
+`tune` table, and the tables after it belong to that tune until the next
+`tune` table. A source opens with a `source` table, and the values after
+it belong to that source. A table therefore needs no column for its tune
+or its source, and the tables of one tune stand together.
 
 ## The tables
 
-| table | gives |
+| table | its rows |
 |---|---|
 | `multi` | one row: what the file is, its version, and the number of tunes |
 | `tune` | one row, and it opens a tune |
-| `source` | one row, and it opens a source, in the order a row first starts it |
+| `source` | one row, and it opens a source, in first-start order |
 | `value` | one row a value of the source it comes after |
 | `rows` | one row a row of the tune that sets a register |
 | `timerA` to `timerD` | one row an effect on that timer |
 
-**An empty cell in `rows`** is a register that row does not set. A row
-that sets no register is left out of the table: the `row` column says
-which row a line is, and `frames` in the `tune` table gives the count.
+**An empty cell in `rows`** is a register that row does not set. Only a
+row that sets a register is a line of the table: the `row` column is the
+row number, and `frames` in the `tune` table is the count.
 
-**A tune without sources** opens neither a `source` nor a `value` table.
+**Each source a tune runs opens a `source` table and a `value` table.**
 
-**A timer opens a table of its own**, `timerA` through `timerD`, and a
-timer no row uses opens none. Its cells read as [JSON](json.md) reads
-them: `shape` 0 a start, 1 a retune, 2 a stop; `target` 0 to 13 for
-`setR0` to `setR13`; `source` 1 upward into the tune's sources;
-`timerReset` and `placeReset` 1 and 0.
+**Each timer a row uses opens a table**, `timerA` through `timerD`. The
+cells are the values [JSON](json.md) defines: `shape` 0 a start, 1 a
+retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`; `source` 1
+upward into the tune's sources; `timerReset` and `placeReset` 1 and 0.
 
-**An empty cell there** is a part that shape leaves out, where JSON says
--1. A retune leaves `target` and `source` empty; a stop leaves all six.
+**An empty cell there** is a part absent from that shape, written as -1 in
+JSON: `target` and `source` for a retune, all six for a stop.
 
 **`repeat`** is the row a tune or a source repeats to, and an empty cell
-is one that plays once.
+marks one that plays once.
 
 ## What is an error
 
-A cell with a line feed in it. Quoting covers a comma and a quote; a line
-feed would read as the end of a row, so a title with one is an error
+A cell containing a line feed. Quoting covers a comma and a quote; a line
+feed would read as the end of a row, so a title containing one is rejected
 rather than written and misread.
 
 ## Between the two forms
@@ -99,5 +96,5 @@ bin/ymxs-csv-to-json < tune.csv > tune.json
 ```
 
 `doc/tunes/circus.csv` is one tune in this form and
-`doc/tunes/circus.json` the same tune in the other, and a test reads the
-two into the same structure.
+`doc/tunes/circus.json` the same tune in JSON. A test reads the two into
+the same structure.

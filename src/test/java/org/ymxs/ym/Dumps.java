@@ -8,7 +8,7 @@ import java.util.List;
  * A YM6 dump written here, so that a frame's bytes stand in the test
  * rather than in a file.
  *
- * <p>A dump files its two effect slots in the bits the chip does not use:
+ * <p>A dump files its two effect slots in the bits the chip leaves unused:
  * slot 0's kind and voice in R1's top four, its prescaler in R6's top
  * three and its count in R14; slot 1's in R3, R8 and R15. {@link #slot0}
  * and {@link #slot1} write those.

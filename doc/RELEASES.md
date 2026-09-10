@@ -1,3 +1,3 @@
-# releases
+# Releases
 
-No release yet. A player pins a version of this.
+No release yet. A player pins a version of this format.

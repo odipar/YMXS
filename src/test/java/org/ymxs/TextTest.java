@@ -26,14 +26,14 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * JSON against the structure: every tune under {@code doc/tunes}
- * read and written back, and a tune built here with every shape a row
- * takes in it.
+ * JSON against the structure: every tune under {@code doc/tunes} read and
+ * written back, and a tune built here containing all three shapes of
+ * effect.
  */
 final class TextTest {
 
     /** What the tunes under {@code doc/tunes} come to, read back so that
-     *  a tune added or a form changed says so. */
+     *  a tune added or a form changed fails here. */
     private static final int STARTS = 177;
     private static final int RETUNES = 76;
     private static final int STOPS = 165;
@@ -85,7 +85,7 @@ final class TextTest {
         assertEquals(STOPS, stops, "their stops");
     }
 
-    /** A tune with every shape a row takes in it, written and read back. */
+    /** A tune with all three shapes in it, written and read back. */
     @Test
     void everyShapeSurvivesTheRoundTrip() {
         Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
@@ -93,7 +93,7 @@ final class TextTest {
         Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
         List<Row> rows = new ArrayList<>();
         rows.add(Tunes.EMPTY);
-        // every register a row sets, at the largest value each takes
+        // every register a row sets, at the largest value that fits it
         Map<Register, Integer> all = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
             all.put(register, Chip.most(register));
@@ -149,7 +149,7 @@ final class TextTest {
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
                 () -> Text.read(text));
         String said = String.valueOf(no.getMessage());
-        assertTrue(said.contains("r0 gives 2 values, and the tune runs 4 frames"), said);
+        assertTrue(said.contains("r0 is 2 values long, and the tune runs 4 frames"), said);
     }
 
     @Test

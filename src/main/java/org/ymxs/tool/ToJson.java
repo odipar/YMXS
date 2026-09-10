@@ -10,8 +10,8 @@ import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Tune;
 
 /**
- * {@code ymxs-csv-to-json}: CSV on standard input, the text
- * form on standard output (doc/json.md).
+ * {@code ymxs-csv-to-json}: CSV on standard input, JSON on standard
+ * output (doc/json.md).
  */
 public final class ToJson {
 
@@ -35,7 +35,7 @@ public final class ToJson {
         for (Tune tune : multi.tunes()) {
             rows += Tunes.size(tune.table());
         }
-        tool.say(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
+        tool.report(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
                 + rows + " rows, " + text.length() + " characters in and " + json.length()
                 + " out");
     }

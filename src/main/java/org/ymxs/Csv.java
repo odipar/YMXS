@@ -20,32 +20,32 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The other form: a tune as tables, for a reader who would rather open
- * one in a spreadsheet than in an editor (doc/csv.md). It writes what
- * {@link Text} writes, and either reads into the same structure.
+ * The other form: a tune as tables, for reading in a spreadsheet
+ * (doc/csv.md). It writes what {@link Text} writes, and both read into the
+ * same structure.
  *
- * <p>A line beginning {@link #TABLE} gives a table and its columns. Every
- * line after it is one row of that table, in ordinary comma-separated
- * values, until the next such line.
+ * <p>A line beginning {@link #TABLE} opens a table and names its columns.
+ * Every line after it is one row of that table, in ordinary
+ * comma-separated values, until the next such line.
  *
  * <pre>
  *   ### tune,tune,title,composer,writer,rate,rows,repeat
  *   1,Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
  * </pre>
  *
- * <p>The tables are ordinary tables, and they are the tables {@link Json}
- * writes as JSON: a reader that has one form has the other. A row of a
- * tune is a row here, with a column a register, and a cell that is empty
- * is a register the row does not set.
+ * <p>These are ordinary tables, and they are the tables {@link Json}
+ * writes as JSON: one form follows from the other. A row of a tune is a
+ * row here, with a column a register, and an empty cell is a register the
+ * row does not set.
  *
- * <p>A tune opens with its own table and the tables after it are that
- * tune's, until the next tune opens; a source does the same for the values
- * after it. So a table needs no column for its tune or its source: where
- * it stands says that.
+ * <p>A tune opens with a `tune` table, and the tables after it belong to
+ * that tune until the next `tune` table; a source opens with a `source`
+ * table, and the values after it belong to that source. A table therefore
+ * needs no column for its tune or its source: position determines that.
  */
 public final class Csv {
 
-    /** What a line giving a table and its columns begins with. */
+    /** What a line opening a table begins with. */
     public static final String TABLE = "### ";
 
     private Csv() {
@@ -64,7 +64,7 @@ public final class Csv {
         return out.toString();
     }
 
-    /** One tune: what it is called, and then its own tables. */
+    /** One tune: its `tune` table, then the tables that belong to it. */
     private static void tune(StringBuilder out, Tune tune) {
         table(out, "tune", "title", "composer", "writer", "rate", "frames", "repeat");
         row(out, tune.title(), tune.composer(), tune.writer(), tune.rate(),
@@ -104,9 +104,9 @@ public final class Csv {
         }
     }
 
-    /** One timer's table, where any row acts on it. The values are the
-     *  ones {@link Json} writes, and a cell is empty where that form would
-     *  say none. */
+    /** One timer's table, written where some row acts on that timer. The
+     *  values are the ones {@link Json} writes, and a cell is empty where
+     *  that form writes {@code -1}. */
     private static void timer(StringBuilder out, Timer timer, List<Row> rows,
                               List<Source> sources) {
         boolean any = false;
@@ -139,7 +139,7 @@ public final class Csv {
         }
     }
 
-    /** A line giving a table and its columns, with a blank line before it. */
+    /** A line opening a table and naming its columns, after a blank line. */
     private static void table(StringBuilder out, Object... named) {
         if (out.length() > 0) {
             out.append('\n');
@@ -148,8 +148,8 @@ public final class Csv {
         row(out, named);
     }
 
-    /** One row, its cells quoted where a cell has a comma, a quote or a
-     *  space at either end. */
+    /** One row, each cell quoted where it has a comma, a quote or a
+     *  leading or trailing space. */
     private static void row(StringBuilder out, Object... cells) {
         for (int at = 0; at < cells.length; at++) {
             out.append(at > 0 ? "," : "").append(cell(String.valueOf(cells[at])));
@@ -173,12 +173,11 @@ public final class Csv {
 
     // ----------------------------------------------------------------- in
 
-    /** One table: what it is called, what its columns are called, and its
-     *  rows. */
+    /** One table: its name, its column names, and its rows. */
     private record Block(String name, List<String> columns, List<List<String>> rows) {
 
-        /** The cell {@code named} of {@code row}, or an empty text where
-         *  the table has no such column. */
+        /** The cell {@code named} of {@code row}, or empty text where the
+         *  table defines no such column. */
         String of(List<String> row, String named) {
             int at = columns.indexOf(named);
             return at < 0 || at >= row.size() ? "" : row.get(at);
@@ -188,7 +187,7 @@ public final class Csv {
     /** The multi in {@code text}.
      *
      * @throws IllegalArgumentException where the text is not this form, or
-     *     gives a structure no player plays
+     *     is a structure no player plays
      */
     public static Multi read(String text) {
         List<Block> sections = sections(text);
@@ -229,9 +228,9 @@ public final class Csv {
         return Check.must(new Multi(tunes));
     }
 
-    /** One tune, out of the table that opens it and the tables after it.
-     *  A source opens its own table, and the values after it are that
-     *  source's. */
+    /** One tune, from the table that opens it and the tables after it. A
+     *  source opens a `source` table, and the values after it belong to
+     *  that source. */
     private static Tune tune(Block told, List<Block> mine, int number) {
         if (told.rows().size() != 1) {
             throw new IllegalArgumentException("tune " + number + " is opened by "
@@ -259,8 +258,8 @@ public final class Csv {
                 }
                 case "value" -> {
                     if (values.isEmpty()) {
-                        throw new IllegalArgumentException("tune " + number + " gives values"
-                                + " before any source opens");
+                        throw new IllegalArgumentException("tune " + number + " opens values"
+                                + " before any source");
                     }
                     List<Integer> last = values.get(values.size() - 1);
                     for (List<String> line : block.rows()) {
@@ -270,7 +269,7 @@ public final class Csv {
                 case "rows" -> {
                     for (List<String> line : block.rows()) {
                         int at = row(count, block.of(line, "row"), "tune " + number
-                                + " gives a row");
+                                + " sets a row");
                         for (Register register : Register.values()) {
                             String cell = block.of(line, Json.name(register));
                             if (!cell.isEmpty()) {
@@ -299,7 +298,7 @@ public final class Csv {
             Timer timer = timer(block.name(), number);
             for (List<String> line : block.rows()) {
                 int at = row(count, block.of(line, "row"), "tune " + number
-                        + " gives an effect");
+                        + " sets an effect");
                 effects.get(at).put(timer, effect(block, line, sources, at));
             }
         }
@@ -312,7 +311,7 @@ public final class Csv {
                 new Table<>(rows, maybe(told.of(one, "repeat"))));
     }
 
-    /** The timer a table of that name gives. */
+    /** The timer a table of that name is for. */
     private static Timer timer(String table, int tune) {
         String said = table.substring("timer".length());
         for (Timer timer : Timer.values()) {
@@ -345,7 +344,7 @@ public final class Csv {
                     number(acts.of(one, "count"), "count"),
                     flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
             case Json.STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " gives shape "
+            default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " of an effect, and a shape is " + Json.START + ", "
                     + Json.RETUNE + " or " + Json.STOP);
         };
@@ -386,7 +385,7 @@ public final class Csv {
         return said.isEmpty() ? OptionalInt.empty() : OptionalInt.of(number(said, "repeat"));
     }
 
-    /** The tables in the text, in the order they come. */
+    /** The tables in the text, in file order. */
     private static List<Block> sections(String text) {
         List<Block> out = new ArrayList<>();
         Block here = null;
@@ -405,7 +404,7 @@ public final class Csv {
                 continue;
             }
             if (here == null) {
-                throw new IllegalArgumentException("a row before any table gives its"
+                throw new IllegalArgumentException("a row before any table names its"
                         + " columns: " + line);
             }
             here.rows().add(cells(line));
@@ -413,8 +412,8 @@ public final class Csv {
         return out;
     }
 
-    /** One line's cells, a quoted cell giving what it says and two
-     *  quotes standing for one. */
+    /** One line's cells; a quoted cell is its content, and two quotes
+     *  inside one stand for a single quote. */
     static List<String> cells(String line) {
         List<String> out = new ArrayList<>();
         StringBuilder one = new StringBuilder();

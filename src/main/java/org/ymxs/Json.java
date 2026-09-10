@@ -24,23 +24,22 @@ import org.ymxs.YMXS.Tune;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The structure to a JSON tree and back. What that tree is written as and
- * read from is {@link Text}'s, and escaping, parsing and laying out are
- * the JSON library's; this maps, and leaves the rest to them.
+ * The structure to a JSON tree and back. {@link Text} writes that tree and
+ * reads it, and the escaping, the parsing and the layout are the JSON
+ * library's; this class performs the mapping alone.
  *
- * <p>A tune is written column by column. A register's column stands one
- * value a row, and a timer's columns one value a row of what the row does
- * to the effect there, {@link #NONE} where a row leaves it alone. Every
- * column is as long as the tune, so a row is one place taken across every
- * column, and a reader indexes straight to it.
+ * <p>A tune is written column by column. A register's column is one value
+ * a row, and a timer's columns one value a row of the operation on that
+ * effect, {@link #NONE} where a row leaves it alone. Every column is as
+ * long as the tune, so a row is one index across every column.
  *
- * <p>A timer is a structure of its own, {@code timerA} to {@code timerD},
- * because one row may act on as many of the four as it likes. A column
- * that no row fills is left out.
+ * <p>Each timer is a separate object, {@code timerA} to {@code timerD},
+ * since one row may act on all four. A column appears only where some row
+ * fills it.
  *
  * <p>A source is written by its number, 1 upward into the sources a tune's
- * rows start ({@link Tunes#sources}). The name beside it is what a writer
- * called it, and it reaches the tools' reports alone.
+ * rows start ({@link Tunes#sources}). The name beside it appears in the
+ * tools' reports alone.
  */
 public final class Json {
 
@@ -69,12 +68,12 @@ public final class Json {
         return out;
     }
 
-    /** What a column gives where the row it stands on left that value
-     *  alone. No register takes it and no part of an effect is it, so it
-     *  is free for this. */
+    /** What stands in a column where the row left that value alone. It
+     *  is free for this, since it fits neither a register nor a part of
+     *  an effect. */
     public static final int NONE = -1;
 
-    /** What a shape is written as. */
+    /** The value each shape is written as. */
     public static final int START = 0;
     public static final int RETUNE = 1;
     public static final int STOP = 2;
@@ -111,7 +110,7 @@ public final class Json {
     }
 
     /** One register's column: its value on every row, and {@link #NONE}
-     *  where the row does not set it. A register no row sets has no
+     *  where the row does not set it. Only a register some row sets has a
      *  column. */
     private static void column(ObjectNode out, String named, List<Row> rows,
                                Register register) {
@@ -127,9 +126,9 @@ public final class Json {
         }
     }
 
-    /** One timer's columns: what a row does to the effect there on every
-     *  row, and {@link #NONE} where the row leaves it alone. A timer no row
-     *  uses has no columns. */
+    /** One timer's columns: the operation on that effect at every row,
+     *  and {@link #NONE} where the row leaves it alone. Only a timer some
+     *  row acts on has columns. */
     private static void timer(ObjectNode out, Tune tune, Timer timer, List<Row> rows,
                               List<Source> sources) {
         boolean any = false;
@@ -199,7 +198,7 @@ public final class Json {
     /** The multi in {@code tree}.
      *
      * @throws IllegalArgumentException where the tree is not this form, or
-     *     gives a structure no player plays
+     *     is a structure no player plays
      */
     public static Multi multi(JsonNode tree) {
         String format = text(tree, "format");
@@ -250,7 +249,7 @@ public final class Json {
                 sized(column, count, name(register));
                 for (int at = 0; at < count; at++) {
                     if (!column.get(at).isIntegralNumber()) {
-                        throw new IllegalArgumentException(name(register) + " gives "
+                        throw new IllegalArgumentException(name(register) + " is "
                                 + column.get(at) + " at row " + at + ", and a whole number"
                                 + " is asked");
                     }
@@ -285,20 +284,20 @@ public final class Json {
                 number(tree, "rate"), new Table<>(built, repeat(tree)));
     }
 
-    /** A column stands one value a row, so it is as long as the tune. */
+    /** A column is one value a row, so its length is the tune's. */
     private static void sized(JsonNode column, int frames, String named) {
         if (!column.isArray()) {
             throw new IllegalArgumentException(named + " is " + column + ", and a column is"
                     + " asked");
         }
         if (column.size() != frames) {
-            throw new IllegalArgumentException(named + " gives " + column.size()
-                    + " values, and the tune runs " + frames + " frames");
+            throw new IllegalArgumentException(named + " is " + column.size()
+                    + " values long, and the tune runs " + frames + " frames");
         }
     }
 
-    /** What one row does to the effect on one timer, or null where it
-     *  leaves it alone. */
+    /** One row's operation on the effect of one timer, or null where the
+     *  row leaves it alone. */
     private static @Nullable Effect effect(JsonNode columns, int at, List<Source> sources,
                                            Timer timer, int frames) {
         int shape = column(columns, "shape", at, timer, frames);
@@ -325,13 +324,13 @@ public final class Json {
                     column(columns, "timerReset", at, timer, frames) == 1,
                     column(columns, "placeReset", at, timer, frames) == 1);
             case STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " gives shape "
+            default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " on Timer " + timer + ", and a shape is " + START + ", "
                     + RETUNE + " or " + STOP);
         };
     }
 
-    /** What a node is, for a complaint. */
+    /** The kind of a node, for a fault message. */
     private static String kind(JsonNode node) {
         if (node.isArray()) {
             return "an array";
@@ -350,7 +349,7 @@ public final class Json {
         }
         sized(column, frames, "Timer " + timer + "'s " + named);
         if (!column.get(at).isIntegralNumber()) {
-            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " gives "
+            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " is "
                     + column.get(at) + " at row " + at + ", and a whole number is asked");
         }
         return column.get(at).intValue();
@@ -358,12 +357,12 @@ public final class Json {
 
     // -------------------------------------------------------------- both
 
-    /** A register's name in a form: {@code r0} to {@code r13}. */
+    /** The name of a register in a form: {@code r0} to {@code r13}. */
     public static String name(Register register) {
         return "r" + Chip.number(register);
     }
 
-    /** A target by the name it is written under, {@code setR0} upward. */
+    /** The target of a written name, {@code setR0} upward. */
     public static YMXS.Target target(String said) {
         for (Register register : Register.values()) {
             YMXS.Target target = Tunes.setting(register);

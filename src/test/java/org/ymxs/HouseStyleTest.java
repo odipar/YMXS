@@ -15,12 +15,12 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@code AGENTS.md} defines the rules - a program does not intend, and
  * no flourish - and this test reads every document for the phrases struck
- * in review under them. Each entry is one struck phrase or the stem of one;
- * a hit gives the file and line. A phrase that is legitimate in a new
- * context comes off the list in the same change that uses it.
+ * in review under them. Each entry is one struck phrase or its stem; a hit
+ * names the file and line. A phrase that is legitimate in a new context is
+ * removed from the list in the same change that uses it.
  *
- * <p>The documents are found rather than listed. A list is a place a new
- * document is not, and the one that reached review unchecked was the one
+ * <p>The documents are found rather than listed. A new document is absent
+ * from a list, and the document that reached review unchecked was the one
  * nobody had added.
  */
 final class HouseStyleTest {
@@ -41,7 +41,7 @@ final class HouseStyleTest {
             "can be told",
             "roles stand",
             // a format does not rule, and does not measure: a measurement
-            // is taken of it, and its specification defines it
+            // is made of it, and its specification defines it
             "it ruled",
             "it measured",
             // a format does not answer a constraint: a choice is what
@@ -50,7 +50,7 @@ final class HouseStyleTest {
             // a specification defines; a tune and a build carry, and the
             // verb belongs to what a thing does
             "carries",
-            // a column gives a value; a thing does not sit anywhere
+            // a column is one value a row; a thing does not sit anywhere
             "sits in",
             "stand apart",
             // a place is a row number, and bit 5 moves it: a thing that
@@ -116,12 +116,22 @@ final class HouseStyleTest {
             "the whole point",
             // filler: cut unless the word carries the meaning
             "actually",
-            // the three stand-ins for the action: what a tune holds is the
+            // the five stand-ins for the action: what a tune holds is the
             // tune data structure, the rate a tune states is the tune's
-            // rate, and a negation stands where the sentence belongs
+            // rate, what the two chips give is the figures of the chips,
+            // a value the register takes is a value that fits it, and a
+            // negation stands where the sentence belongs
             "hold",
             "state",
-            "nothing");
+            "giv",
+            "tak",
+            "nothing",
+            // possessive decoration: a table of its own is a table, and
+            // the two chips' own figures are the figures of the two chips
+            " own ",
+            " own.",
+            // a person's viewpoint in a sentence about a file
+            "would rather");
 
     /** Every Markdown file in the tree but the two that define the rules. */
     private static List<Path> documents() throws IOException {
@@ -159,14 +169,14 @@ final class HouseStyleTest {
         }
         assertTrue(hits.isEmpty(), () -> String.join("\n", hits)
                 + "\nAGENTS.md has the rule each phrase was struck under;"
-                + " reword the line, or take the entry off this list in the"
+                + " reword the line, or drop the entry from this list in the"
                 + " same change.");
     }
 
     /**
      * The hits a line wrap hides. A phrase broken across two lines stands in
      * neither of them, so every paragraph is read joined as well, and a hit
-     * in the joined text beyond the hits in its own lines is reported at
+     * in the joined text beyond the hits in its lines is reported at
      * the line the paragraph begins on. A table row, an indented block and a
      * fence break a paragraph: joining those would put words side by side
      * that no sentence puts there.

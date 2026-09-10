@@ -33,6 +33,26 @@ lists, the verb reads, the bits keep their value.
 Established technical vocabulary is not this. A resource has an *owner*, a
 caller *claims* it, a register *survives* a call.
 
+A thing does no human act either. It does not *say*, *ask*, *tell*, *want*,
+*lean on*, *keep to*, *hand over*, *work out* or *would rather*. Formal
+equivalents: a field *is* a value, a check *requires* a whole number, a
+player *assumes* a rule, a document *defines* an operation, a reader
+*verifies* a column.
+
+## No possessive decoration
+
+`a table of its own` is `a table`, and `the two chips' own figures` are `the
+figures of the two chips`. Drop *own* wherever the sentence stands without
+it, and prefer *each*, *separate* or *a* to a possessive: `each timer is a
+separate object`, `each source opens a table`.
+
+## Formal and short
+
+State the fact in as few words as carry it. `Each one says which version of
+this format it reads` is `A player pins a version of this format`. Cut a
+clause that adds a person's viewpoint: `for a reader who would rather open
+one in a spreadsheet` is `for reading in a spreadsheet`.
+
 ## Say it once
 
 Four habits that say an idea twice:
@@ -52,7 +72,7 @@ Keep a list only where each item carries something the others do not.
 
 ## No flourish
 
-Technical prose gives the operation and ends. Three habits that decorate
+Technical prose says what happens and ends. Three habits that decorate
 instead:
 
 - **the sweep.** `whatever value is written`, `wherever it sits` - a
@@ -65,19 +85,64 @@ instead:
 
 ## The verb that says the action
 
-Something *uses* a resource, a bit *marks* a case, a header *flags* a state, a
-code *selects* an option, a field *gives* a value. Reserve *names* for what a
-thing is called.
+Something *uses* a resource, a bit *marks* a case, a code *selects* an option,
+a field *is* the value it stands for. Reserve *names* for what a thing is
+called.
 
-Three stand-ins for the action are struck, and a test reads every document for
+Five stand-ins for the action are struck, and a test reads every document for
 them:
 
 - **holds.** `what a tune holds` is `the tune data structure`. A table *has*
   columns, a register *keeps* a value, a file *has* tunes in it.
 - **states.** `the rate the tune states` is `the tune's rate`. A row *sets* a
-  register, a field *gives* a value, a document *defines* a rule.
+  register, a document *defines* a rule.
+- **gives.** `what the two chips give` is `the two chips' own figures`. A chip
+  does not give: a clock *counts*, a timer *counts* a period, and a column
+  *is* one value a row.
+- **takes.** `a value the register takes` is `a value that fits the register`,
+  and `a reader takes any JSON of this shape` is `a reader reads any JSON of
+  this shape`. A tick *reads* a row, a tool's flags *are* what they are, and
+  the row that stops an effect *sets* its register back.
 - **nothing.** `it states nothing about X` and `and no form is the format` are
   a negation standing where the sentence that says what is there belongs.
+
+## One negative at a time
+
+`a timer no row uses opens none` is a negation twice over, and the reader
+has to undo both to learn what happens. Say what is there: `a timer any row
+uses opens a table of its own`. Where a rule is about what is left alone, one
+negative carries it: `a register the row does not set is absent`.
+
+## Plain names for sections
+
+A heading says what the section is about in the words the reader would use.
+`What is turned away` is `What is an error`. Where the project has a name for
+the thing, that name goes in the heading: `JSON`, not `The text form`.
+
+## Struck in review
+
+Every remark on a sentence lands here on the day it is made, and in the ban
+list of `HouseStyleTest` where a phrase can be matched. The log is what has
+been struck so far.
+
+| struck | now |
+|---|---|
+| `what a tune holds` | `the tune data structure` |
+| `the rate the tune states` | `the tune's rate` |
+| `what the two chips give` | `the figures of the two chips` |
+| `a value the register takes` | `a value that fits the register` |
+| `a reader takes any JSON of this shape` | `a reader reads any JSON of this shape` |
+| `it states nothing about how a tune is written down` | dropped; the paragraph says what is there |
+| `A form is that structure written down, and no form is the format.` | `A form is that structure written down.` |
+| `What is turned away` | `What is an error` |
+| `the text form`, `the table form` | `JSON`, `CSV` |
+| `a timer no row uses opens none` | `each timer a row uses opens a table` |
+| `Writing a tune down is a separate job, and a form does it.` | dropped; the paragraph below it defines a form |
+| `Each player names the version of this it reads.` | `A player is a separate program, and pins a version of this format.` |
+| `a table of its own` | `a table` |
+| `for a reader who would rather open one in a spreadsheet` | `for reading in a spreadsheet` |
+| `frames says how long every column is` | `frames is the length of every column` |
+| `tool.say(...)`, `tool.says()` | `tool.report(...)`, `tool.reports()` |
 
 ## A specification defines operations
 
@@ -90,8 +155,8 @@ operationally.
 ## True beats accurate
 
 A sentence that is literally correct but implies something false is wrong. A
-figure given without the comparison that makes it meaningful misleads as much
-as a wrong figure.
+figure without the comparison that makes it meaningful misleads as much as a
+wrong figure.
 
 ## Measure, do not recall
 

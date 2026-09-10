@@ -23,8 +23,8 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The example against a dump built here, so that what it reads stands in
- * the test rather than in a file. {@link Dumps} writes the dump.
+ * The example against a dump built here, so that its bytes stand in the
+ * test rather than in a file. {@link Dumps} writes the dump.
  */
 final class ReadTest {
 
@@ -76,7 +76,7 @@ final class ReadTest {
         assertEquals(Tunes.setting(Register.R8), start.target());
         assertEquals(Prescaler.BY_4, start.prescaler());
         assertEquals(100, start.count());
-        assertTrue(start.timerReset(), "the timer was stopped, so it takes a whole period");
+        assertTrue(start.timerReset(), "the timer was stopped, so it runs a whole period");
         assertTrue(start.placeReset(), "no wave ran before it, so the place goes to row 0");
 
         for (int f = 3; f <= 5; f++) {
@@ -87,8 +87,8 @@ final class ReadTest {
         assertTrue(!Tunes.rows(tune).get(2).registers().containsKey(Register.R8),
                 "the wave owns the volume, so no row sets it while it runs");
         assertEquals(9, Tunes.rows(tune).get(6).registers().get(Register.R8),
-                "the row that stops it takes the register back, to the value the dump"
-                        + " gives there");
+                "the row that stops it sets the register back, to the value the dump"
+                        + " has there");
     }
 
     @Test
@@ -108,7 +108,7 @@ final class ReadTest {
                 Tunes.rows(tune).get(1).effects().get(Timer.D));
         assertEquals(Tunes.setting(Register.R9), start.target());
         assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
-                "a recording silences its own voice's tone and noise while it runs, which"
+                "a recording silences the tone and noise of its voice while it runs, which"
                         + " for voice B is bits 1 and 4");
     }
 
@@ -124,7 +124,7 @@ final class ReadTest {
 
     @Test
     void anArchiveThatWillNotUnpackIsSaidToBeOne() {
-        // an -lh5- header long enough to be taken for an archive, with no
+        // an -lh5- header long enough to read as an archive, with no
         // member behind it
         byte[] archive = new byte[22];
         archive[0] = 0x22;

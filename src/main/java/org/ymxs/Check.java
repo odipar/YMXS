@@ -20,22 +20,21 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The rules a structure must satisfy for a player to play it, read off
- * the structure rather than stored in it.
+ * The rules a structure must satisfy for a player to play it, read off the
+ * structure rather than stored in it.
  *
- * <p>Every function gives what is wrong rather than throwing at the first
- * of it, so one call gives everything a writer has to mend. {@link #must}
- * is the other way round, for a caller that would rather stop.
+ * <p>Every function reports every fault rather than throwing at the first,
+ * so one call reports every fault a writer must correct. {@link #must} is
+ * the inverse, for a caller that stops at the first.
  *
- * <p>What binds a structure is the two chips and the music: what a
- * register takes, what a timer counts, and that an effect hands a source's
- * row to a target that takes it. What a form can write is that form's own
- * business, and no limit of one is here.
+ * <p>A structure is bound by the two chips and the music: what fits a
+ * register, what a timer counts, and that an effect hands a source's row
+ * to a target of that same shape. What a form can write belongs to that
+ * form, and no limit of one appears here.
  *
- * <p>{@link #writing} is the other half: what SPEC.md 6 asks of a writer
- * reads across rows rather than within one, and a tune that breaks one of
- * those rules plays, but not as its writer meant, rather than failing to
- * play at all.
+ * <p>{@link #writing} is the other half: the rules of SPEC.md 6 read
+ * across rows rather than within one, and a tune that breaks one of them
+ * plays, but not as written, rather than failing to play.
  */
 public final class Check {
 
@@ -79,7 +78,7 @@ public final class Check {
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             int most = Chip.most(one.getKey());
             if (one.getValue() < 0 || one.getValue() > most) {
-                said.add(one.getKey() + " takes 0 to " + most + ", and this row sets it to "
+                said.add(one.getKey() + " is 0 to " + most + ", and this row sets it to "
                         + one.getValue());
             }
         }
@@ -91,7 +90,7 @@ public final class Check {
         return said;
     }
 
-    /** What is wrong with what a row does to one effect, or an empty
+    /** What is wrong with one row's operation on one effect, or an empty
      *  list. */
     public static List<String> of(Effect effect) {
         return switch (effect) {
@@ -106,28 +105,27 @@ public final class Check {
     }
 
     /** What is wrong with a source, or an empty list. A source's values
-     *  are read against the target that runs it, so this reads what stands
-     *  without one. */
+     *  are read against the target that runs it, so this reads only what
+     *  is decidable without one. */
     public static List<String> of(Source source) {
         List<String> said = new ArrayList<>(table(Tunes.table(source), "the source"));
         List<Integer> values = Tunes.values(source);
         for (int at = 0; at < values.size(); at++) {
             if (values.get(at) < 0) {
                 said.add("row " + at + " is " + values.get(at)
-                        + ", and a register takes 0 upward");
+                        + ", and a register is 0 upward");
             }
         }
         return said;
     }
 
-    /** What a start has to agree on: the target takes the row shape the
-     *  source gives, and the source's values are values that register
-     *  takes. */
+    /** What a start must satisfy: the target reads the row shape the
+     *  source writes, and the source's values fit that register. */
     private static List<String> runs(Start start) {
         List<String> said = new ArrayList<>(of(start.source()));
         if (Tunes.columns(start.target()) != Tunes.columns(start.source())) {
             said.add("a source of " + Tunes.columns(start.source()) + " values a row on "
-                    + Tunes.name(start.target()) + ", which takes "
+                    + Tunes.name(start.target()) + ", which reads "
                     + Tunes.columns(start.target()));
             return said;
         }
@@ -136,7 +134,7 @@ public final class Check {
         for (int at = 0; at < values.size(); at++) {
             if (values.get(at) > most) {
                 said.add("a source on " + Tunes.name(start.target()) + " whose row " + at
-                        + " is " + values.get(at) + ", and the target takes 0 to " + most);
+                        + " is " + values.get(at) + ", and the target is 0 to " + most);
             }
         }
         return said;
@@ -164,27 +162,28 @@ public final class Check {
     }
 
     /**
-     * What SPEC.md 6 asks of a writer, read across the tune's rows. A tune
-     * that breaks one of these plays, but not as its writer meant.
+     * The rules of SPEC.md 6, read across the tune's rows. A tune that
+     * breaks one of them plays, but not as written.
      *
      * <p>Three of the five are read here. Rule 2 leaves the order of two
-     * timers writing one register to the writer, so there is no reading to
-     * take. Rule 4 asks a start to set the timer's reset where the timer
-     * is stopped, and a stopped timer begins a whole period with the value
-     * or without it, so either value is right.
+     * timers writing one register to the writer, and is not checked. Rule
+     * 4 requires a start to set the timer's reset where the timer is
+     * stopped, and a stopped timer begins a whole period with the value or
+     * without it, so either value is correct and it is not checked either.
      *
      * <p>A source that plays once has a start in the rows and no end, so
-     * how long it runs is reckoned from its rate
-     * ({@link Chip#frames}). Anything read off that reckoning says so.
+     * its duration is reckoned from its rate ({@link Chip#frames}). Every
+     * reading resting on that reckoning is reported as such.
      */
     public static List<String> writing(Tune tune) {
         return new Writing(tune).run();
     }
 
-    /** What one timer runs, and the row its source runs out on. */
+    /** What one timer runs, and the row its source ends on. */
     private record Running(Target target, Source source, int until) { }
 
-    /** A walk over a tune's rows, and what each timer runs as it goes. */
+    /** A walk over a tune's rows, with what each timer runs at every
+     *  row. */
     private static final class Writing {
 
         private final Tune tune;
@@ -209,7 +208,7 @@ public final class Check {
             return said;
         }
 
-        /** The effects go first, as a frame writes them. */
+        /** The effects come first, in the order a frame writes them. */
         private void effect(int at, Timer timer, Effect effect) {
             switch (effect) {
                 case Start start -> {
@@ -276,20 +275,20 @@ public final class Check {
             }
         }
 
-        /** What a timer runs at this row, or null where it is idle. */
+        /** What this timer runs at this row, or null where it is idle. */
         private @Nullable Running runs(Timer timer, int at) {
             Running runs = running.get(timer);
             return runs != null && at < runs.until() ? runs : null;
         }
 
-        /** Whether what is read of this timer at this row rests on the
+        /** Whether a reading of this timer at this row rests on the
          *  reckoning of a source that plays once. */
         private boolean reckoned(Timer timer, int at) {
             Running runs = running.get(timer);
             return runs != null && runs.until() != Integer.MAX_VALUE && at >= runs.until();
         }
 
-        /** The row a start's source runs out on, or no row where it
+        /** The row a start's source ends on, or no row where it
          *  repeats. */
         private int until(int at, Start start) {
             if (Tunes.table(start.source()).repeat().isPresent()) {
@@ -314,7 +313,7 @@ public final class Check {
 
     /** {@code multi} itself, where the check finds no fault.
      *
-     * @throws IllegalArgumentException giving everything that is
+     * @throws IllegalArgumentException reporting everything that is
      */
     public static Multi must(Multi multi) {
         List<String> said = of(multi);
@@ -326,7 +325,7 @@ public final class Check {
 
     /** {@code tune} itself, where the check finds no fault.
      *
-     * @throws IllegalArgumentException giving everything that is
+     * @throws IllegalArgumentException reporting everything that is
      */
     public static Tune must(Tune tune) {
         List<String> said = of(tune);

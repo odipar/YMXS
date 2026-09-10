@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 /**
  * SPEC.md's listing of the records, read back against the records.
  *
- * <p>The records are the specification and the listing is a reader's way
- * in, so the listing is one thing said twice. This keeps the second true:
- * every declaration in it is matched against the type it gives, component
- * for component, and a type in the package that the listing leaves out
- * fails as loudly as one it gets wrong.
+ * <p>The records are the specification and the listing is an entry point
+ * for the reader, so the listing is one thing said twice. This keeps the
+ * second true: every declaration in it is matched against the type it
+ * names, component for component, and a type the listing omits fails as
+ * loudly as one it gets wrong.
  *
  * <p>The listing had gone stale within a day of being written in two
  * places, which is why it is written in one and checked here.
@@ -83,8 +83,8 @@ final class StructureTest {
                 default -> constants(type, said.parts());
             };
             if (!parts.equals(said.parts())) {
-                wrong.add(said.kind() + " " + said.name() + ": the listing gives "
-                        + said.parts() + " and the type gives " + parts);
+                wrong.add(said.kind() + " " + said.name() + ": the listing reads "
+                        + said.parts() + " and the type reads " + parts);
             }
         }
         assertTrue(wrong.isEmpty(), () -> String.join("\n", wrong));

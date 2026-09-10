@@ -11,15 +11,15 @@ import org.ymxs.tool.Tool;
 
 /**
  * {@code ym-to-ymxs}: a YM5!/YM6! register dump on standard input, JSON on
- * standard output. A distributed {@code .ym} is usually an archive with
- * the dump inside, and either reads.
+ * standard output. A distributed {@code .ym} is usually an archive
+ * containing the dump, and both forms read.
  *
- * <p>One dump is one tune, so what comes out is a multi of one.
- * {@code ymxs-merge} puts several together.
+ * <p>One dump is one tune, so the output is a multi of one.
+ * {@code ymxs-merge} combines several.
  *
- * <p>{@code -r} makes a tune that plays once, and {@code -rROW} one that
- * repeats to that row; without either, a tune repeats to the frame the
- * dump names.
+ * <p>{@code -r} produces a tune that plays once, and {@code -rROW} one
+ * that repeats to that row; without either, a tune repeats to the frame
+ * the dump marks.
  */
 public final class Main {
 
@@ -30,12 +30,12 @@ public final class Main {
         List<String> rest = new ArrayList<>(Arrays.asList(args));
         Tool tool = Tool.of("ym-to-ymxs", rest, "-r");
         OptionalInt repeat = OptionalInt.empty();
-        boolean given = false;
+        boolean chosen = false;
         for (String arg : rest) {
             if (arg.equals("-r")) {
-                given = true;
+                chosen = true;
             } else if (arg.startsWith("-r")) {
-                given = true;
+                chosen = true;
                 try {
                     repeat = OptionalInt.of(Integer.parseInt(arg.substring(2)));
                 } catch (NumberFormatException wrong) {
@@ -43,15 +43,15 @@ public final class Main {
                 }
             } else {
                 throw tool.usage("ym-to-ymxs reads a dump on standard input and writes"
-                        + " JSON on standard output. It takes -rROW, -r and -silent,"
-                        + " and \"" + arg + "\" is none of them.");
+                        + " JSON on standard output. Its flags are -rROW, -r and"
+                        + " -silent, and \"" + arg + "\" is none of them.");
             }
         }
         Dump.Song song;
         Read.Reading reading;
         try {
             song = Dump.read(tool.bytes());
-            reading = Read.of(song, "ym-to-ymxs", given ? repeat : OptionalInt.of(row(song)));
+            reading = Read.of(song, "ym-to-ymxs", chosen ? repeat : OptionalInt.of(row(song)));
         } catch (Dump.Unreadable | IllegalArgumentException no) {
             throw tool.wrong(Tool.WRONG, String.valueOf(no.getMessage()));
         }
@@ -59,7 +59,7 @@ public final class Main {
         said(tool, song, reading);
     }
 
-    /** The row a dump repeats to, or 0 where it gives none this reads. */
+    /** The row a dump repeats to, or 0 where it marks none this reads. */
     private static int row(Dump.Song song) {
         long loop = song.loopFrame();
         return loop >= 0 && loop < song.frames() ? (int) loop : 0;
@@ -67,7 +67,7 @@ public final class Main {
 
     /** What the dump came to, on standard error. */
     private static void said(Tool tool, Dump.Song song, Read.Reading reading) {
-        if (!tool.says()) {
+        if (!tool.reports()) {
             return;
         }
         Tune tune = reading.tune();
@@ -87,6 +87,6 @@ public final class Main {
             out.append(", ").append(said.cutAtRepeat())
                     .append(" recordings cut at the row the tune repeats to");
         }
-        tool.say(out.toString());
+        tool.report(out.toString());
     }
 }

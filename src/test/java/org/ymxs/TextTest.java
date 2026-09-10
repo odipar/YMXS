@@ -26,14 +26,14 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The text form against the structure: every tune under {@code doc/tunes}
- * read and written back, and a tune built here that holds every shape a
- * row takes.
+ * JSON against the structure: every tune under {@code doc/tunes}
+ * read and written back, and a tune built here with every shape a row
+ * takes in it.
  */
 final class TextTest {
 
-    /** What the tunes under {@code doc/tunes} hold, read back so that a
-     *  tune added or a form changed says so. */
+    /** What the tunes under {@code doc/tunes} come to, read back so that
+     *  a tune added or a form changed says so. */
     private static final int STARTS = 177;
     private static final int RETUNES = 76;
     private static final int STOPS = 165;
@@ -79,20 +79,20 @@ final class TextTest {
                 }
             }
         }
-        assertEquals(3280, rows, "the rows the tunes under doc/tunes hold");
-        assertEquals(STARTS, starts, "the starts they hold");
-        assertEquals(RETUNES, retunes, "the retunes they hold");
-        assertEquals(STOPS, stops, "the stops they hold");
+        assertEquals(3280, rows, "the rows of the tunes under doc/tunes");
+        assertEquals(STARTS, starts, "their starts");
+        assertEquals(RETUNES, retunes, "their retunes");
+        assertEquals(STOPS, stops, "their stops");
     }
 
-    /** A tune holding every shape a row takes, written and read back. */
+    /** A tune with every shape a row takes in it, written and read back. */
     @Test
     void everyShapeSurvivesTheRoundTrip() {
         Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
         Source drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
         Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
         List<Row> rows = new ArrayList<>();
-        rows.add(Tunes.NOTHING);
+        rows.add(Tunes.EMPTY);
         // every register a row sets, at the largest value each takes
         Map<Register, Integer> all = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
@@ -124,7 +124,7 @@ final class TextTest {
         Tune tune = new Tune("every shape", "a test", "TextTest", 50,
                 Tunes.repeating(rows, 1));
         Tune once = new Tune("plays once", "", "", 60,
-                Tunes.once(List.of(Tunes.row(Map.of(Register.R7, 63)), Tunes.NOTHING)));
+                Tunes.once(List.of(Tunes.row(Map.of(Register.R7, 63)), Tunes.EMPTY)));
         Multi multi = new Multi(List.of(tune, once));
 
         String text = Text.write(multi);
@@ -149,18 +149,18 @@ final class TextTest {
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
                 () -> Text.read(text));
         String said = String.valueOf(no.getMessage());
-        assertTrue(said.contains("r0 holds 2 values, and the tune holds 4 frames"), said);
+        assertTrue(said.contains("r0 gives 2 values, and the tune runs 4 frames"), said);
     }
 
     @Test
     void aTuneIsWrittenColumnByColumn() {
         Tune tune = new Tune("a tune", "", "", 50, Tunes.repeating(List.of(
-                Tunes.row(Map.of(Register.R0, 1)), Tunes.NOTHING,
+                Tunes.row(Map.of(Register.R0, 1)), Tunes.EMPTY,
                 Tunes.row(Map.of(Register.R0, 3))), 0));
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.contains("\"frames\": 3"), text);
         assertTrue(text.contains("\"r0\": [1,-1,3]"),
-                "a column stands one value a row, and -1 where the row sets nothing");
+                "a column stands one value a row, and -1 where the row sets none");
         assertTrue(!text.contains("\"r1\""), "a register no row sets has no column");
         assertEquals(Tunes.multi(tune), Text.read(text));
     }
@@ -178,14 +178,14 @@ final class TextTest {
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.contains("\"timerA\""), "Timer A is timerA");
         assertTrue(text.contains("\"timerD\""), "Timer D is timerD");
-        assertTrue(!text.contains("\"timerB\""), "a timer no row states has no columns");
+        assertTrue(!text.contains("\"timerB\""), "a timer no row uses has no columns");
         assertTrue(text.contains("\"shape\": [0,2]"), text);
         assertEquals(Tunes.multi(tune), Text.read(text),
-                "and a row may state an effect on more than one timer");
+                "and one row may act on more than one timer");
     }
 
     @Test
-    void aTextOfTheShapeThisNoLongerWritesIsTurnedAway() {
+    void aTextOfTheShapeThisNoLongerWritesIsAnError() {
         String text = """
                 {"format":"ymxs","version":1,"tunes":[{"title":"","composer":"",
                  "writer":"","rate":50,"frames":1,"repeat":null,"sources":[],
@@ -199,7 +199,7 @@ final class TextTest {
     @Test
     void aTuneOfOneRowStatesItsRepeat() {
         Tune tune = new Tune("", "", "", 50,
-                new Table<>(List.of(Tunes.NOTHING), OptionalInt.of(0)));
+                new Table<>(List.of(Tunes.EMPTY), OptionalInt.of(0)));
         assertEquals(OptionalInt.of(0),
                 Tunes.tune(Text.read(Text.write(Tunes.multi(tune))), 1).table().repeat());
     }

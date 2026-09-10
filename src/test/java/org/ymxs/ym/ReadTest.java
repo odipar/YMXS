@@ -23,9 +23,8 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The example against a dump built here, so that what it reads is stated
- * in the test rather than taken from a file. {@link Dumps} writes the
- * dump.
+ * The example against a dump built here, so that what it reads stands in
+ * the test rather than in a file. {@link Dumps} writes the dump.
  */
 final class ReadTest {
 
@@ -52,7 +51,7 @@ final class ReadTest {
         assertEquals(200, Tunes.rows(tune).get(0).registers().get(Register.R0),
                 "the row the tune repeats to sets every register");
         assertTrue(!Tunes.rows(tune).get(1).registers().containsKey(Register.R0),
-                "a row the dump does not move sets nothing");
+                "a row the dump does not move sets no register");
         assertEquals(201, Tunes.rows(tune).get(2).registers().get(Register.R0));
         assertTrue(!Tunes.rows(tune).get(3).registers().containsKey(Register.R0));
     }
@@ -82,14 +81,14 @@ final class ReadTest {
 
         for (int f = 3; f <= 5; f++) {
             assertTrue(Tunes.rows(tune).get(f).effects().isEmpty(),
-                    "row " + f + " states nothing: the wave runs on unchanged");
+                    "row " + f + " leaves the timer alone: the wave runs on unchanged");
         }
         assertInstanceOf(Stop.class, Tunes.rows(tune).get(6).effects().get(Timer.A));
         assertTrue(!Tunes.rows(tune).get(2).registers().containsKey(Register.R8),
                 "the wave owns the volume, so no row sets it while it runs");
         assertEquals(9, Tunes.rows(tune).get(6).registers().get(Register.R8),
                 "the row that stops it takes the register back, to the value the dump"
-                        + " holds there");
+                        + " gives there");
     }
 
     @Test
@@ -125,8 +124,8 @@ final class ReadTest {
 
     @Test
     void anArchiveThatWillNotUnpackIsSaidToBeOne() {
-        // an -lh5- header long enough to be taken for an archive, and
-        // nothing behind it
+        // an -lh5- header long enough to be taken for an archive, with no
+        // member behind it
         byte[] archive = new byte[22];
         archive[0] = 0x22;
         archive[2] = '-';

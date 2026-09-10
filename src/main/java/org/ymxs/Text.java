@@ -6,9 +6,9 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import org.ymxs.YMXS.Multi;
 
 /**
- * The text form: a {@link Multi} written as JSON, and read back
- * (doc/text.md). It is one way of writing the structure down and not the
- * structure, so nothing here is in {@link YMXS}.
+ * A {@link Multi} written as JSON, and read back (doc/json.md). It is one
+ * way of writing the structure down rather than the structure itself, so
+ * it stays out of {@link YMXS}.
  *
  * <p>{@link Json} maps the structure to a JSON tree and back;
  * {@link Layout} says where the lines break. Escaping, parsing and writing
@@ -37,12 +37,12 @@ public final class Text {
     }
 
     /**
-     * Every multi {@code text} holds, one after another. JSON puts no
+     * Every multi in {@code text}, one after another. JSON puts no
      * count in front of a stream of values, so this is what a reader gets
      * where several files are handed to it as one.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this
-     *     form, or states a structure no player plays
+     *     form, or gives a structure no player plays
      */
     public static java.util.List<Multi> readAll(String text) {
         java.util.List<Multi> out = new java.util.ArrayList<>();
@@ -59,10 +59,10 @@ public final class Text {
         return out;
     }
 
-    /** The multi {@code text} holds.
+    /** The multi in {@code text}.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this
-     *     form, or states a structure no player plays
+     *     form, or gives a structure no player plays
      */
     public static Multi read(String text) {
         try {

@@ -1,11 +1,11 @@
-# The text form
+# JSON
 
-JSON, and one way of writing the structure down. The structure is the
-records under `src/main/java/org/ymxs/`; nothing here is in them, and a
-second form would change none of them.
+One way of writing the structure down. The structure is the records under
+`src/main/java/org/ymxs/`, which this document leaves untouched: a second
+form reads and writes the same records.
 
-[The table form](csv.md) holds the same tune as rows rather than columns,
-for a reader who would rather open one in a spreadsheet.
+[CSV](csv.md) writes the same tune as rows rather than columns, for a
+reader who would rather open one in a spreadsheet.
 
 ```json
 {
@@ -43,11 +43,11 @@ for a reader who would rather open one in a spreadsheet.
 ```
 
 **A tune is written column by column, and every column is as long as the
-tune.** A row is what every column holds at that place, so nothing has to
-be counted to find one and no entry holds a number for where it stands.
+tune.** A row is one place taken across every column, so a reader indexes
+straight to it and no entry gives a row number.
 
-A column that no row fills is left out: a register no row sets has no
-column, and a timer no row states has none.
+A column that no row fills is left out, so a register no row sets and a
+timer no row uses both drop out.
 
 ## A tune
 
@@ -61,11 +61,12 @@ column, and a timer no row states has none.
 | `rows` | a column a register |
 | `timerA` to `timerD` | a column a part of the effect on that timer |
 
-`frames` says how long every column is, and a reader holds them to it.
+`frames` says how long every column is, and a reader checks each against
+it.
 
 ## The registers
 
-`rows` holds a column a register, `r0` to `r13`, each one value a row.
+`rows` gives a column a register, `r0` to `r13`, each one value a row.
 **-1 stands where the row does not set that register**, and no register
 takes -1 as a value.
 
@@ -83,21 +84,21 @@ takes -1 as a value.
 ## The effects
 
 A timer is a structure of its own, `timerA` through `timerD`, since a row
-may state an effect on all four. Each holds seven columns, one value a
-row, and **-1 stands where a row states nothing**, as it does in a
-register's column.
+may act on all four. Each has seven columns, one value a row, and **-1
+stands where a row leaves that timer alone**, as it does in a register's
+column.
 
-| column | holds |
+| column | gives |
 |---|---|
-| `shape` | 0 a start, 1 a retune, 2 a stop, -1 nothing |
+| `shape` | 0 a start, 1 a retune, 2 a stop, -1 none |
 | `target` | 0 to 13, which is `setR0` to `setR13` |
 | `source` | 1 upward into the tune's `sources` |
 | `prescaler` | one of the seven a timer divides by: 4, 10, 16, 50, 64, 100, 200 |
 | `count` | 1 to 256 |
 | `timerReset`, `placeReset` | 1 true, 0 false |
 
-A part a shape does not hold is -1 too: a retune holds no target and no
-source, and a stop holds none of the six.
+A part a shape leaves out is -1 too: a retune leaves `target` and
+`source` at -1, and a stop leaves all six.
 
 ## A source
 
@@ -114,16 +115,16 @@ a JSON tree and back, `Layout` says where the lines break, and a JSON
 library does the escaping, the parsing and the writing. A reader takes any
 JSON of this shape.
 
-## What is turned away
+## What is an error
 
-| the text | why |
+| the JSON | why |
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | it is another version |
 | a column that is not as long as `frames` | a column stands one value a row |
 | a `shape` that is none of the three | there are three |
-| a source number the tune does not hold | it reaches no source |
+| a source number past the tune's `sources` | it reaches no source |
 
-Everything else a record turns away where it is made: a register value
+Everything else is an error where the record is made: a register value
 past what the register takes, a count outside 1 to 256, a source value
 past what its target takes, a repeat row past the last row.

@@ -11,12 +11,12 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * What the documents are held to that has nothing to do with what they
- * say: one wrap width, and a link that leads somewhere.
+ * What every document answers to whatever it says: one wrap width, and a
+ * link that leads somewhere.
  *
- * <p>The figures a document states are held by the test that owns them,
- * and the documents are found rather than listed, so a document that is
- * there is held.
+ * <p>A figure in a document belongs to the test that owns it, and the
+ * documents are found rather than listed, so a document that is there is
+ * read.
  */
 final class ShapeTest {
 
@@ -35,7 +35,7 @@ final class ShapeTest {
     }
 
     @Test
-    void everyDocumentHoldsOneWrapWidth() throws IOException {
+    void everyDocumentKeepsOneWrapWidth() throws IOException {
         List<Path> documents = documents();
         assertTrue(documents.size() > 2, () -> "only " + documents.size()
                 + " documents read; the check is asleep");
@@ -49,8 +49,8 @@ final class ShapeTest {
                     fenced = !fenced;
                     continue;
                 }
-                // A table's cells, a block of code and a link hold what
-                // they hold: none of the three rewraps.
+                // A table's cells, a block of code and a link stand as
+                // they are: none of the three rewraps.
                 if (fenced || said.startsWith("|") || said.startsWith("    ")
                         || said.contains("](")) {
                     continue;
@@ -61,7 +61,7 @@ final class ShapeTest {
             }
         }
         assertTrue(wide.isEmpty(), () -> String.join("\n", wide)
-                + "\nAGENTS.md asks one width, held.");
+                + "\nAGENTS.md asks one width, kept.");
     }
 
     @Test

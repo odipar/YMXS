@@ -2,25 +2,24 @@
 
 An example. `src/main/java/org/ymxs/ym/` reads a YM5!/YM6! register dump
 into a [Tune](../src/main/java/org/ymxs/YMXS.java), and
-`bin/ym-to-ymxs` writes that as the text form.
+`bin/ym-to-ymxs` writes that as JSON.
 
-Nothing in the format depends on it. It is here to show how a format that
-is not this one maps onto the structure, and because the figures the
-records and [SPEC.md](SPEC.md) state were read off dumps, so a reader can
-run them again.
+The format itself is free of it. It is here to show how another format
+maps onto the structure, and because the figures in the records and in
+[SPEC.md](SPEC.md) were read off dumps, so a reader can run them again.
 
 ```bash
 bin/ym-to-ymxs < tune.ym > tune.json
 ```
 
-A dump on standard input, the text form on standard output. What it came
+A dump on standard input, JSON on standard output. What it came
 to goes to standard error. `-rROW` makes a tune that repeats to that row
 and `-r` one that plays once; without either, a tune repeats to the frame
 the dump gives.
 
-A distributed `.ym` is usually an archive holding the dump, and either
-reads: `Lha` unpacks one where it is handed one. That is plumbing and no
-part of the format; it is here so that a reader hands over the file as it
+A distributed `.ym` is usually an archive with the dump inside, and
+either reads: `Lha` unpacks one where it is handed one. That is plumbing,
+outside the format; it is here so that a reader hands over the file as it
 was distributed rather than unpacking it first with a tool of their own.
 
 One dump is one tune, so what comes out is a multi of one.
@@ -30,7 +29,7 @@ One dump is one tune, so what comes out is a multi of one.
 { bin/ym-to-ymxs < one.ym; bin/ym-to-ymxs < two.ym; } | bin/ymxs-merge > both.json
 ```
 
-## What a dump holds
+## What a dump is
 
 A dump is one frame of the YM2149's registers at a time, sixteen of them,
 with two effect slots filed in the bits the chip does not use:
@@ -63,18 +62,18 @@ square waves at one level are one source and at two levels are two.
 
 ## What it works out
 
-A dump states less than a tune does, so three things are reckoned rather
+A dump gives less than a tune does, so three things are reckoned rather
 than read:
 
-- **How long a recording runs.** A dump states its start and not its end.
+- **How long a recording runs.** A dump gives the start alone.
   The frames its rows take at its rate are how long it runs, and that
   settles whether the timer is stopped by a later row.
 - **Which slot has a voice.** The player a dump was written for runs one
   thing a voice, so a recording on a voice keeps a square wave off it.
-- **What the row a tune repeats to states.** It sets every register but
-  the ones an effect is running on, and states every effect that ran up to
-  it or runs into the wrap, so the wrap lands on a state the rows have
-  stated.
+- **What the row a tune repeats to sets.** It sets every register but the
+  ones an effect is running on, and gives every effect that ran up to it
+  or runs into the wrap, so the wrap lands where the rows have already put
+  the chip.
 
 The first is a reckoning and not a reading, and a tune whose recording is
 still sounding at the row it repeats to loses the rest of it. The tool
@@ -83,16 +82,16 @@ says how many of those there were.
 ## What it does not read
 
 A slot sounding a shape the player a dump was written for runs an empty
-handler for, and a recording whose sample the file does not hold. Both are
-counted and said.
+handler for, and a recording whose sample is absent from the file. Both
+are counted and said.
 
 ## Reading it back
 
-`doc/tunes/` holds five tunes this made, and the tests read every one of
+`doc/tunes/` has five tunes this made, and the tests read every one of
 them back. `ReadTest` builds a dump in the test rather than reading a
-file, so what a frame holds is stated where it is read.
+file, so a frame's bytes stand where they are read.
 
 `src/test/resources/packed.ym` is 162 bytes of `-lh5-`, and the tune
-inside it is the one `doc/tunes/circus.json` holds, so `PackedTest` reads
+inside it is the one in `doc/tunes/circus.json`, so `PackedTest` reads
 what comes out of the unpacking against a tune that was read another way.
 `PipeTest` runs the tools the way a reader runs them, in a pipe.

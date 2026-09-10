@@ -10,7 +10,7 @@ import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Tune;
 
 /**
- * {@code ymxs-json-to-csv}: the text form on standard input, the table
+ * {@code ymxs-json-to-csv}: JSON on standard input, the table
  * form on standard output (doc/csv.md).
  */
 public final class ToCsv {

@@ -20,13 +20,13 @@ import org.junit.jupiter.api.Test;
  * SPEC.md's listing of the records, read back against the records.
  *
  * <p>The records are the specification and the listing is a reader's way
- * in, so the listing is one thing stated twice. This is what keeps the
- * second true: every declaration in it is matched against the type it
- * gives, component for component, and a type in the package that the
- * listing leaves out fails as loudly as one it states wrongly.
+ * in, so the listing is one thing said twice. This keeps the second true:
+ * every declaration in it is matched against the type it gives, component
+ * for component, and a type in the package that the listing leaves out
+ * fails as loudly as one it gets wrong.
  *
  * <p>The listing had gone stale within a day of being written in two
- * places, which is why it is written in one and held here.
+ * places, which is why it is written in one and checked here.
  */
 final class StructureTest {
 
@@ -40,28 +40,28 @@ final class StructureTest {
     private record Said(String kind, String name, List<String> parts) { }
 
     @Test
-    void theListingStatesEveryTypeTheStructureHas() throws IOException {
+    void theListingGivesEveryTypeTheStructureHas() throws IOException {
         Set<String> listed = new LinkedHashSet<>();
         for (Said said : listing()) {
             if (!said.name().equals(WRAPPER)) {
                 listed.add(said.name());
             }
         }
-        Set<String> held = new LinkedHashSet<>();
+        Set<String> declared = new LinkedHashSet<>();
         for (Class<?> one : YMXS.class.getDeclaredClasses()) {
-            held.add(one.getSimpleName());
+            declared.add(one.getSimpleName());
         }
-        List<String> missing = new ArrayList<>(held);
+        List<String> missing = new ArrayList<>(declared);
         missing.removeAll(listed);
         List<String> extra = new ArrayList<>(listed);
-        extra.removeAll(held);
+        extra.removeAll(declared);
         assertTrue(missing.isEmpty(), () -> SPEC + " does not list " + missing);
         assertTrue(extra.isEmpty(), () -> SPEC + " lists " + extra
-                + ", which the package does not hold");
+                + ", which the package does not have");
     }
 
     @Test
-    void everyDeclarationIsTheOneTheRecordHolds() throws IOException {
+    void everyDeclarationMatchesItsRecord() throws IOException {
         List<Said> listing = listing();
         assertTrue(listing.size() > 10, () -> "only " + listing.size()
                 + " declarations read; the check is asleep");
@@ -74,17 +74,17 @@ final class StructureTest {
             try {
                 type = Class.forName("org.ymxs.YMXS$" + said.name());
             } catch (ClassNotFoundException none) {
-                wrong.add(said.name() + " is listed and " + WRAPPER + " holds no such type");
+                wrong.add(said.name() + " is listed and " + WRAPPER + " has no such type");
                 continue;
             }
-            List<String> holds = switch (said.kind()) {
+            List<String> parts = switch (said.kind()) {
                 case "record" -> components(type);
                 case "sealed" -> permitted(type);
                 default -> constants(type, said.parts());
             };
-            if (!holds.equals(said.parts())) {
-                wrong.add(said.kind() + " " + said.name() + ": the listing states "
-                        + said.parts() + " and the type holds " + holds);
+            if (!parts.equals(said.parts())) {
+                wrong.add(said.kind() + " " + said.name() + ": the listing gives "
+                        + said.parts() + " and the type gives " + parts);
             }
         }
         assertTrue(wrong.isEmpty(), () -> String.join("\n", wrong));
@@ -142,7 +142,7 @@ final class StructureTest {
                 .replace("org.ymxs.", "").replace(" ", "");
     }
 
-    /** The declarations SPEC.md's first Java block holds. */
+    /** The declarations in SPEC.md's first Java block. */
     private static List<Said> listing() throws IOException {
         List<String> lines = Files.readAllLines(SPEC);
         List<String> block = new ArrayList<>();
@@ -159,7 +159,7 @@ final class StructureTest {
                 block.add(line);
             }
         }
-        assertTrue(!block.isEmpty(), () -> SPEC + " holds no Java block");
+        assertTrue(!block.isEmpty(), () -> SPEC + " has no Java block");
         List<String> whole = new ArrayList<>();
         StringBuilder one = new StringBuilder();
         int depth = 0;
@@ -183,19 +183,19 @@ final class StructureTest {
         for (String said : whole) {
             Matcher record = asRecord.matcher(said);
             Matcher sealed = asSealed.matcher(said);
-            Matcher held = asEnum.matcher(said);
+            Matcher asEnumIs = asEnum.matcher(said);
             if (record.find()) {
                 out.add(new Said("record", record.group(1), parts(record.group(2))));
             } else if (sealed.find()) {
                 out.add(new Said("sealed", sealed.group(1), parts(sealed.group(2))));
-            } else if (held.find()) {
+            } else if (asEnumIs.find()) {
                 List<String> named = new ArrayList<>();
-                for (String word : held.group(2).strip().split("[,\\s]+")) {
+                for (String word : asEnumIs.group(2).strip().split("[,\\s]+")) {
                     if (!word.isEmpty()) {
                         named.add(word);
                     }
                 }
-                out.add(new Said("enum", held.group(1), named));
+                out.add(new Said("enum", asEnumIs.group(1), named));
             }
         }
         return out;
@@ -259,6 +259,6 @@ final class StructureTest {
             }
         }
         assertTrue(also.isEmpty(), () -> "the records are listed in " + also
-                + " as well as in " + SPEC + ", which is one thing stated twice");
+                + " as well as in " + SPEC + ", which is one thing said twice");
     }
 }

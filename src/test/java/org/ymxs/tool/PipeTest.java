@@ -99,11 +99,11 @@ final class PipeTest {
     }
 
     @Test
-    void anErrorStopsThePipeAndWritesNothing() throws Exception {
+    void anErrorStopsThePipeAndLeavesStandardOutputEmpty() throws Exception {
         Ran ran = pipe("{\"format\":\"nope\"}".getBytes(StandardCharsets.UTF_8),
                 "ymxs-check");
         assertEquals(1, ran.exit(), ran.said());
-        assertEquals("", ran.out(), "nothing goes to standard output");
+        assertEquals("", ran.out(), "standard output stays empty");
         assertTrue(ran.said().contains("a tree of nope"), ran.said());
     }
 
@@ -116,10 +116,10 @@ final class PipeTest {
     }
 
     @Test
-    void silentLeavesAToolSayingNothingButWhatIsWrong() throws Exception {
+    void silentCutsWhatAToolSaysDownToWhatIsWrong() throws Exception {
         Ran ran = pipe(packed(), "ym-to-ymxs -silent", "ymxs-check -silent");
         assertEquals(0, ran.exit(), ran.said());
-        assertEquals("", ran.said(), "nothing was wrong, so nothing was said");
+        assertEquals("", ran.said(), "no fault, so no word of one");
         assertTrue(!ran.out().isEmpty(), "and the tune still came out");
     }
 
@@ -133,7 +133,7 @@ final class PipeTest {
         assertEquals(2, multi.tunes().size());
         assertEquals(Tunes.size(multi.tunes().get(0).table()),
                 Tunes.size(multi.tunes().get(1).table()));
-        assertTrue(ran.said().contains("2 files holding 2 tunes"), ran.said());
+        assertTrue(ran.said().contains("2 files with 2 tunes"), ran.said());
     }
 
     @Test

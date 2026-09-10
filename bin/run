@@ -4,8 +4,8 @@
 #
 #   bin/run org.ymxs.tool.Checking [what to hand it ...]
 #
-# Everything a tool does is Java's, so a script beside this one names a
-# class and nothing else. doc/tools.md.
+# Everything a tool does is Java's, so a script beside this one is one
+# class name. doc/tools.md.
 set -e
 
 if [ $# -eq 0 ]; then
@@ -19,7 +19,7 @@ path=$root/target/classpath.txt
 built=$classes/.built
 lock=$root/target/.building
 
-# Whether a build is owed: nothing built yet, no classpath written, or a
+# Whether a build is owed: no build yet, no classpath written, or a
 # source newer than the last build.
 owed() {
     [ ! -f "$built" ] || [ ! -f "$path" ] || [ -n "$(find "$root/src/main/java" \
@@ -47,7 +47,7 @@ if owed; then
         sleep 1
     done
     trap 'rmdir "$lock" 2>/dev/null || true' EXIT INT TERM
-    # The one that waited may have nothing left to do.
+    # The one that waited may find the build already done.
     if owed; then
         build
     fi

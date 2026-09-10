@@ -27,7 +27,7 @@ import org.ymxs.YMXS.Tune;
  * A dump read into a {@link Tune}: one row a frame, and a source for each
  * distinct thing the dump's effect slots sound.
  *
- * <p>A dump holds every register of every frame, so a row here sets a
+ * <p>A dump gives every register of every frame, so a row here sets a
  * register where the dump's value moved. A register an effect is running
  * on is the effect's, and no row sets it until the row that stops it,
  * which is what SPEC.md 6 asks of a writer.
@@ -43,8 +43,8 @@ import org.ymxs.YMXS.Tune;
  * runs one thing a voice, and the recording is the one it runs.
  *
  * <p>The row a tune repeats to sets every register but the ones an effect
- * is running on, and states every effect that ran up to it or runs into
- * the wrap, so the wrap lands on a state a player has been told.
+ * is running on, and gives every effect that ran up to it or runs into
+ * the wrap, so the wrap lands where the rows have already put the chip.
  */
 public final class Read {
 
@@ -85,7 +85,7 @@ public final class Read {
         }
     }
 
-    /** The tune {@code song} holds, repeating to the frame the dump gives.
+    /** The tune in {@code song}, repeating to the frame the dump gives.
      *  {@code writer} is what the tune says made it. */
     public static Tune of(Dump.Song song, String writer) {
         long loop = song.loopFrame();
@@ -114,12 +114,12 @@ public final class Read {
 
     private void run(List<Map<Register, Integer>> registers, List<Map<Timer, Effect>> effects) {
         int frames = song.frames();
-        int[] held = new int[14];
-        Arrays.fill(held, -1);
+        int[] wrote = new int[14];
+        Arrays.fill(wrote, -1);
         Slot[] running = {Slot.EMPTY, Slot.EMPTY};
         @Nullable Source[] runs = new Source[2];
-        Prescaler[] prescalerHeld = {Prescaler.BY_4, Prescaler.BY_4};
-        int[] countHeld = {0, 0};
+        Prescaler[] prescalerNow = {Prescaler.BY_4, Prescaler.BY_4};
+        int[] countNow = {0, 0};
         int[] drumEnd = {-1, -1};
         boolean[] stopAtRepeat = {false, false};
         int[] lastKind = {Slot.NONE, Slot.NONE};
@@ -127,7 +127,7 @@ public final class Read {
         for (int f = 0; f < frames; f++) {
             boolean keyframe = f == repeat;
             if (keyframe) {
-                Arrays.fill(held, -1);
+                Arrays.fill(wrote, -1);
                 Arrays.fill(lastKind, Slot.NONE);
                 Arrays.fill(lastTarget, null);
                 for (int i = 0; i < 2; i++) {
@@ -176,7 +176,7 @@ public final class Read {
                         cutAtRepeat++;
                     }
                     if (drum && f < drumEnd[i] && !keyframe) {
-                        // the recording plays on: the dump states only its start
+                        // the recording plays on: the dump gives only its start
                     } else if (running[i].on() || keyframe) {
                         here.put(TIMER_OF[i], Tunes.STOP);
                         running[i] = Slot.EMPTY;
@@ -191,7 +191,7 @@ public final class Read {
                     if (starting) {
                         // A stopped timer begins a whole period either way,
                         // and a running one takes the new count at its next
-                        // zero, so the timer's reset is stated where the
+                        // zero, so the timer's reset is set where the
                         // timer is stopped. A square wave replacing a square
                         // wave on the same register has the row count of the
                         // one before it, so the place stands and the wave
@@ -212,13 +212,13 @@ public final class Read {
                             drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.table(sounds)),
                                     slot[i].prescaler(), slot[i].count(), song.playerHz());
                         }
-                    } else if (slot[i].prescaler() != prescalerHeld[i]
-                            || slot[i].count() != countHeld[i]) {
+                    } else if (slot[i].prescaler() != prescalerNow[i]
+                            || slot[i].count() != countNow[i]) {
                         here.put(TIMER_OF[i], new Retune(slot[i].prescaler(), slot[i].count(),
                                 false, false));
                     }
-                    prescalerHeld[i] = slot[i].prescaler();
-                    countHeld[i] = slot[i].count();
+                    prescalerNow[i] = slot[i].prescaler();
+                    countNow[i] = slot[i].count();
                 }
                 if (running[i].kind() == Slot.SQUARE
                         || running[i].kind() == Slot.RECORDING) {
@@ -231,10 +231,10 @@ public final class Read {
             Map<Register, Integer> sets = new EnumMap<>(Register.class);
             for (int c = 0; c < 13; c++) {
                 if ((owned & 1 << c) != 0) {
-                    held[c] = -1;                   // the effect's register, and no row's
-                } else if (reg[c] != held[c]) {
+                    wrote[c] = -1;                   // the effect's register, and no row's
+                } else if (reg[c] != wrote[c]) {
                     sets.put(Chip.register(c), reg[c]);
-                    held[c] = reg[c];
+                    wrote[c] = reg[c];
                 }
             }
             if (reg[13] >= 0) {
@@ -243,9 +243,8 @@ public final class Read {
             registers.add(sets);
             effects.add(here);
         }
-        // The row the tune repeats to states a stop for an effect that ran
-        // up to it or runs into the wrap. One that did neither is left
-        // alone.
+        // The row the tune repeats to stops an effect that ran up to it
+        // or runs into the wrap. One that did neither is left alone.
         if (repeat < frames) {
             for (int i = 0; i < 2; i++) {
                 if (effects.get(repeat).get(TIMER_OF[i]) instanceof Stop
@@ -297,7 +296,7 @@ public final class Read {
         switch (kind) {
             case Slot.SQUARE:
                 // The level then the silence. The row that starts the wave
-                // states no level of its own, so the voice holds what the
+                // sets no level of its own, so the voice keeps what the
                 // last row set for a timer's period and the first tick
                 // opens the loud half.
                 return Tunes.repeating("square " + data, List.of(data, 0), 0);

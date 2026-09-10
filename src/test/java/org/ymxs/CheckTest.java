@@ -18,9 +18,9 @@ import org.ymxs.YMXS.Tune;
 /**
  * What a structure has to satisfy, and what is said where it does not.
  *
- * <p>The records hold no check of their own, so a structure states what it
- * states and this reads it. One call gives everything wrong with a tune
- * rather than the first of it, which is what a writer mending one wants.
+ * <p>The records carry no check of their own, so a structure is what it
+ * is and this reads it. One call gives everything wrong with a tune rather
+ * than the first of it, which is what a writer mending one wants.
  */
 final class CheckTest {
 
@@ -47,9 +47,9 @@ final class CheckTest {
     }
 
     @Test
-    void aTuneWithNothingWrongSaysNothing() {
+    void aTuneWithNoFaultInItIsPassedInSilence() {
         Tune tune = new Tune("a tune", "", "", 50, Tunes.repeating(List.of(
-                Tunes.row(Map.of(Register.R8, 15)), Tunes.NOTHING), 0));
+                Tunes.row(Map.of(Register.R8, 15)), Tunes.EMPTY), 0));
         assertEquals(List.of(), Check.of(tune));
         assertEquals(List.of(), Check.of(Tunes.multi(tune)));
     }
@@ -109,7 +109,7 @@ final class CheckTest {
     }
 
     @Test
-    void anEffectOnTheEnvelopeShapeHoldsNothingAgainstTheRow() {
+    void anEffectOnTheEnvelopeShapeLeavesTheRowFree() {
         Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
         Tune tune = of(new Row(Map.of(), Map.of(Timer.A, new Start(
                         Tunes.setting(Register.R13), buzzer, Prescaler.BY_4, 100, true, true))),
@@ -119,9 +119,9 @@ final class CheckTest {
     }
 
     @Test
-    void aStartWithoutThePlaceResetOnATimerThatHasRunNothingIsSaid() {
+    void aStartWithoutThePlaceResetOnATimerThatHasRunNoSourceIsSaid() {
         assertEquals(List.of("row 0: Timer A starts a source without the place's reset,"
-                + " and this timer has run none: the place stands where nothing put it"),
+                + " and this timer has run none: the place is where the player left it"),
                 Check.writing(of(starts(SQUARE, false))));
     }
 
@@ -136,7 +136,7 @@ final class CheckTest {
     void aSourceOfAnotherRowCountMayNot() {
         Tune tune = of(starts(SQUARE, true), starts(LONGER, false));
         assertEquals(List.of("row 1: Timer A starts a source of 3 rows without the place's"
-                + " reset, and the one before it held 2"), Check.writing(tune));
+                + " reset, and the one before it had 2"), Check.writing(tune));
     }
 
     @Test
@@ -149,11 +149,11 @@ final class CheckTest {
     }
 
     @Test
-    void aRetuneOfAnEffectThatRunsNothingIsSaid() {
+    void aRetuneOfAnIdleEffectIsSaid() {
         Tune tune = of(new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))));
-        assertEquals(List.of("row 0: Timer A retunes an effect that runs nothing: a rate"
-                + " written to a timer with nothing on it starts that timer with nothing"
-                + " to run"), Check.writing(tune));
+        assertEquals(List.of("row 0: Timer A retunes an effect that is idle: a rate"
+                + " written to a timer with no source on it starts that timer with no"
+                + " source to run"), Check.writing(tune));
     }
 
     @Test
@@ -180,8 +180,8 @@ final class CheckTest {
     }
 
     @Test
-    void aTuneThatKeepsTheRulesSaysNothing() {
-        Tune tune = of(starts(SQUARE, true), Tunes.NOTHING,
+    void aTuneThatKeepsTheRulesIsPassedInSilence() {
+        Tune tune = of(starts(SQUARE, true), Tunes.EMPTY,
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)));
         assertEquals(List.of(), Check.writing(tune));
@@ -190,7 +190,7 @@ final class CheckTest {
     @Test
     void aTableRepeatingPastItsLastRowIsSaid() {
         Tune tune = new Tune("", "", "", 50,
-                new YMXS.Table<>(List.of(Tunes.NOTHING), java.util.OptionalInt.of(4)));
-        assertEquals(List.of("the tune holds 1 rows and repeats to row 4"), Check.of(tune));
+                new YMXS.Table<>(List.of(Tunes.EMPTY), java.util.OptionalInt.of(4)));
+        assertEquals(List.of("the tune has 1 rows and repeats to row 4"), Check.of(tune));
     }
 }

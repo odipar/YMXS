@@ -111,6 +111,48 @@ final class CsvTest {
     }
 
     @Test
+    void aMultiOfSeveralTunesCrossesOverTuneByTune() throws IOException {
+        Multi multi = Text.read(Files.readString(Path.of("doc/tunes/two-tunes.json")));
+        assertEquals(2, multi.tunes().size());
+        Multi back = Csv.read(Csv.write(multi));
+        assertEquals(multi, back, "the multi is the multi it was");
+        for (int at = 0; at < multi.tunes().size(); at++) {
+            assertEquals(multi.tunes().get(at), back.tunes().get(at),
+                    "tune " + (at + 1) + " is the tune it was");
+        }
+        assertTrue(!multi.tunes().get(0).equals(multi.tunes().get(1)),
+                "and the two are not one tune written twice");
+    }
+
+    @Test
+    void twoTunesMayNameOneSourceAndTheyStayApart() throws IOException {
+        Multi multi = Text.read(Files.readString(Path.of("doc/tunes/two-tunes.json")));
+        Source one = Tunes.sources(multi.tunes().get(0)).get(0);
+        Source two = Tunes.sources(multi.tunes().get(1)).get(0);
+        assertEquals(Tunes.name(one), Tunes.name(two), "both tunes call a source this");
+        assertTrue(!one.equals(two), "and the two are not one source");
+        assertEquals(225, Tunes.values(one).size());
+        assertEquals(293, Tunes.values(two).size());
+
+        Multi back = Csv.read(Csv.write(multi));
+        assertEquals(one, Tunes.sources(back.tunes().get(0)).get(0),
+                "a source belongs to the tune whose tables it stands under, not to its name");
+        assertEquals(two, Tunes.sources(back.tunes().get(1)).get(0));
+    }
+
+    @Test
+    void theTablesOfOneTuneStandTogether() throws IOException {
+        Multi multi = Text.read(Files.readString(Path.of("doc/tunes/two-tunes.json")));
+        List<String> named = Csv.write(multi).lines().filter(one -> one.startsWith("###"))
+                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+        assertEquals(List.of("multi",
+                "tune", "source", "value", "source", "value", "source", "value",
+                        "rows", "timerD",
+                "tune", "source", "value", "rows", "timerD"), named,
+                "a tune opens its tables and the next tune opens the next");
+    }
+
+    @Test
     void aTimerHoldsWhatTheTextFormHoldsOfIt() {
         Source square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(

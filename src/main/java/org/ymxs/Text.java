@@ -6,6 +6,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
+import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Retune;
+import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.Single;
+import org.ymxs.YMXS.Source;
+import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Stop;
+import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Target;
+import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Tune;
 
 /**
  * The text form: a {@link Multi} written as JSON, and read back
@@ -64,7 +78,7 @@ public final class Text {
         out.append("      \"composer\": ").append(Json.quote(tune.composer())).append(",\n");
         out.append("      \"writer\": ").append(Json.quote(tune.writer())).append(",\n");
         out.append("      \"rate\": ").append(tune.rate()).append(",\n");
-        out.append("      \"rows\": ").append(tune.table().size()).append(",\n");
+        out.append("      \"rows\": ").append(Tunes.size(tune.table())).append(",\n");
         out.append("      \"repeat\": ").append(tune.table().repeat().isPresent()
                 ? String.valueOf(tune.table().repeat().getAsInt()) : "null").append(",\n");
         sources(out, tune);
@@ -76,19 +90,21 @@ public final class Text {
     }
 
     private static void sources(StringBuilder out, Tune tune) {
+        List<Source> sources = Tunes.sources(tune);
         out.append("      \"sources\": [");
-        if (tune.sources().isEmpty()) {
+        if (sources.isEmpty()) {
             out.append("],\n");
             return;
         }
         out.append('\n');
-        for (int at = 0; at < tune.sources().size(); at++) {
-            Source source = tune.sources().get(at);
-            out.append("        {\"name\": ").append(Json.quote(source.name()))
-                    .append(", \"repeat\": ").append(source.table().repeat().isPresent()
-                            ? String.valueOf(source.table().repeat().getAsInt()) : "null")
+        for (int at = 0; at < sources.size(); at++) {
+            Source source = sources.get(at);
+            OptionalInt repeat = Tunes.table(source).repeat();
+            out.append("        {\"name\": ").append(Json.quote(Tunes.name(source)))
+                    .append(", \"repeat\": ").append(repeat.isPresent()
+                            ? String.valueOf(repeat.getAsInt()) : "null")
                     .append(", \"rows\": [");
-            List<Integer> values = ((Single) source).values();
+            List<Integer> values = Tunes.values(source);
             for (int i = 0; i < values.size(); i++) {
                 if (i > 0) {
                     out.append(',');
@@ -98,14 +114,14 @@ public final class Text {
                 }
                 out.append(values.get(i));
             }
-            out.append("]}").append(at + 1 < tune.sources().size() ? ",\n" : "\n");
+            out.append("]}").append(at + 1 < sources.size() ? ",\n" : "\n");
         }
         out.append("      ],\n");
     }
 
     /** One register's runs, a run a line and a long run wrapped. */
     private static void stream(StringBuilder out, Tune tune, Register register) {
-        List<Row> rows = tune.rows();
+        List<Row> rows = Tunes.rows(tune);
         List<String> runs = new ArrayList<>();
         int at = 0;
         int end = 0;
@@ -148,10 +164,10 @@ public final class Text {
 
     /** The effects as events, each at its own row. */
     private static void effects(StringBuilder out, Tune tune) {
-        List<Row> rows = tune.rows();
+        List<Row> rows = Tunes.rows(tune);
         List<String> events = new ArrayList<>();
         for (int at = 0; at < rows.size(); at++) {
-            Map<Timer, Effect> here = rows.get(at).effects();
+            Map<Timer, Effect> here = Tunes.effects(rows.get(at));
             if (here.isEmpty()) {
                 continue;
             }
@@ -172,13 +188,15 @@ public final class Text {
 
     private static String effect(Effect effect, Tune tune) {
         return switch (effect) {
-            case Start start -> "{\"start\": {\"target\": " + Json.quote(start.target().toString())
-                    + ", \"source\": " + tune.number(start.source())
-                    + ", \"prescaler\": " + start.prescaler().divides()
+            case Start start -> "{\"start\": {\"target\": "
+                    + Json.quote(Tunes.name(start.target()))
+                    + ", \"source\": " + Tunes.number(tune, start.source())
+                    + ", \"prescaler\": " + Chip.divides(start.prescaler())
                     + ", \"count\": " + start.count()
                     + ", \"timerReset\": " + start.timerReset()
                     + ", \"placeReset\": " + start.placeReset() + "}}";
-            case Retune retune -> "{\"retune\": {\"prescaler\": " + retune.prescaler().divides()
+            case Retune retune -> "{\"retune\": {\"prescaler\": "
+                    + Chip.divides(retune.prescaler())
                     + ", \"count\": " + retune.count()
                     + ", \"timerReset\": " + retune.timerReset()
                     + ", \"placeReset\": " + retune.placeReset() + "}}";
@@ -188,7 +206,7 @@ public final class Text {
 
     /** A register's name in the text: {@code r0} to {@code r13}. */
     static String name(Register register) {
-        return "r" + register.number();
+        return "r" + Chip.number(register);
     }
 
     // ----------------------------------------------------------------- read
@@ -215,7 +233,7 @@ public final class Text {
         for (Object one : Json.array(held, "tunes")) {
             tunes.add(tune((Map<String, Object>) one));
         }
-        return new Multi(tunes);
+        return Check.must(new Multi(tunes));
     }
 
     @SuppressWarnings("unchecked")
@@ -276,7 +294,7 @@ public final class Text {
             rows.add(new Row(registers.get(at), effects.get(at)));
         }
         return new Tune(Json.text(held, "title"), Json.text(held, "composer"),
-                Json.text(held, "writer"), Json.number(held, "rate"), sources,
+                Json.text(held, "writer"), Json.number(held, "rate"),
                 new Table<>(rows, maybe(held.get("repeat"))));
     }
 
@@ -304,13 +322,13 @@ public final class Text {
                             + number + ", and the tune holds " + sources.size());
                 }
                 yield new Start(target(Json.text(of, "target")), sources.get(number - 1),
-                        Prescaler.dividing(Json.number(of, "prescaler")),
+                        Chip.prescaler(Json.number(of, "prescaler")),
                         Json.number(of, "count"), flag(of, "timerReset"),
                         flag(of, "placeReset"));
             }
-            case "retune" -> new Retune(Prescaler.dividing(Json.number(of, "prescaler")),
+            case "retune" -> new Retune(Chip.prescaler(Json.number(of, "prescaler")),
                     Json.number(of, "count"), flag(of, "timerReset"), flag(of, "placeReset"));
-            case "stop" -> Stop.STOP;
+            case "stop" -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " states \"" + shape
                     + "\" of an effect, and it states one of start, retune and stop");
         };
@@ -319,8 +337,8 @@ public final class Text {
     /** A target by the name it is written under, {@code setR0} upward. */
     static Target target(String said) {
         for (Register register : Register.values()) {
-            Target target = Target.setting(register);
-            if (target.toString().equals(said)) {
+            Target target = Tunes.setting(register);
+            if (Tunes.name(target).equals(said)) {
                 return target;
             }
         }

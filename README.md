@@ -19,14 +19,24 @@ player names the version of this it reads.
 ## What is here
 
 ```
-src/main/java/org/ymxs/      the records, and the text form
-src/main/java/org/ymxs/ym/   an example: a YM register dump read in
-doc/SPEC.md                  what a player does with a structure
-doc/text.md                  the text form, written out
-doc/ym.md                    the example, written out
-doc/tunes/                   tunes in that form, which the tests read back
-bin/ym-to-ymxs               a dump into the text form
+src/main/java/org/ymxs/YMXS.java    the structure, nested in one interface
+src/main/java/org/ymxs/Chip.java    what the YM2149 and the MC68901 give
+src/main/java/org/ymxs/Tunes.java   what a structure holds, read off it
+src/main/java/org/ymxs/Check.java   what a structure has to satisfy
+src/main/java/org/ymxs/Text.java    the text form, written and read
+src/main/java/org/ymxs/ym/          an example: a YM register dump read in
+doc/SPEC.md                         what a player does with a structure
+doc/text.md                         the text form, written out
+doc/ym.md                           the example, written out
+doc/tunes/                          tunes in that form, read back by the tests
+bin/ym-to-ymxs                      a dump into the text form
 ```
+
+`YMXS.java` holds the structure and nothing else: bare records and sealed
+interfaces, no method of their own beyond the accessors a record gives.
+What is read off a structure is read by a function outside it, by pattern
+matching, so a shape added to `YMXS` stops those functions compiling until
+they read it.
 
 ## Building
 

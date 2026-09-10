@@ -47,7 +47,7 @@ second form would change none of them.
 | `rate` | how often the player is called for this tune, in Hz |
 | `rows` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
-| `sources` | the sources, numbered 1 upward in this order |
+| `sources` | the sources the rows start, numbered 1 upward in the order a row first starts each |
 | `r0` to `r13` | one register's stream, absent where no row sets it |
 | `effects` | what the rows state of the effects |
 

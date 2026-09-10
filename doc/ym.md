@@ -1,7 +1,7 @@
 # Reading a YM dump
 
 An example. `src/main/java/org/ymxs/ym/` reads a YM5!/YM6! register dump
-into a [Tune](../src/main/java/org/ymxs/Tune.java), and
+into a [Tune](../src/main/java/org/ymxs/YMXS.java), and
 `bin/ym-to-ymxs` writes that as the text form.
 
 Nothing in the format depends on it. It is here to show how a format that

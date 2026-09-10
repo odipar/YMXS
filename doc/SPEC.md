@@ -17,36 +17,47 @@ How a tune is written down is a form's, and no form is the format.
 ## 1. What a tune holds
 
 ```java
-record Multi(List<Tune> tunes)
+interface YMXS {
 
-record Tune(String title, String composer, String writer, int rate,
-            List<Source> sources, Table<Row> table)
+    record Multi(List<Tune> tunes)
+    record Tune(String title, String composer, String writer, int rate,
+                Table<Row> table)
+    record Table<T>(List<T> rows, OptionalInt repeat)
+    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects)
 
-record Table<T>(List<T> rows, OptionalInt repeat)
+    sealed interface Effect permits Start, Retune, Stop
+    record Start(Target target, Source source, Prescaler prescaler, int count,
+                 boolean timerReset, boolean placeReset) implements Effect
+    record Retune(Prescaler prescaler, int count,
+                  boolean timerReset, boolean placeReset) implements Effect
+    record Stop() implements Effect
 
-record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects)
+    sealed interface Target permits SetRegister
+    record SetRegister(Register register) implements Target
 
-sealed interface Effect permits Start, Retune, Stop
-record Start(Target target, Source source, Prescaler prescaler, int count,
-             boolean timerReset, boolean placeReset) implements Effect
-record Retune(Prescaler prescaler, int count,
-              boolean timerReset, boolean placeReset) implements Effect
-record Stop() implements Effect
+    sealed interface Source permits Single
+    record Single(String name, Table<Integer> table) implements Source
 
-sealed interface Target permits SetRegister
-record SetRegister(Register register) implements Target
-
-sealed interface Source permits Single
-record Single(String name, Table<Integer> table) implements Source
-
-enum Register  { R0 ... R13 }
-enum Timer     { A, B, C, D }
-enum Prescaler { BY_4 ... BY_200 }
+    enum Register  { R0 ... R13 }
+    enum Timer     { A, B, C, D }
+    enum Prescaler { BY_4 ... BY_200 }
+}
 ```
 
 A tune's rows advance one a frame at the rate the tune states, and a
 source's advance one a tick at the rate its effect's timer runs. That is
 the whole difference between the two tables.
+
+**Nothing above holds a method of its own** beyond the accessors a record
+gives. What is read off a structure is read by a function outside it:
+`Chip` for what the two chips give, `Tunes` for what a structure holds,
+and `Check` for what a structure has to satisfy. Each reads by pattern
+matching and states every shape, so a shape added here stops them
+compiling until they read it.
+
+**A tune's sources are the ones its rows start** (`Tunes.sources`), in the
+order a row first starts each. A source no row starts is not one the tune
+holds.
 
 **A row states what it sets and says nothing about the rest.** A register
 absent from `registers` is one the row does not write; a timer absent from
@@ -285,7 +296,7 @@ gives what the tune states once, and each line after it one frame:
     {"result":-1}
 
 - `rate` is the tune's, `timers` the timers it claims in the order A, B,
-  C, D, and `sources` the sources in the tune's own order, 1 upward, each
+  C, D, and `sources` the sources the rows start, 1 upward, each
   its rows and the row it repeats to, or `null` where it plays once.
 - `result` gives what the frame reports: 0, or -1 for the frame after the
   last row of a tune that plays once. That entry holds `result` alone, and

@@ -13,6 +13,17 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Retune;
+import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.Source;
+import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Tune;
 
 /**
  * The text form against the structure: every tune under {@code doc/tunes}
@@ -54,8 +65,8 @@ final class TextTest {
         long stops = 0;
         for (Path at : tunes()) {
             for (Tune tune : Text.read(Files.readString(at)).tunes()) {
-                rows += tune.table().size();
-                for (Row row : tune.rows()) {
+                rows += Tunes.size(tune.table());
+                for (Row row : Tunes.rows(tune)) {
                     for (Effect effect : row.effects().values()) {
                         if (effect instanceof Start) {
                             starts++;
@@ -77,43 +88,43 @@ final class TextTest {
     /** A tune holding every shape a row takes, written and read back. */
     @Test
     void everyShapeSurvivesTheRoundTrip() {
-        Source square = Source.repeating("square 15", List.of(15, 0), 0);
-        Source drum = Source.once("drum", List.of(8, 12, 15, 13, 5));
-        Source buzzer = Source.repeating("buzzer", List.of(10), 0);
+        Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
+        Source drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
+        Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
         List<Row> rows = new ArrayList<>();
-        rows.add(Row.NOTHING);
+        rows.add(Tunes.NOTHING);
         // every register a row sets, at the largest value each takes
         Map<Register, Integer> all = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
-            all.put(register, register.most());
+            all.put(register, Chip.most(register));
         }
-        rows.add(Row.of(all));
+        rows.add(Tunes.row(all));
         // and at 0, which is a value like any other
         Map<Register, Integer> none = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
             none.put(register, 0);
         }
-        rows.add(Row.of(none));
+        rows.add(Tunes.row(none));
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
-                Timer.A, Start.struck(Target.setting(Register.R8), square,
+                Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, new Start(Target.setting(Register.R10), drum,
+                Timer.D, new Start(Tunes.setting(Register.R10), drum,
                         Prescaler.BY_200, 256, false, true))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.B, new Start(Target.setting(Register.R13), buzzer,
+                Timer.B, new Start(Tunes.setting(Register.R13), buzzer,
                         Prescaler.BY_50, 1, true, false),
-                Timer.C, new Start(Target.setting(Register.R9), square,
+                Timer.C, new Start(Tunes.setting(Register.R9), square,
                         Prescaler.BY_10, 3, false, false))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.A, Retune.bend(Prescaler.BY_4, 118),
+                Timer.A, Tunes.bend(Prescaler.BY_4, 118),
                 Timer.D, new Retune(Prescaler.BY_100, 7, true, true))));
         rows.add(new Row(Map.of(Register.R8, 12), Map.of(
-                Timer.A, Stop.STOP, Timer.B, Stop.STOP,
-                Timer.C, Stop.STOP, Timer.D, Stop.STOP)));
+                Timer.A, Tunes.STOP, Timer.B, Tunes.STOP,
+                Timer.C, Tunes.STOP, Timer.D, Tunes.STOP)));
         Tune tune = new Tune("every shape", "a test", "TextTest", 50,
-                List.of(square, drum, buzzer), Table.repeating(rows, 1));
-        Tune once = new Tune("plays once", "", "", 60, List.of(),
-                Table.once(List.of(Row.of(Map.of(Register.R7, 63)), Row.NOTHING)));
+                Tunes.repeating(rows, 1));
+        Tune once = new Tune("plays once", "", "", 60,
+                Tunes.once(List.of(Tunes.row(Map.of(Register.R7, 63)), Tunes.NOTHING)));
         Multi multi = new Multi(List.of(tune, once));
 
         String text = Text.write(multi);
@@ -143,9 +154,9 @@ final class TextTest {
 
     @Test
     void aTuneOfOneRowStatesItsRepeat() {
-        Tune tune = new Tune("", "", "", 50, List.of(),
-                new Table<>(List.of(Row.NOTHING), OptionalInt.of(0)));
-        assertEquals(OptionalInt.of(0), Text.read(Text.write(Multi.of(tune)))
-                .tune(1).table().repeat());
+        Tune tune = new Tune("", "", "", 50,
+                new Table<>(List.of(Tunes.NOTHING), OptionalInt.of(0)));
+        assertEquals(OptionalInt.of(0),
+                Tunes.tune(Text.read(Text.write(Tunes.multi(tune))), 1).table().repeat());
     }
 }

@@ -1,7 +1,8 @@
 package org.ymxs.ym;
 
-import org.ymxs.Prescaler;
-import org.ymxs.Register;
+import org.ymxs.Chip;
+import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Register;
 
 /**
  * One of the two effect slots a dump's frame holds, read as what it
@@ -71,7 +72,7 @@ public record Slot(int kind, int voice, Register target, int data, Prescaler pre
                 continue;
             }
             int kind = ym6 ? (code >> 6) + 1 : slot == 0 ? SQUARE : RECORDING;
-            Register target = kind == BUZZER ? Register.R13 : Register.at(8 + voice);
+            Register target = kind == BUZZER ? Register.R13 : Chip.register(8 + voice);
             out[slot] = new Slot(kind, voice, target, r[8 + voice][frame] & 0x1F,
                     Prescaler.values()[select - 1], count);
         }

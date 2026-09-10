@@ -33,9 +33,8 @@ final class StructureTest {
     /** The document that lists the records. */
     private static final Path SPEC = Path.of("doc/SPEC.md");
 
-    /** In the package and not the structure: the text form, and the reader
-     *  that form is written with. */
-    private static final Set<String> THE_FORM = Set.of("Text", "Json");
+    /** The interface the structure is nested in. */
+    private static final String WRAPPER = "YMXS";
 
     /** One declaration read out of the listing. */
     private record Said(String kind, String name, List<String> parts) { }
@@ -44,16 +43,13 @@ final class StructureTest {
     void theListingStatesEveryTypeTheStructureHas() throws IOException {
         Set<String> listed = new LinkedHashSet<>();
         for (Said said : listing()) {
-            listed.add(said.name());
+            if (!said.name().equals(WRAPPER)) {
+                listed.add(said.name());
+            }
         }
         Set<String> held = new LinkedHashSet<>();
-        try (Stream<Path> at = Files.list(Path.of("src/main/java/org/ymxs"))) {
-            at.filter(one -> one.toString().endsWith(".java"))
-                    .map(one -> one.getFileName().toString().replace(".java", ""))
-                    .filter(one -> !one.equals("package-info"))
-                    .filter(one -> !THE_FORM.contains(one))
-                    .sorted()
-                    .forEach(held::add);
+        for (Class<?> one : YMXS.class.getDeclaredClasses()) {
+            held.add(one.getSimpleName());
         }
         List<String> missing = new ArrayList<>(held);
         missing.removeAll(listed);
@@ -71,11 +67,14 @@ final class StructureTest {
                 + " declarations read; the check is asleep");
         List<String> wrong = new ArrayList<>();
         for (Said said : listing) {
+            if (said.name().equals(WRAPPER)) {
+                continue;
+            }
             Class<?> type;
             try {
-                type = Class.forName("org.ymxs." + said.name());
+                type = Class.forName("org.ymxs.YMXS$" + said.name());
             } catch (ClassNotFoundException none) {
-                wrong.add(said.name() + " is listed and the package holds no such type");
+                wrong.add(said.name() + " is listed and " + WRAPPER + " holds no such type");
                 continue;
             }
             List<String> holds = switch (said.kind()) {
@@ -139,6 +138,7 @@ final class StructureTest {
     /** A type name as the listing writes it: no package, no space. */
     private static String plain(String name) {
         return name.replace("java.util.", "").replace("java.lang.", "")
+                .replace("org.ymxs.YMXS$", "").replace("org.ymxs.YMXS.", "")
                 .replace("org.ymxs.", "").replace(" ", "");
     }
 

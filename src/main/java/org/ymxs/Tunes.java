@@ -24,30 +24,30 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * What a structure holds, read off it rather than held by it. Every
- * function here is pure: it takes a structure and gives a value, and
- * nothing it takes moves.
+ * The readings taken off a structure, read rather than stored. Every
+ * function here is pure: it takes a structure and gives a value, leaving
+ * its argument as it was.
  *
- * <p>Each reads a sealed interface by pattern matching and states every
- * shape, so a shape added to {@link YMXS} stops this compiling until it is
- * read here. That is what makes an added shape a change to the
- * specification rather than a value that turns up in a file.
+ * <p>Each reads a sealed interface by pattern matching over every shape,
+ * so a shape added to {@link YMXS} stops this compiling until it is read
+ * here. That makes an added shape a change to the specification rather
+ * than a value that turns up in a file.
  */
 public final class Tunes {
 
-    /** The stop, which has no state of its own. */
+    /** The stop, the same for every timer and every row. */
     public static final Stop STOP = new Stop();
 
-    /** A row that states nothing. A player advancing over it writes no
-     *  register and moves no timer. */
-    public static final Row NOTHING = new Row(Map.of(), Map.of());
+    /** An empty row. A player advancing over it writes no register and
+     *  moves no timer. */
+    public static final Row EMPTY = new Row(Map.of(), Map.of());
 
     private Tunes() {
     }
 
     // ------------------------------------------------------------ a table
 
-    /** How many rows the table holds. */
+    /** How many rows the table has. */
     public static int size(Table<?> table) {
         return table.rows().size();
     }
@@ -62,16 +62,16 @@ public final class Tunes {
         return new Table<>(rows, OptionalInt.empty());
     }
 
-    /** A row that sets these registers and states nothing of any
-     *  effect. */
+    /** A row that sets these registers and leaves every effect
+     *  alone. */
     public static Row row(Map<Register, Integer> registers) {
         return new Row(registers, Map.of());
     }
 
     /**
-     * The effects this row states, in the order the timers are declared.
+     * The effects this row sets, in the order the timers are declared.
      *
-     * <p>A row holds a plain map, so what order it iterates in is the
+     * <p>A row takes a plain map, so what order it iterates in is the
      * caller's business and not the row's. A form that writes a row twice
      * has to write it the same way both times, so it reads the row through
      * this.
@@ -99,9 +99,9 @@ public final class Tunes {
         return out;
     }
 
-    /** Whether the row sets no register and states nothing of any
-     *  effect. */
-    public static boolean statesNothing(Row row) {
+    /** Whether the row sets no register and leaves every effect
+     *  alone. */
+    public static boolean isEmpty(Row row) {
         return row.registers().isEmpty() && row.effects().isEmpty();
     }
 
@@ -114,8 +114,8 @@ public final class Tunes {
 
     /**
      * The sources this tune runs: the ones its rows start, in the order a
-     * row first starts each. A source no row starts is not one the tune
-     * holds, so this is the whole of them.
+     * row first starts each. A source no row starts is outside the tune,
+     * so this is the whole of them.
      */
     public static List<Source> sources(Tune tune) {
         List<Source> out = new ArrayList<>();
@@ -179,11 +179,11 @@ public final class Tunes {
 
     /** Tune {@code number}, 1 upward, which is the number a host asks for.
      *
-     * @throws IllegalArgumentException where the multi holds no such tune
+     * @throws IllegalArgumentException where the multi has no such tune
      */
     public static Tune tune(Multi multi, int number) {
         if (number < 1 || number > multi.tunes().size()) {
-            throw new IllegalArgumentException("no tune " + number + ": the multi holds "
+            throw new IllegalArgumentException("no tune " + number + ": the multi has "
                     + multi.tunes().size());
         }
         return multi.tunes().get(number - 1);
@@ -219,15 +219,15 @@ public final class Tunes {
         };
     }
 
-    /** The values one row of a source holds for this target. */
+    /** The values one row of a source gives this target. */
     public static int columns(Target target) {
         return switch (target) {
             case SetRegister ignored -> 1;
         };
     }
 
-    /** The largest value one of those holds. A source this target runs
-     *  holds values within it. */
+    /** The largest value one of those takes. A source this target runs
+     *  keeps within it. */
     public static int most(Target target) {
         return switch (target) {
             case SetRegister set -> Chip.most(set.register());
@@ -236,8 +236,8 @@ public final class Tunes {
 
     // ----------------------------------------------------------- a source
 
-    /** What a writer calls this source. It reaches the tools' reports and
-     *  nothing a player reads. */
+    /** What a writer calls this source. It reaches the tools' reports
+     *  alone, and no part of what a player reads. */
     public static String name(Source source) {
         return switch (source) {
             case Single single -> single.name();
@@ -256,7 +256,7 @@ public final class Tunes {
         return table(source).rows();
     }
 
-    /** The values one row holds. */
+    /** The values one row gives. */
     public static int columns(Source source) {
         return switch (source) {
             case Single ignored -> 1;

@@ -20,22 +20,22 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * What a structure has to satisfy for a player to play it, read off the
- * structure rather than held by it.
+ * The rules a structure must satisfy for a player to play it, read off
+ * the structure rather than stored in it.
  *
  * <p>Every function gives what is wrong rather than throwing at the first
  * of it, so one call gives everything a writer has to mend. {@link #must}
  * is the other way round, for a caller that would rather stop.
  *
- * <p>What is held to is the two chips and the music: what a register
- * takes, what a timer counts, and that an effect hands a source's row to a
- * target that takes it. What a form can hold is that form's to say, and no
- * limit of one is here.
+ * <p>What binds a structure is the two chips and the music: what a
+ * register takes, what a timer counts, and that an effect hands a source's
+ * row to a target that takes it. What a form can write is that form's own
+ * business, and no limit of one is here.
  *
  * <p>{@link #writing} is the other half: what SPEC.md 6 asks of a writer
  * reads across rows rather than within one, and a tune that breaks one of
- * those rules plays as something other than what it states rather than
- * failing to play at all.
+ * those rules plays, but not as its writer meant, rather than failing to
+ * play at all.
  */
 public final class Check {
 
@@ -91,7 +91,7 @@ public final class Check {
         return said;
     }
 
-    /** What is wrong with what a row states of one effect, or an empty
+    /** What is wrong with what a row does to one effect, or an empty
      *  list. */
     public static List<String> of(Effect effect) {
         return switch (effect) {
@@ -120,8 +120,8 @@ public final class Check {
         return said;
     }
 
-    /** What a start has to agree on: the target takes the row the source
-     *  holds, and the values the source holds are values that register
+    /** What a start has to agree on: the target takes the row shape the
+     *  source gives, and the source's values are values that register
      *  takes. */
     private static List<String> runs(Start start) {
         List<String> said = new ArrayList<>(of(start.source()));
@@ -153,11 +153,11 @@ public final class Check {
     private static List<String> table(Table<?> table, String what) {
         List<String> said = new ArrayList<>();
         if (table.rows().isEmpty()) {
-            said.add(what + " holds no rows: a clock reads one");
+            said.add(what + " has no rows: a clock reads one");
         }
         if (table.repeat().isPresent() && (table.repeat().getAsInt() < 0
                 || table.repeat().getAsInt() >= table.rows().size())) {
-            said.add(what + " holds " + table.rows().size() + " rows and repeats to row "
+            said.add(what + " has " + table.rows().size() + " rows and repeats to row "
                     + table.repeat().getAsInt());
         }
         return said;
@@ -165,17 +165,16 @@ public final class Check {
 
     /**
      * What SPEC.md 6 asks of a writer, read across the tune's rows. A tune
-     * that breaks one of these plays, and plays as something other than
-     * what it states.
+     * that breaks one of these plays, but not as its writer meant.
      *
      * <p>Three of the five are read here. Rule 2 leaves the order of two
-     * timers writing one register to the writer, so there is nothing to
-     * read. Rule 4 asks a start to state the timer's reset where the timer
+     * timers writing one register to the writer, so there is no reading to
+     * take. Rule 4 asks a start to set the timer's reset where the timer
      * is stopped, and a stopped timer begins a whole period with the value
-     * or without it, so there is no way to state it wrongly.
+     * or without it, so either value is right.
      *
-     * <p>A source that plays once states when it starts and never when it
-     * is done, so how long it runs is reckoned from its rate
+     * <p>A source that plays once has a start in the rows and no end, so
+     * how long it runs is reckoned from its rate
      * ({@link Chip#frames}). Anything read off that reckoning says so.
      */
     public static List<String> writing(Tune tune) {
@@ -185,7 +184,7 @@ public final class Check {
     /** What one timer runs, and the row its source runs out on. */
     private record Running(Target target, Source source, int until) { }
 
-    /** A walk over a tune's rows, holding what each timer runs. */
+    /** A walk over a tune's rows, and what each timer runs as it goes. */
     private static final class Writing {
 
         private final Tune tune;
@@ -223,18 +222,18 @@ public final class Check {
                 case Retune ignored -> {
                     Running runs = runs(timer, at);
                     if (runs == null) {
-                        say(at, timer, "retunes an effect that runs nothing: a rate written"
-                                + " to a timer with nothing on it starts that timer with"
-                                + " nothing to run", reckoned(timer, at));
+                        say(at, timer, "retunes an effect that is idle: a rate written"
+                                + " to a timer with no source on it starts that timer"
+                                + " with no source to run", reckoned(timer, at));
                     }
                 }
                 case Stop ignored -> running.remove(timer);
             }
         }
 
-        /** Rule 3: a start states the place's reset, unless the source it
+        /** Rule 3: a start sets the place's reset, unless the source it
          *  starts has the row count of the one this effect last ran on the
-         *  target it holds. */
+         *  same target. */
         private void place(int at, Timer timer, Start start) {
             if (start.placeReset()) {
                 return;
@@ -242,21 +241,21 @@ public final class Check {
             Source before = lastSource.get(timer);
             if (before == null) {
                 say(at, timer, "starts a source without the place's reset, and this timer"
-                        + " has run none: the place stands where nothing put it", false);
+                        + " has run none: the place is where the player left it", false);
                 return;
             }
-            Target held = lastTarget.get(timer);
-            if (held == null || !start.target().equals(held)) {
+            Target last = lastTarget.get(timer);
+            if (last == null || !start.target().equals(last)) {
                 say(at, timer, "starts a source on " + Tunes.name(start.target())
                         + " without the place's reset, and this timer last ran on "
-                        + (held == null ? "nothing" : Tunes.name(held)), false);
+                        + (last == null ? "no target" : Tunes.name(last)), false);
                 return;
             }
             int now = Tunes.size(Tunes.table(start.source()));
             int then = Tunes.size(Tunes.table(before));
             if (now != then) {
                 say(at, timer, "starts a source of " + now + " rows without the place's"
-                        + " reset, and the one before it held " + then, false);
+                        + " reset, and the one before it had " + then, false);
             }
         }
 
@@ -277,7 +276,7 @@ public final class Check {
             }
         }
 
-        /** What a timer runs at this row, or null where it runs nothing. */
+        /** What a timer runs at this row, or null where it is idle. */
         private @Nullable Running runs(Timer timer, int at) {
             Running runs = running.get(timer);
             return runs != null && at < runs.until() ? runs : null;
@@ -313,7 +312,7 @@ public final class Check {
         }
     }
 
-    /** {@code multi}, where nothing is wrong with it.
+    /** {@code multi} itself, where the check finds no fault.
      *
      * @throws IllegalArgumentException giving everything that is
      */
@@ -325,7 +324,7 @@ public final class Check {
         return multi;
     }
 
-    /** {@code tune}, where nothing is wrong with it.
+    /** {@code tune} itself, where the check finds no fault.
      *
      * @throws IllegalArgumentException giving everything that is
      */

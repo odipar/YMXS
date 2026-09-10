@@ -3,15 +3,14 @@ package org.ymxs.ym;
 import java.nio.charset.StandardCharsets;
 
 /**
- * A YM5!/YM6! register dump, read in the file's own terms and nothing
- * else's.
+ * A YM5!/YM6! register dump, read in the file's own terms.
  *
  * <p>The layout is a fixed header, extra data, the digidrum samples, three
  * strings ended by a zero, and then the frames: either sixteen vectors of
  * one register each, or one record of sixteen bytes a frame. Both come out
  * as sixteen register vectors.
  *
- * <p>A distributed {@code .ym} is usually an archive holding that, and
+ * <p>A distributed {@code .ym} is usually an archive with that inside, and
  * {@link Lha} unpacks one, so what this is handed reads either way.
  */
 public final class Dump {
@@ -19,12 +18,12 @@ public final class Dump {
     /** What the header said, the frames as read, and the samples as
      *  stored.
      *
-     *  <p>{@code registers[r][frame]} is R{@code r} as the file holds it,
+     *  <p>{@code registers[r][frame]} is R{@code r} as the file gives it,
      *  all sixteen: the two I/O ports are where this format files an
      *  effect's timer count.
      *
      * @param format YM5! or YM6!
-     * @param frames how many frames the dump holds
+     * @param frames how many frames the dump runs
      * @param playerHz how often the dump's player was called
      * @param loopFrame the frame the dump repeats to
      * @param attributes the header's flag bits
@@ -37,10 +36,10 @@ public final class Dump {
                        long attributes, byte[][] drums, String name, String author,
                        byte[][] registers) {
 
-        /** The registers the file holds, R0 to R15. */
+        /** The registers the file gives, R0 to R15. */
         public static final int REGISTERS = 16;
 
-        /** Attribute bit 2: the samples hold one four-bit value a byte. */
+        /** Attribute bit 2: the samples give one four-bit value a byte. */
         public static final int DRUMS_ARE_4_BIT = 4;
     }
 
@@ -58,7 +57,7 @@ public final class Dump {
         this.data = data;
     }
 
-    /** The song {@code data} holds.
+    /** The song in {@code data}.
      *
      * @throws Unreadable where it is not a YM5! or YM6! dump
      */
@@ -67,8 +66,8 @@ public final class Dump {
             try {
                 data = Lha.unpack(data);
             } catch (IllegalArgumentException no) {
-                throw new Unreadable("this is an archive holding a dump, and it does not"
-                        + " unpack: " + no.getMessage());
+                throw new Unreadable("this is an archive with a dump inside, and it does"
+                        + " not unpack: " + no.getMessage());
             }
         }
         return new Dump(data).run();
@@ -85,7 +84,7 @@ public final class Dump {
         long frames = u32();
         long attributes = u32();
         int digidrums = u16();
-        u32();                                      // the master clock, which nothing reads
+        u32();                                      // the master clock, which no one reads
         int playerHz = u16();
         long loopFrame = u32();
         skip(u16(), "the extra data");
@@ -102,7 +101,7 @@ public final class Dump {
         }
         String name = string();
         String author = string();
-        string();                                   // the comment, which nothing reads
+        string();                                   // the comment, which no one reads
         if (frames <= 0 || frames > Integer.MAX_VALUE) {
             throw new Unreadable("a frame count of " + frames);
         }

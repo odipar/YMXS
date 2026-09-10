@@ -5,7 +5,7 @@ import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 
 /**
- * One of the two effect slots a dump's frame holds, read as what it
+ * One of the two effect slots in a dump's frame, read as what it
  * sounds: a kind, the voice it sounds on, the register its ticks write,
  * the value its source is built from, and the timer's rate.
  *

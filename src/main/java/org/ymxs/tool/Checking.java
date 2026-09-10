@@ -17,12 +17,12 @@ import org.ymxs.YMXS.Tune;
  * <p>Two kinds of wrong, and they are not the same fault.
  *
  * <p><b>An error</b> is a tune no player plays: text that is not this
- * form, or a structure the two chips do not take. Nothing goes to standard
- * output and the exit is 1, so a pipe stops rather than carrying something
+ * form, or a structure the two chips do not take. Standard output stays
+ * empty and the exit is 1, so a pipe stops rather than carrying something
  * broken further.
  *
- * <p><b>A warning</b> is a tune that plays, and plays as something other
- * than what it states: one of the rules doc/SPEC.md 6 asks of a writer.
+ * <p><b>A warning</b> is a tune that plays, but not as written: it breaks
+ * one of the rules doc/SPEC.md 6 asks of a writer.
  * The tune goes through and the exit is 0, since a player takes it and
  * only the writer can say whether it is what was meant.
  */

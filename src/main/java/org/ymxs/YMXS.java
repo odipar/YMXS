@@ -5,20 +5,20 @@ import java.util.Map;
 import java.util.OptionalInt;
 
 /**
- * What a tune holds. These declarations are the specification of that, and
- * doc/SPEC.md states what a player or an emulator does with them on an
+ * The tune data structure. These declarations are its specification, and
+ * doc/SPEC.md defines what a player or an emulator does with them on an
  * Atari ST's YM2149 and MC68901.
  *
- * <p>Nothing here holds a method of its own beyond the accessors a record
- * gives. What is read off a structure is read by a function outside it:
- * {@link Chip} for what the two chips give, {@link Tunes} for what a
- * structure holds, and {@link Check} for what a structure has to satisfy.
- * Each reads by pattern matching, so a shape added to a sealed interface
- * stops them compiling until they read it.
+ * <p>The records here have no method of their own beyond the accessors a
+ * record gives. A reading of a structure is taken by a function outside
+ * it: {@link Chip} for what the two chips give, {@link Tunes} for the
+ * readings taken off a structure, and {@link Check} for the rules a
+ * structure must satisfy. Each reads by pattern matching, so a shape added
+ * to a sealed interface stops them compiling until they read it.
  *
- * <p>How a tune is written down is a form, and no form is the format.
- * doc/text.md is one; a player's own is another. Nothing here is arranged
- * for a form's benefit, and no limit here is a form's.
+ * <p>How a tune is written down is a form. doc/json.md is one; a player's
+ * own is another. A form's convenience shaped none of this, and every
+ * limit here comes from the two chips.
  */
 public interface YMXS {
 
@@ -26,8 +26,8 @@ public interface YMXS {
      *  A multi of one tune is a tune on its own. */
     record Multi(List<Tune> tunes) { }
 
-    /** One tune: what it is called, and its rows, one a frame at the rate
-     *  it states. Its sources are the ones its rows start
+    /** One tune: what it is called, and its rows, one a frame at the
+     *  tune's rate. Its sources are the ones its rows start
      *  ({@link Tunes#sources}). */
     record Tune(String title, String composer, String writer, int rate,
                 Table<Row> table) { }
@@ -38,34 +38,33 @@ public interface YMXS {
      *  source's one a tick, and that is the whole difference. */
     record Table<T>(List<T> rows, OptionalInt repeat) { }
 
-    /** One row: the registers it sets, and what it states of the effect on
+    /** One row: the registers it sets, and what it does to the effect on
      *  each timer. A register absent from the one map is one the row does
      *  not write, and a timer absent from the other is one it leaves
      *  running as it runs. */
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
-    /** What a row states of the effect on one timer. An effect is a source
+    /** What a row does to the effect on one timer. An effect is a source
      *  connected to a target on one timer, at the rate a prescaler and a
      *  count give, and a row does one of three things to it. */
     sealed interface Effect permits Start, Retune, Stop { }
 
     /** The row runs {@code source} on {@code target} at that rate, from
-     *  this row on. The target and the rate are stated whether or not they
+     *  this row on. The target and the rate are given whether or not they
      *  moved, since this says what the effect is and not which of its
      *  parts changed. */
     record Start(Target target, Source source, Prescaler prescaler, int count,
                  boolean timerReset, boolean placeReset) implements Effect { }
 
-    /** The row leaves the effect running the source and the target it has,
-     *  at the rate this states. A note that bends states a count that
-     *  moved; a note struck again at the rate it has states the place's
+    /** The row leaves the effect running the source and the target it
+     *  has, at the rate given here. A note that bends gives a count that
+     *  moved; a note struck again at the rate it has gives the place's
      *  reset. */
     record Retune(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) implements Effect { }
 
-    /** The row stops the effect: its timer stops, and the effect runs
-     *  nothing until a later row starts a source on it. It states nothing
-     *  else. */
+    /** The row stops the effect: its timer stops, and the effect is idle
+     *  until a later row starts a source on it. That is all of it. */
     record Stop() implements Effect { }
 
     /** What a timer's tick calls with a source's row: a procedure that
@@ -93,8 +92,8 @@ public interface YMXS {
         R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
     }
 
-    /** One of the MC68901's four timers. A row states an effect against
-     *  one, and the timer is the effect. */
+    /** One of the MC68901's four timers. A row sets an effect on one, and
+     *  the timer is the effect. */
     enum Timer { A, B, C, D }
 
     /** A timer's first divisor. Its rate is the clock divided by the

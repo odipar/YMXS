@@ -7,7 +7,7 @@ import org.ymxs.YMXS.Register;
  * What the two chips give. Every value here is the YM2149's or the
  * MC68901's, and none of it is any form's.
  *
- * <p>Each function reads its argument by pattern matching and states every
+ * <p>Each function reads its argument by pattern matching over every
  * case, so a register or a prescaler added to {@link YMXS} stops this
  * compiling until it is read here.
  */
@@ -16,7 +16,7 @@ public final class Chip {
     /** The MC68901's clock, in ticks a second. */
     public static final int CLOCK = 2457600;
 
-    /** The largest count a timer takes: its data register holds 1 to 255,
+    /** The largest count a timer takes: its data register takes 1 to 255,
      *  and 0 counts 256. */
     public static final int MOST_COUNT = 256;
 
@@ -112,9 +112,10 @@ public final class Chip {
      * the player is called {@code called} times a second: rounded up, with
      * a sixteenth of a frame for the start running into its own frame.
      *
-     * <p>This is a reckoning and not a reading. A tune states when a source
-     * starts and never when it is done, so how long one that plays once
-     * runs is worked out from its rate, and anything read off that says so.
+     * <p>This is a reckoning and not a reading. A tune gives the row a
+     * source starts on and no row for its end, so how long one that plays
+     * once runs is worked out from its rate, and anything read off that
+     * says so.
      */
     public static int frames(int rows, Prescaler prescaler, int count, int called) {
         long divisor = (long) divides(prescaler) * count;

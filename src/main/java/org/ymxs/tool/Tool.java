@@ -11,7 +11,7 @@ import java.util.List;
  * What every tool here shares: it reads its one input on standard input,
  * writes its one output on standard output, and says what it did and what
  * went wrong on standard error. So a tool stands in a pipe, and a run read
- * into a file holds what the tool is for and nothing else.
+ * into a file gives the tool's output alone.
  *
  * <p>What it exits with:
  *
@@ -21,7 +21,7 @@ import java.util.List;
  * <tr><td>2</td><td>the call is wrong, or reading or writing failed</td></tr>
  * </table>
  *
- * <p>{@code -silent} leaves a tool saying nothing but what is wrong.
+ * <p>{@code -silent} cuts what a tool says down to what is wrong.
  */
 public final class Tool {
 
@@ -34,7 +34,7 @@ public final class Tool {
     /** The call is wrong, or reading or writing failed. */
     public static final int FAILED = 2;
 
-    /** The flag that leaves a tool saying nothing but what is wrong. */
+    /** The flag that cuts what a tool says down to what is wrong. */
     public static final String SILENT = "-silent";
 
     private final String named;
@@ -60,7 +60,7 @@ public final class Tool {
         args.addAll(rest);
         if (flags.length == 0 && !args.isEmpty()) {
             tool.wrong(FAILED, named + " reads its input on standard input and writes it on"
-                    + " standard output. It takes " + SILENT + " and nothing else.");
+                    + " standard output. Its one flag is " + SILENT + ".");
         }
         return tool;
     }

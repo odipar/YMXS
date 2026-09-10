@@ -14,11 +14,11 @@ import org.ymxs.Tunes;
 import org.ymxs.YMXS.Tune;
 
 /**
- * A {@code .ym} as it was distributed: an archive holding the dump.
+ * A {@code .ym} as it was distributed: an archive with the dump inside.
  *
  * <p>{@code src/test/resources/packed.ym} is 162 bytes of {@code -lh5-},
- * and the tune inside it is the one {@code doc/tunes/circus.json} holds,
- * so what comes out of the unpacking is held to a tune that was read
+ * and the tune inside it is the one in {@code doc/tunes/circus.json}, so
+ * what comes out of the unpacking is read against a tune that was read
  * another way.
  */
 final class PackedTest {
@@ -39,9 +39,9 @@ final class PackedTest {
     void theTuneInsideIsTheOneReadAnotherWay() throws IOException {
         Tune packed = Read.of(Dump.read(Files.readAllBytes(PACKED)), "ym-to-ymxs",
                 OptionalInt.of(0)).tune();
-        Tune held = Text.read(Files.readString(Path.of("doc/tunes/circus.json")))
+        Tune read = Text.read(Files.readString(Path.of("doc/tunes/circus.json")))
                 .tunes().get(0);
-        assertEquals(held, packed, "the archive holds the tune doc/tunes/circus.json does");
+        assertEquals(read, packed, "the archive gives the tune doc/tunes/circus.json does");
         assertEquals(4, Tunes.size(packed.table()));
     }
 

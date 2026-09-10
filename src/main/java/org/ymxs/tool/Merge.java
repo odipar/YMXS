@@ -12,10 +12,10 @@ import org.ymxs.YMXS.Tune;
  * standard output.
  *
  * <p>Every other tool here reads one thing and writes one thing, which a
- * pipe hands it. A multi holds several tunes, and this is where they come
- * together: JSON puts no count in front of a stream of values, so several
- * of these files handed over as one read as several multis, and their
- * tunes go into one in the order they arrive.
+ * pipe hands it. A multi has several tunes in it, and this is where they
+ * come together: JSON puts no count in front of a stream of values, so
+ * several of these files handed over as one read as several multis, and
+ * their tunes go into one in the order they arrive.
  *
  * <pre>
  *   cat one.json two.json | ymxs-merge &gt; both.json
@@ -40,10 +40,10 @@ public final class Merge {
             tunes.addAll(one.tunes());
         }
         if (tunes.isEmpty()) {
-            throw tool.wrong(Tool.WRONG, "nothing to merge: a multi holds one tune at least");
+            throw tool.wrong(Tool.WRONG, "no tune to merge: a multi takes one at least");
         }
         tool.write(Text.write(new Multi(tunes)));
-        tool.say(read.size() + (read.size() == 1 ? " file holding " : " files holding ")
+        tool.say(read.size() + (read.size() == 1 ? " file with " : " files with ")
                 + tunes.size() + (tunes.size() == 1 ? " tune" : " tunes"));
     }
 }

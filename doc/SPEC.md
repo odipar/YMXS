@@ -1,20 +1,20 @@
 # The YMXS format
 
-A working draft. What a tune holds, and what a player or an emulator does
-with it on an Atari ST's YM2149 and MC68901.
+A working draft. The tune data structure, and what a player or an
+emulator does with it on an Atari ST's YM2149 and MC68901.
 
-The records under `src/main/java/org/ymxs/` state what a tune holds, in
-terms a compiler checks, and they are the specification of that. This
-document states the rest: what each value reaches on the two chips, what
+The records under `src/main/java/org/ymxs/` define that structure, in
+terms a compiler checks, and they are the specification of it. This
+document covers the rest: what each value reaches on the two chips, what
 a frame does with a row, what a tick does with a source's row, what a
 writer keeps to, and what a reader reports.
 
-A form writes a tune down, and no form is the format.
-[text.md](text.md) is one form and a player's own is another.
+A form writes a tune down. [json.md](json.md) is one form, and a player's
+own is another.
 
 ---
 
-## 1. What a tune holds
+## 1. The tune data structure
 
 ```java
 interface YMXS {
@@ -44,30 +44,30 @@ interface YMXS {
 }
 ```
 
-A tune's rows advance one a frame at the rate the tune states, and a
-source's advance one a tick at the rate its effect's timer runs. That is
+A tune's rows advance one a frame at the tune's rate, and a source's
+advance one a tick at the rate its effect's timer runs. That is
 the whole difference between the two tables.
 
-**Nothing above holds a method of its own** beyond the accessors a record
-gives. What is read off a structure is read by a function outside it:
-`Chip` for what the two chips give, `Tunes` for what a structure holds,
-and `Check` for what a structure has to satisfy. Each reads by pattern
-matching and states every shape, so a shape added here stops them
+**The records above have no method of their own** beyond the accessors a
+record gives. A reading of a structure is taken by a function outside it:
+`Chip` for what the two chips give, `Tunes` for the readings taken off a
+structure, and `Check` for the rules a structure must satisfy. Each reads
+by pattern matching over every shape, so a shape added here stops them
 compiling until they read it.
 
 **A tune's sources are the ones its rows start** (`Tunes.sources`), in the
-order a row first starts each. A source no row starts is not one the tune
-holds.
+order a row first starts each. A source no row starts is outside the
+tune.
 
-**A row states what it sets and says nothing about the rest.** A register
+**A row lists what it sets, and the rest is left alone.** A register
 absent from `registers` is one the row does not write; a timer absent from
 `effects` is one the row leaves running as it runs. A register no row has
-set holds what the chip was left at, and one a row set holds that value
+set keeps what the chip was left at, and one a row set keeps that value
 until another row sets it or an effect's ticks write it.
 
-**A multi holds tunes and nothing else.** What a tune is called, who wrote
-it, what made it and the rate it plays at are the tune's. A file that
-states one rate for a set of subtunes states what its writer worked out.
+**A multi is a list of tunes.** What a tune is called, who wrote it, what
+made it and the rate it plays at are the tune's. A file that gives one
+rate for a set of subtunes gives what its writer worked out.
 
 ---
 
@@ -103,7 +103,7 @@ directions, which a player writes as it finds them and no tune moves.
 
 **The envelope shape.** Four bits, and a write to R13 restarts the
 envelope. The value written makes no difference to that, so a row that
-sets R13 to the value it already holds restarts the envelope, and a tune
+sets R13 to the value already there restarts the envelope, and a tune
 restarts a shape it is already sounding more often than it changes to
 another.
 
@@ -117,7 +117,7 @@ pitch.
 ## 3. The effects
 
 An effect is a source connected to a target on one timer, at the rate a
-prescaler and a count give. A row states one against a timer, and the
+prescaler and a count give. A row sets one on a timer, and the
 timer is the effect: there are four timers and so four effects, and a
 tune that needs a fifth stops one of the four on the row that starts it.
 
@@ -125,18 +125,18 @@ tune that needs a fifth stops one of the four on the row that starts it.
 
 A target is a procedure: it takes one row of a source and writes it. This
 version has fourteen, one a register, and `SetRegister` is all of them.
-`setR7` writes bits 5 to 0 with R7's bits 7 and 6 as the host holds them,
+`setR7` writes bits 5 to 0 with R7's bits 7 and 6 as the host left them,
 which it does not move.
 
-A target states the shape of source row it reads: one value of one byte at
+A target fixes the shape of source row it reads: one value of one byte at
 this version. An effect connects a source to a target of that same shape,
-and the values a source holds are values the target's register takes.
+and a source's values are values the target's register takes.
 
 ### 3.2 The sources
 
 A source is a table a tick advances a row at a time, its target writing
-each row. The shapes a tune uses are shapes, and this format has no
-kinds:
+each row. What a tune sounds is the shape of that table, and the format
+gives a source no kind:
 
 | the source | what it sounds |
 |---|---|
@@ -144,13 +144,13 @@ kinds:
 | two rows repeating to row 0 | a volume flipped between a level and 0: a SID voice |
 | many rows played once | a recording through a volume register: a digidrum |
 
-A source holds its own values, so two square waves at two levels are two
-sources and a row states one of them.
+A source has its own values, so two square waves at two levels are two
+sources, and a row starts one of them.
 
-Two effects may run one source. Each timer advancing it holds its own
-place, so one starting or stopping leaves the other where it was.
+Two effects may run one source. Each timer advancing it has its own place,
+so one starting or stopping leaves the other where it was.
 
-A source's rows hold what the register its target writes takes. A
+A source's rows are values the register its target writes takes. A
 recording's linear amplitudes convert to the logarithmic levels a volume
 register takes, and that conversion is the writer's.
 
@@ -171,44 +171,43 @@ counting is part at the old prescaler and part at the new.
 timer begins a whole period at that count and loses what it had run of
 the last one. It moves a running timer and not a stopped one, which
 begins a whole period either way. A writer that cannot tell which it is
-loses nothing by the value it states.
+may set it, at no cost.
 
 **`placeReset`** puts the place at the source's first row, which the next
-tick takes. Without it the place holds the row number the last tick read,
-and that number counts into the rows of the source that runs next,
+tick takes. Without it the place stays at the row number the last tick
+read, and that number counts into the rows of the source that runs next,
 through a change of rate and through a start. So two ticks of a square
 wave are a whole period apart across a start, and the level the second
 writes is the new source's.
 
-A note that bends states a `Retune` with a count that moved. A note that
-is struck states a `Start` with both resets. A drum struck again states a
-`Start` with `placeReset` and the rate it already ran at.
+A note that bends is a `Retune` with a count that moved. A note that is
+struck is a `Start` with both resets. A drum struck again is a `Start`
+with `placeReset` and the rate it already ran at.
 
 ---
 
 ## 4. What a frame does
 
-A player advances the tune's table one row a frame and writes what that
-row states.
+A player advances the tune's table one row a frame and writes that row.
 
-**The effects go first, then the registers.** That order makes a restore
-hold: the row that stops an effect sets the register the effect was
+**The effects go first, then the registers.** That order keeps a restore
+intact: the row that stops an effect sets the register the effect was
 writing, and were the register written first, a tick of the effect still
 running would write over it. A start needs no such order, because a row
 that starts an effect leaves that register alone (section 6).
 
-For each timer the row states an effect against:
+For each timer the row gives an effect on:
 
-1. Where the row states `timerReset`, the player stops the timer before
+1. Where the row sets `timerReset`, the player stops the timer before
    it writes anything else to it, so that no tick of the old rate takes
    the new source.
-2. A `Stop` stops the timer. The effect runs nothing until a later row
-   starts a source on it, and the place holds the row number the last
-   tick read.
+2. A `Stop` stops the timer. The effect is idle until a later row starts
+   a source on it, and the place stays at the row number the last tick
+   read.
 3. A `Start` resolves its source on its target, and the timer's ticks
    advance that source from here on.
 4. A `Start` or a `Retune` writes the count and the prescaler.
-5. Where the row states `placeReset`, the place goes to the source's
+5. Where the row sets `placeReset`, the place goes to the source's
    first row, which the next tick takes.
 
 Then the registers the row sets, in this order:
@@ -216,16 +215,16 @@ Then the registers the row sets, in this order:
 1. R0 to R5, the tone periods.
 2. R6, and R11 and R12, the noise and envelope periods.
 3. R8, R9 and R10, the volumes.
-4. R7, whose bits 7 and 6 the player writes as the host holds them.
+4. R7, whose bits 7 and 6 the player writes as the host left them.
 5. R13, and any write to it restarts the envelope.
 
-A row that sets no register writes none, and a row that states no effect
+A row that sets no register writes none, and a row without an effect
 moves no timer.
 
 **What a frame reports.** A tune whose table repeats has a row after its
 last, and every frame reports 0. A tune that plays once has none: the
-frame after the one that took the last row takes no row, writes nothing
-and reports -1, and so does every frame after it.
+frame after the one that took the last row takes no row, writes to no
+register and reports -1, and so does every frame after it.
 
 ---
 
@@ -235,70 +234,69 @@ A tick advances its source one row and calls its target with that row.
 
 The tick that writes the source's last row is the last of its cycle.
 Where the source repeats, the next tick takes the row it repeats to.
-Where it does not, the timer stops, and the register holds the last row's
+Where it does not, the timer stops, and the register keeps the last row's
 value until a row of the tune's table sets it.
 
 A player does not read the tune's table between ticks.
 
 ---
 
-## 6. What a writer does not do
+## 6. What a writer keeps to
 
-These rules bind a writer. They are what a player keeps to when it writes
-a value once and tests nothing.
+These rules bind a writer. A player leans on them: it writes a value once
+and runs no test.
 
 1. **While an effect runs on a register, a row does not set that
    register.** One row does: the row that stops the effect, whose write
    takes the register back. Where the row that stops one effect starts
    another on the same register, the row leaves it alone, since the
-   register is the second effect's from that row. An effect on R13 holds
-   nothing against the row, and the frame's own write to R13 restarts the
-   envelope beside the ticks' restarts.
+   register is the second effect's from that row. An effect on R13 leaves
+   the row free, and the frame's own write to R13 restarts the envelope
+   beside the ticks' restarts.
 2. **Where two timers write one register, their writes are the writer's
    to order.** A player writes what each tick gives it.
-3. **A `Start` states `placeReset`**, unless the source it starts has the
-   row count of the one this effect last ran on the target it holds, where
+3. **A `Start` sets `placeReset`**, unless the source it starts has the
+   row count of the one this effect last ran on the same target, where
    leaving it clear moves no place and keeps the wave's phase. A `Stop`
-   between them makes no difference, since nothing but `placeReset` and a
-   tick moves the place.
-4. **A `Start` states `timerReset` where the timer is stopped.** A writer
+   between them makes no difference, since only `placeReset` and a tick
+   move the place.
+4. **A `Start` sets `timerReset` where the timer is stopped.** A writer
    that cannot tell whether a source that plays once has run out by this
    row reads the same either way, since a stopped timer begins a whole
    period with the value or without it.
 5. **A row does not `Retune` an effect that has never started.** A rate
-   written to a timer with nothing on it starts that timer with nothing to
-   run.
+   written to a timer with no source on it starts that timer with no
+   source to run.
 
 Four rules that bound a writer of an earlier draft are gone, because the
-structure holds them where a row is made: an effect a row starts is one
-the tune runs, a source and a target a row states are ones this document
-defines, a row that starts an effect for the first time states its target,
-and a row that stops an effect states no rate.
+structure settles them where a row is made: an effect a row starts is one
+the tune runs, a source and a target a row uses are ones this document
+defines, a row that starts an effect for the first time gives its target,
+and a row that stops an effect gives no rate.
 
 Three of the five above are read off a tune's rows, and a check gives the
-row that breaks one. Rule 2 leaves an order to the writer, so there is
-nothing to read. Rule 4 asks for a value where a stopped timer begins a
-whole period with it or without it, so there is no way to state it
-wrongly.
+row that breaks one. Rule 2 leaves an order to the writer, so a check has
+no reading to take. Rule 4 asks for a value where a stopped timer begins a
+whole period with it or without it, so either value is right.
 
-A source that plays once states when it starts and never when it is done,
-so how long it runs is reckoned from its rate, and a check marks a reading
-that rests on that reckoning.
+A source that plays once has a start in the rows and no end, so how long
+it runs is reckoned from its rate, and a check marks a reading that rests
+on that reckoning.
 
 ---
 
 ## 7. What a reader reports
 
 A reader is the role beside the player: it reads a tune and reports what
-it holds, and writes to no chip. It reports what the tune states once,
-then what each frame does, one entry a frame in order and one for the
-frame after the last row, and nothing of what a timer writes between
-frames: a tick's rate is the machine's, and a reader has no machine.
+comes of it, and writes to no chip. It reports the tune's fixed figures
+once, then what each frame does, one entry a frame in order and one for
+the frame after the last row. What a timer writes between frames is left
+out: a tick's rate is the machine's, and a reader has no machine.
 
 The report is lines of JSON, one entry a line. A line has no space in it,
 its integers in decimal, its names in the order given here, and `true` and
 `false` as JSON has them; the line ends with a line feed. The first line
-gives what the tune states once, and each line after it one frame:
+gives the tune's fixed figures, and each line after it one frame:
 
     {"rate":50,"timers":["D"],"sources":[{"rows":[13,0],"repeat":0}]}
     {"result":0,"w":{"0":251,"1":4,"7":49},"e":{"D":{"start":{"target":"setR10","source":1,"prescaler":4,"count":122,"timerReset":true,"placeReset":true}}}}
@@ -309,16 +307,15 @@ gives what the tune states once, and each line after it one frame:
   C, D, and `sources` the sources the rows start, 1 upward, each
   its rows and the row it repeats to, or `null` where it plays once.
 - `result` gives what the frame reports: 0, or -1 for the frame after the
-  last row of a tune that plays once. That entry holds `result` alone, and
+  last row of a tune that plays once. That entry has `result` alone, and
   the record ends with it.
-- `w` holds the registers the frame writes, by number in ascending numeric
+- `w` gives the registers the frame writes, by number in ascending numeric
   order, `"2"` before `"10"`, and only those: a register the row does not
   set is absent, and a row that sets none gives `{}`. R7's value is its
   six bits, since bits 7 and 6 are the host's.
-- `e` holds the timers the row states an effect against, by name in the
-  order A, B, C, D. Each gives the shape the row states and what that
-  shape holds, as [text.md](text.md) writes it. A row that states none
-  gives `{}`.
+- `e` gives the timers the row acts on, by name in the order A, B, C, D.
+  Each gives the shape the row sets and the parts of that shape, as
+  [json.md](json.md) writes it. A row without an effect gives `{}`.
 
 The record of a tune is its first line and the entries of its frames from
 the first, as many as are asked of the reader. One pass and the loop once
@@ -330,8 +327,8 @@ the row count plus 1.
 
 ## 8. Not yet written
 
-- What a player does with a tune of a version it was not built for beyond
-  turning it away.
+- What a player does with a tune of a version it was not built for, past
+  treating it as an error.
 - The targets numbered past the fourteen: a procedure reaching the MFP's
   own registers, and one taking a row wider than a byte or of more than
   one value.

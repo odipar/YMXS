@@ -26,21 +26,21 @@ import org.jspecify.annotations.Nullable;
 /**
  * The structure to a JSON tree and back. What that tree is written as and
  * read from is {@link Text}'s, and escaping, parsing and laying out are
- * the JSON library's; this maps, and nothing else.
+ * the JSON library's; this maps, and leaves the rest to them.
  *
  * <p>A tune is written column by column. A register's column stands one
- * value a row and a timer's columns stand one value a row of what the row
- * states of the effect there, {@link #NONE} where a row states nothing.
- * Every column is as long as the tune, so a row is what every column holds
- * at that place and nothing has to be counted to find it.
+ * value a row, and a timer's columns one value a row of what the row does
+ * to the effect there, {@link #NONE} where a row leaves it alone. Every
+ * column is as long as the tune, so a row is one place taken across every
+ * column, and a reader indexes straight to it.
  *
  * <p>A timer is a structure of its own, {@code timerA} to {@code timerD},
- * because a row states an effect on as many of the four as it likes. A
- * column that no row fills is left out.
+ * because one row may act on as many of the four as it likes. A column
+ * that no row fills is left out.
  *
  * <p>A source is written by its number, 1 upward into the sources a tune's
  * rows start ({@link Tunes#sources}). The name beside it is what a writer
- * called it and reaches nothing else.
+ * called it, and it reaches the tools' reports alone.
  */
 public final class Json {
 
@@ -69,9 +69,9 @@ public final class Json {
         return out;
     }
 
-    /** What a column holds where the row it stands on states nothing. No
-     *  register takes it and no part of an effect is it, so it stands for
-     *  nothing else. */
+    /** What a column gives where the row it stands on left that value
+     *  alone. No register takes it and no part of an effect is it, so it
+     *  is free for this. */
     public static final int NONE = -1;
 
     /** What a shape is written as. */
@@ -89,9 +89,9 @@ public final class Json {
         out.put("frames", Tunes.size(tune.table()));
         put(out, "repeat", tune.table().repeat());
         List<Source> sources = Tunes.sources(tune);
-        ArrayNode held = out.putArray("sources");
+        ArrayNode written = out.putArray("sources");
         for (Source source : sources) {
-            ObjectNode one = held.addObject();
+            ObjectNode one = written.addObject();
             one.put("name", Tunes.name(source));
             put(one, "repeat", Tunes.table(source).repeat());
             ArrayNode values = one.putArray("values");
@@ -127,9 +127,9 @@ public final class Json {
         }
     }
 
-    /** One timer's columns: what a row states of the effect there on every
-     *  row, and {@link #NONE} where the row states nothing. A timer no row
-     *  states has no columns. */
+    /** One timer's columns: what a row does to the effect there on every
+     *  row, and {@link #NONE} where the row leaves it alone. A timer no row
+     *  uses has no columns. */
     private static void timer(ObjectNode out, Tune tune, Timer timer, List<Row> rows,
                               List<Source> sources) {
         boolean any = false;
@@ -142,14 +142,14 @@ public final class Json {
         if (!any) {
             return;
         }
-        ObjectNode held = out.putObject("timer" + timer.name());
-        ArrayNode shape = held.putArray("shape");
-        ArrayNode target = held.putArray("target");
-        ArrayNode source = held.putArray("source");
-        ArrayNode prescaler = held.putArray("prescaler");
-        ArrayNode count = held.putArray("count");
-        ArrayNode timerReset = held.putArray("timerReset");
-        ArrayNode placeReset = held.putArray("placeReset");
+        ObjectNode into = out.putObject("timer" + timer.name());
+        ArrayNode shape = into.putArray("shape");
+        ArrayNode target = into.putArray("target");
+        ArrayNode source = into.putArray("source");
+        ArrayNode prescaler = into.putArray("prescaler");
+        ArrayNode count = into.putArray("count");
+        ArrayNode timerReset = into.putArray("timerReset");
+        ArrayNode placeReset = into.putArray("placeReset");
         for (Row row : rows) {
             Effect effect = row.effects().get(timer);
             if (effect == null) {
@@ -196,10 +196,10 @@ public final class Json {
 
     // ----------------------------------------------------------------- in
 
-    /** The multi {@code tree} holds.
+    /** The multi in {@code tree}.
      *
      * @throws IllegalArgumentException where the tree is not this form, or
-     *     states a structure no player plays
+     *     gives a structure no player plays
      */
     public static Multi multi(JsonNode tree) {
         String format = text(tree, "format");
@@ -247,10 +247,10 @@ public final class Json {
                 if (column == null) {
                     continue;
                 }
-                held(column, count, name(register));
+                sized(column, count, name(register));
                 for (int at = 0; at < count; at++) {
                     if (!column.get(at).isIntegralNumber()) {
-                        throw new IllegalArgumentException(name(register) + " holds "
+                        throw new IllegalArgumentException(name(register) + " gives "
                                 + column.get(at) + " at row " + at + ", and a whole number"
                                 + " is asked");
                     }
@@ -262,16 +262,16 @@ public final class Json {
             }
         }
         for (Timer timer : Timer.values()) {
-            JsonNode held = tree.get("timer" + timer.name());
-            if (held == null) {
+            JsonNode columns = tree.get("timer" + timer.name());
+            if (columns == null) {
                 continue;
             }
-            if (!held.isObject()) {
+            if (!columns.isObject()) {
                 throw new IllegalArgumentException("timer" + timer.name() + " is "
-                        + kind(held) + ", and a column a part of an effect is asked");
+                        + kind(columns) + ", and a column a part of an effect is asked");
             }
             for (int at = 0; at < count; at++) {
-                Effect effect = effect(held, at, sources, timer, count);
+                Effect effect = effect(columns, at, sources, timer, count);
                 if (effect != null) {
                     effects.get(at).put(timer, effect);
                 }
@@ -286,46 +286,46 @@ public final class Json {
     }
 
     /** A column stands one value a row, so it is as long as the tune. */
-    private static void held(JsonNode column, int frames, String named) {
+    private static void sized(JsonNode column, int frames, String named) {
         if (!column.isArray()) {
             throw new IllegalArgumentException(named + " is " + column + ", and a column is"
                     + " asked");
         }
         if (column.size() != frames) {
-            throw new IllegalArgumentException(named + " holds " + column.size()
-                    + " values, and the tune holds " + frames + " frames");
+            throw new IllegalArgumentException(named + " gives " + column.size()
+                    + " values, and the tune runs " + frames + " frames");
         }
     }
 
-    /** What one row states of the effect on one timer, or null where it
-     *  states nothing. */
-    private static @Nullable Effect effect(JsonNode held, int at, List<Source> sources,
+    /** What one row does to the effect on one timer, or null where it
+     *  leaves it alone. */
+    private static @Nullable Effect effect(JsonNode columns, int at, List<Source> sources,
                                            Timer timer, int frames) {
-        int shape = column(held, "shape", at, timer, frames);
+        int shape = column(columns, "shape", at, timer, frames);
         if (shape == NONE) {
             return null;
         }
         return switch (shape) {
             case START -> {
-                int source = column(held, "source", at, timer, frames);
+                int source = column(columns, "source", at, timer, frames);
                 if (source < 1 || source > sources.size()) {
                     throw new IllegalArgumentException("row " + at + " starts source "
-                            + source + ", and the tune holds " + sources.size());
+                            + source + ", and the tune runs " + sources.size());
                 }
-                yield new Start(Tunes.target(column(held, "target", at, timer, frames)),
+                yield new Start(Tunes.target(column(columns, "target", at, timer, frames)),
                         sources.get(source - 1),
-                        Chip.prescaler(column(held, "prescaler", at, timer, frames)),
-                        column(held, "count", at, timer, frames),
-                        column(held, "timerReset", at, timer, frames) == 1,
-                        column(held, "placeReset", at, timer, frames) == 1);
+                        Chip.prescaler(column(columns, "prescaler", at, timer, frames)),
+                        column(columns, "count", at, timer, frames),
+                        column(columns, "timerReset", at, timer, frames) == 1,
+                        column(columns, "placeReset", at, timer, frames) == 1);
             }
             case RETUNE -> new Retune(
-                    Chip.prescaler(column(held, "prescaler", at, timer, frames)),
-                    column(held, "count", at, timer, frames),
-                    column(held, "timerReset", at, timer, frames) == 1,
-                    column(held, "placeReset", at, timer, frames) == 1);
+                    Chip.prescaler(column(columns, "prescaler", at, timer, frames)),
+                    column(columns, "count", at, timer, frames),
+                    column(columns, "timerReset", at, timer, frames) == 1,
+                    column(columns, "placeReset", at, timer, frames) == 1);
             case STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " states shape "
+            default -> throw new IllegalArgumentException("row " + at + " gives shape "
                     + shape + " on Timer " + timer + ", and a shape is " + START + ", "
                     + RETUNE + " or " + STOP);
         };
@@ -342,15 +342,15 @@ public final class Json {
         return String.valueOf(node);
     }
 
-    private static int column(JsonNode held, String named, int at, Timer timer, int frames) {
-        JsonNode column = held.get(named);
+    private static int column(JsonNode columns, String named, int at, Timer timer, int frames) {
+        JsonNode column = columns.get(named);
         if (column == null) {
             throw new IllegalArgumentException("Timer " + timer + " has no \"" + named
                     + "\" column");
         }
-        held(column, frames, "Timer " + timer + "'s " + named);
+        sized(column, frames, "Timer " + timer + "'s " + named);
         if (!column.get(at).isIntegralNumber()) {
-            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " holds "
+            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " gives "
                     + column.get(at) + " at row " + at + ", and a whole number is asked");
         }
         return column.get(at).intValue();
@@ -378,7 +378,7 @@ public final class Json {
                             Register register, int value) {
         if (at < 0 || at >= count) {
             throw new IllegalArgumentException(name(register) + " sets row " + at + ", and the"
-                    + " tune holds " + count + " rows");
+                    + " tune runs " + count + " rows");
         }
         rows.get(at).put(register, value);
     }
@@ -386,8 +386,8 @@ public final class Json {
     private static void put(List<Map<Timer, Effect>> rows, int count, int at, Timer timer,
                             Effect effect) {
         if (at < 0 || at >= count) {
-            throw new IllegalArgumentException("Timer " + timer + " states something of row "
-                    + at + ", and the tune holds " + count + " rows");
+            throw new IllegalArgumentException("Timer " + timer + " acts on row "
+                    + at + ", and the tune runs " + count + " rows");
         }
         rows.get(at).put(timer, effect);
     }

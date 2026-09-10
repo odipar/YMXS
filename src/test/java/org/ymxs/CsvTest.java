@@ -53,13 +53,31 @@ final class CsvTest {
     }
 
     @Test
-    void aClassLineNamesTheStructureWhoseRowsComeNext() throws IOException {
-        List<String> named = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
-                .filter(one -> one.startsWith(Csv.CLASS))
-                .map(one -> one.substring(Csv.CLASS.length()))
-                .toList();
-        assertEquals(List.of("multi", "tune", "source", "run", "start", "retune", "stop"),
-                named);
+    void aHashLineNamesATableAndItsColumns() throws IOException {
+        List<String> lines = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
+                .filter(one -> one.startsWith("###")).toList();
+        List<String> named = lines.stream()
+                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+        assertEquals(List.of("multi", "tune", "source", "value", "row", "effect"), named);
+        assertEquals(List.of("row", "tune", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
+                "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
+                Csv.cells(lines.get(4).substring(3).strip()),
+                "a row of a tune is a row here, with a column a register");
+    }
+
+    @Test
+    void aRowIsARowAndAnEmptyCellIsARegisterItDoesNotSet() throws IOException {
+        List<String> rows = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
+                .dropWhile(one -> !one.startsWith("### row"))
+                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+        assertEquals(4, rows.size(), "one line a row that sets something");
+        List<String> first = Csv.cells(rows.get(0));
+        assertEquals("1", first.get(0), "the tune");
+        assertEquals("0", first.get(1), "the row");
+        assertEquals("163", first.get(2), "R0");
+        List<String> second = Csv.cells(rows.get(1));
+        assertEquals("", second.get(4), "row 1 does not set R2, so its cell is empty");
+        assertEquals("12", second.get(3), "and it does set R1");
     }
 
     @Test
@@ -86,40 +104,74 @@ final class CsvTest {
     }
 
     @Test
-    void aRunStatesTheRowsSinceTheOneBeforeIt() {
-        // R7 on rows 0, 1 and 3: two runs, the second a gap of one past the
-        // end of the first
+    void aRowThatSetsNothingIsNoRowOfTheTable() {
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
-                Tunes.row(Map.of(Register.R7, 56)), Tunes.row(Map.of(Register.R7, 49)),
-                Tunes.NOTHING, Tunes.row(Map.of(Register.R7, 56))), 0));
+                Tunes.row(Map.of(Register.R7, 56)), Tunes.NOTHING,
+                Tunes.row(Map.of(Register.R7, 49))), 0));
         String csv = Csv.write(Tunes.multi(tune));
-        assertTrue(csv.contains("1###r7###0###56###49\n1###r7###1###56\n"), csv);
-        assertEquals(Tunes.multi(tune), Csv.read(csv), "and it reads back to the same rows");
+        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### row"))
+                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+        assertEquals(List.of("1,0,,,,,,,,56,,,,,,", "1,2,,,,,,,,49,,,,,,"), rows,
+                "the row column says which row, so a row that sets nothing is left out");
+        assertEquals(Tunes.multi(tune), Csv.read(csv), "and it reads back to three rows");
     }
 
     @Test
-    void aValueHoldingTheDelimiterIsTurnedAway() {
-        Tune tune = new Tune("a ### title", "", "", 50,
+    void aCellHoldingACommaOrAQuoteIsQuoted() {
+        Tune tune = new Tune("a, \"quoted\", title", "", "", 50,
+                Tunes.repeating(List.of(Tunes.NOTHING), 0));
+        String csv = Csv.write(Tunes.multi(tune));
+        assertTrue(csv.contains("\"a, \"\"quoted\"\", title\""), csv);
+        assertEquals(tune.title(), Csv.read(csv).tunes().get(0).title());
+    }
+
+    @Test
+    void aCellHoldingALineFeedIsTurnedAway() {
+        Tune tune = new Tune("a\ntitle", "", "", 50,
                 Tunes.repeating(List.of(Tunes.NOTHING), 0));
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
                 () -> Csv.write(Tunes.multi(tune)));
-        assertTrue(String.valueOf(no.getMessage()).contains("a value this form cannot hold"),
+        assertTrue(String.valueOf(no.getMessage()).contains("a line feed"),
                 String.valueOf(no.getMessage()));
     }
 
     @Test
     void aTextOfAnotherFormatOrVersionIsTurnedAway() {
         assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("class;multi\nformat###version###tunes\nymxr###1###0\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxr,1,0\n"));
         assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("class;multi\nformat###version###tunes\nymxs###9###0\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxs,9,0\n"));
     }
 
     @Test
-    void aTextWithNoMultiBlockIsTurnedAway() {
+    void aTextWithNoMultiTableIsTurnedAway() {
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("class;tune\ntune\n1\n"));
-        assertTrue(String.valueOf(no.getMessage()).contains("class;multi"),
+                () -> Csv.read("### tune,tune\n1\n"));
+        assertTrue(String.valueOf(no.getMessage()).contains("multi"),
                 String.valueOf(no.getMessage()));
+    }
+
+    @Test
+    void aColumnIsFoundByItsNameAndNotItsPlace() {
+        String csv = """
+                ### multi,version,tunes,format
+                1,1,ymxs
+
+                ### tune,rows,rate,repeat,writer,composer,title,tune
+                1,50,0,a writer,a composer,a title,1
+
+                ### source,tune,source,name,repeat
+
+                ### value,tune,source,row,value
+
+                ### row,r0,tune,row
+                200,1,0
+
+                ### effect,tune,row,timer,shape,target,source,prescaler,count,timerReset,placeReset
+                """;
+        Tune tune = Csv.read(csv).tunes().get(0);
+        assertEquals("a title", tune.title());
+        assertEquals(50, tune.rate());
+        assertEquals(200, Tunes.rows(tune).get(0).registers().get(Register.R0));
     }
 }

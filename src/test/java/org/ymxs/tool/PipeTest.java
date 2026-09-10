@@ -77,7 +77,7 @@ final class PipeTest {
     void aPackedDumpRunsAllTheWayToTheTableForm() throws Exception {
         Ran ran = pipe(packed(), "ym-to-ymxs", "ymxs-check", "ymxs-json-to-csv");
         assertEquals(0, ran.exit(), ran.said());
-        assertTrue(ran.out().startsWith("class;multi\n"), ran.out());
+        assertTrue(ran.out().startsWith("### multi,"), ran.out());
         assertEquals(circus(), Csv.read(ran.out()),
                 "what comes out of the pipe is the tune that went in");
     }

@@ -8,7 +8,7 @@ either reads into the same structure.
 ### multi,format,version,tunes
 ymxs,1,1
 
-### tune,title,composer,writer,rate,rows,repeat
+### tune,title,composer,writer,rate,frames,repeat
 Synthetic,Test,ym-to-ymxs,50,400,0
 
 ### source,name,repeat
@@ -25,13 +25,14 @@ recording 0,
 0,8
 1,9
 
-### row,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
+### rows,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 0,64,1,48,2,32,3,0,56,,12,11,0,0,
 1,65,,49,,33,,1,,,,,3,,
 
-### effect,row,timer,shape,target,source,prescaler,count,timerReset,placeReset
-0,A,start,setR8,1,50,60,true,true
-1,A,retune,,,50,61,false,false
+### timerA,row,shape,target,source,prescaler,count,timerReset,placeReset
+0,0,8,1,50,60,1,1
+1,1,,,50,61,0,0
+59,2,,,,,,
 ```
 
 ## How it reads
@@ -46,9 +47,10 @@ recording 0,
   file's own.
 
 **These are ordinary tables.** A row of a tune is a row here, with a
-column a register. Nothing is folded into runs or events as the text form
-folds them: what that form does for a reader looking down a stream, this
-does by being a table a spreadsheet sorts and filters.
+column a register. [The text form](text.md) holds the same tune the other
+way round, a column at a time, and what a cell holds where it holds
+something is the same in both: the same numbers, and a shape, a target and
+a timer as the same enumerations.
 
 **Where a table stands says what it belongs to.** A tune opens with its
 own table, and the tables after it are that tune's until the next tune
@@ -64,19 +66,25 @@ one run of them.
 | `tune` | one row, and it opens a tune |
 | `source` | one row, and it opens a source, in the order a row first starts it |
 | `value` | one row a value of the source it comes after |
-| `row` | one row a row of the tune that sets a register |
-| `effect` | one row an effect a row of the tune states |
+| `rows` | one row a row of the tune that sets a register |
+| `timerA` to `timerD` | one row an effect a row states on that timer |
 
-**An empty cell in `row`** is a register that row does not set. A row that
+**An empty cell in `rows`** is a register that row does not set. A row that
 sets none is no row of the table: the `row` column says which row a line
-is, and `rows` in the `tune` table says how many the tune has.
+is, and `frames` in the `tune` table says how many the tune has.
 
 **A tune that runs no source** opens no `source` table and no `value`
 table.
 
-**An empty cell in `effect`** is a part that shape does not hold. A
-`retune` names no target and no source; a `stop` names nothing but where
-it is.
+**A timer opens a table of its own**, `timerA` through `timerD`, and a
+timer no row states opens none. What its cells
+hold is what [the text form](text.md) holds: `shape` 0 a start, 1 a
+retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`; `source` 1
+upward into the tune's sources; `timerReset` and `placeReset` 1 and 0.
+
+**An empty cell there** is a part that shape does not hold, where the text
+form says -1. A retune holds no target and no source; a stop holds none of
+the six.
 
 **`repeat`** is the row a tune or a source repeats to, and an empty cell
 is one that plays once.

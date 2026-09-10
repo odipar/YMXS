@@ -141,15 +141,59 @@ final class TextTest {
     }
 
     @Test
-    void aRunPastTheRowCountIsTurnedAway() {
+    void aColumnShorterThanTheTuneIsTurnedAway() {
         String text = """
                 {"format":"ymxs","version":1,"tunes":[{"title":"","composer":"",
-                 "writer":"","rate":50,"rows":2,"repeat":null,"sources":[],
-                 "r0":[[5,1]],"effects":[]}]}""";
+                 "writer":"","rate":50,"frames":4,"repeat":null,"sources":[],
+                 "rows":{"r0":[1,2]}}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
                 () -> Text.read(text));
         String said = String.valueOf(no.getMessage());
-        assertTrue(said.contains("r0 sets row 5"), said);
+        assertTrue(said.contains("r0 holds 2 values, and the tune holds 4 frames"), said);
+    }
+
+    @Test
+    void aTuneIsWrittenColumnByColumn() {
+        Tune tune = new Tune("a tune", "", "", 50, Tunes.repeating(List.of(
+                Tunes.row(Map.of(Register.R0, 1)), Tunes.NOTHING,
+                Tunes.row(Map.of(Register.R0, 3))), 0));
+        String text = Text.write(Tunes.multi(tune));
+        assertTrue(text.contains("\"frames\": 3"), text);
+        assertTrue(text.contains("\"r0\": [1,-1,3]"),
+                "a column stands one value a row, and -1 where the row sets nothing");
+        assertTrue(!text.contains("\"r1\""), "a register no row sets has no column");
+        assertEquals(Tunes.multi(tune), Text.read(text));
+    }
+
+    @Test
+    void aTimerIsAStructureOfItsOwn() {
+        Source square = Tunes.repeating("square", List.of(15, 0), 0);
+        Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
+                new Row(Map.of(), Map.of(
+                        Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
+                                Prescaler.BY_4, 100),
+                        Timer.D, Tunes.struck(Tunes.setting(Register.R9), square,
+                                Prescaler.BY_4, 100))),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
+        String text = Text.write(Tunes.multi(tune));
+        assertTrue(text.contains("\"timerA\""), "Timer A is timerA");
+        assertTrue(text.contains("\"timerD\""), "Timer D is timerD");
+        assertTrue(!text.contains("\"timerB\""), "a timer no row states has no columns");
+        assertTrue(text.contains("\"shape\": [0,2]"), text);
+        assertEquals(Tunes.multi(tune), Text.read(text),
+                "and a row may state an effect on more than one timer");
+    }
+
+    @Test
+    void aTextOfTheShapeThisNoLongerWritesIsTurnedAway() {
+        String text = """
+                {"format":"ymxs","version":1,"tunes":[{"title":"","composer":"",
+                 "writer":"","rate":50,"frames":1,"repeat":null,"sources":[],
+                 "rows":[{"row":0,"r0":1}],"effects":[]}]}""";
+        IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
+                () -> Text.read(text));
+        assertTrue(String.valueOf(no.getMessage()).contains("rows is an array"),
+                String.valueOf(no.getMessage()));
     }
 
     @Test

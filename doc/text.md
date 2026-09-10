@@ -4,40 +4,51 @@ JSON, and one way of writing the structure down. The structure is the
 records under `src/main/java/org/ymxs/`; nothing here is in them, and a
 second form would change none of them.
 
+[The table form](csv.md) holds the same tune as rows rather than columns,
+for a reader who would rather open one in a spreadsheet.
+
 ```json
 {
   "format": "ymxs",
   "version": 1,
   "tunes": [
     {
-      "title": "world completed 1",
-      "composer": "Jochen Hippel",
+      "title": "Circus Attractions #2",
+      "composer": "Mad Max",
       "writer": "ym-to-ymxs",
       "rate": 50,
-      "rows": 179,
+      "frames": 4,
       "repeat": 0,
       "sources": [
-        {"name": "drum 0", "repeat": null, "rows": [8, 12, 15, 13]}
+        {"name": "square 13", "repeat": 0, "values": [13,0]}
       ],
-      "r0": [
-        [0, 123],
-        [3, [119, 115]],
-        [1, [119, 169]]
-      ],
-      "r8": [
-        [0, [14, 13]],
-        [4, [12, 11, 14, 13]]
-      ],
-      "effects": [
-        [0, {"D": {"start": {"target": "setR10", "source": 1, "prescaler": 4,
-                             "count": 102, "timerReset": true,
-                             "placeReset": true}}}],
-        [3, {"D": {"stop": {}}}]
-      ]
+      "rows": {
+        "r0": [163,142,251,89],
+        "r1": [2,12,4,2],
+        "r2": [238,-1,-1,-1],
+        "r7": [56,49,-1,56]
+      },
+      "timerA": {
+        "shape": [0,1,-1,2],
+        "target": [8,-1,-1,-1],
+        "source": [1,-1,-1,-1],
+        "prescaler": [50,50,-1,-1],
+        "count": [60,61,-1,-1],
+        "timerReset": [1,0,-1,-1],
+        "placeReset": [1,0,-1,-1]
+      }
     }
   ]
 }
 ```
+
+**A tune is written column by column, and every column is as long as the
+tune.** A row is what every column holds at that place, so nothing has to
+be counted to find one and no entry states a number saying where it
+stands.
+
+A column that no row fills is left out: a register no row sets has no
+column, and a timer no row states has none.
 
 ## A tune
 
@@ -45,34 +56,21 @@ second form would change none of them.
 |---|---|
 | `title`, `composer`, `writer` | text, empty where none is given |
 | `rate` | how often the player is called for this tune, in Hz |
-| `rows` | how many rows the tune has |
+| `frames` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
-| `sources` | the sources the rows start, numbered 1 upward in the order a row first starts each |
-| `r0` to `r13` | one register's stream, absent where no row sets it |
-| `effects` | what the rows state of the effects |
+| `sources` | the sources its rows start, in the order a row first starts each |
+| `rows` | a column a register |
+| `timerA` to `timerD` | a column a part of the effect on that timer |
 
-`rows` is stated because a tune is written stream by stream, and a tune
-whose last rows set nothing still plays them.
+`frames` says how long every column is, and a reader holds them to it.
 
-## A stream
+## The registers
 
-`r0` to `r13`, each a list of runs. A run is a stretch of rows that all
-set that register:
+`rows` holds a column a register, `r0` to `r13`, each one value a row.
+**-1 is a register that row does not set**, which no register takes as a
+value.
 
-| a run | gives |
-|---|---|
-| `[3, 119]` | one row, three rows past the end of the run before it |
-| `[3, [119, 115]]` | two rows, the first three rows past that end |
-
-The number before the values is the rows between the end of the last run
-and the start of this one, so the first run's number is its own row. The
-values of a run are consecutive rows, one a row.
-
-A register absent from the row a run reaches is one that row does not
-write, which is the structure's own rule and needs nothing of this form
-to state it.
-
-| stream | sets | takes |
+| key | sets | takes |
 |---|---|---|
 | `r0`, `r2`, `r4` | a voice's tone period, fine | 0 to 255 |
 | `r1`, `r3`, `r5` | a voice's tone period, coarse | 0 to 15 |
@@ -85,32 +83,22 @@ to state it.
 
 ## The effects
 
-`effects` is a list of events, each the row it stands on and the timers
-that row states an effect against. The keys are `A`, `B`, `C` and `D`,
-the timers themselves. The rows ascend, and a row stating no effect has
-no entry.
+A timer is a structure of its own, since a row states an effect on as many
+of the four as it likes: `timerA` through `timerD`. Each holds seven
+columns, one value a row, and **-1 is what a row states nothing of**, as
+it is in a register's column.
 
-An event states its own row rather than a gap. A stream is read for its
-shape and an event for where it falls, and there are few events beside
-the rows.
-
-Each timer's value states one of three things:
-
-| the shape | holds |
+| column | holds |
 |---|---|
-| `start` | `target`, `source`, `prescaler`, `count`, `timerReset`, `placeReset` |
-| `retune` | `prescaler`, `count`, `timerReset`, `placeReset` |
-| `stop` | nothing |
+| `shape` | 0 a start, 1 a retune, 2 a stop, -1 nothing |
+| `target` | 0 to 13, which is `setR0` to `setR13` |
+| `source` | 1 upward into the tune's `sources` |
+| `prescaler` | one of the seven a timer divides by: 4, 10, 16, 50, 64, 100, 200 |
+| `count` | 1 to 256 |
+| `timerReset`, `placeReset` | 1 true, 0 false |
 
-`target` is the target's own name, `setR0` to `setR13`. `source` is a
-number, 1 upward into the tune's `sources`. `prescaler` is one of the
-seven a timer divides by: 4, 10, 16, 50, 64, 100 or 200. `count` is 1 to
-256.
-
-A shape states the whole of what the effect is from that row on. A
-`start` states its target and its rate where the effect already ran at
-them, and a `retune` the rate where only the count moved. Writing only
-the parts that moved is a form's work, and this form does not do it.
+What a shape does not hold is -1 as well: a retune holds no target and no
+source, and a stop holds none of the six.
 
 ## A source
 
@@ -118,18 +106,14 @@ the parts that moved is a form's work, and this form does not do it.
 |---|---|
 | `name` | what a writer calls it, empty where it calls it nothing |
 | `repeat` | the row it repeats to, or `null` for one that plays once |
-| `rows` | the values, one a tick |
+| `values` | its rows, one value a row |
 
 ## The layout
 
-This form writes one run a line and one event a line, and wraps a run's
-values at twenty, so a reader looks down a stream or across a row without
-a tool. A reader takes any JSON of this shape.
-
-`Json` maps the structure to a JSON tree and back, `Layout` says where the
-lines break, and a JSON library does the escaping, the parsing and the
-writing. [The table form](csv.md) is the same content the other way
-round.
+One column a line, wrapped at twenty values. `Json` maps the structure to
+a JSON tree and back, `Layout` says where the lines break, and a JSON
+library does the escaping, the parsing and the writing. A reader takes any
+JSON of this shape.
 
 ## What is turned away
 
@@ -137,8 +121,8 @@ round.
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | R6.1 |
-| a run or an event past `rows` | the tune holds no such row |
-| an effect stating other than one of the three shapes | there are three |
+| a column that is not as long as `frames` | a column stands one value a row |
+| a `shape` that is none of the three | there are three |
 | a source number the tune does not hold | it names nothing |
 
 Everything else a record turns away where it is made: a register value

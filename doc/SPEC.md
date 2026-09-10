@@ -36,8 +36,8 @@ record Stop() implements Effect
 sealed interface Target permits SetRegister
 record SetRegister(Register register) implements Target
 
-sealed interface Source permits Bytes
-record Bytes(String name, Table<Integer> table) implements Source
+sealed interface Source permits Single
+record Single(String name, Table<Integer> table) implements Source
 
 enum Register  { R0 ... R13 }
 enum Timer     { A, B, C, D }

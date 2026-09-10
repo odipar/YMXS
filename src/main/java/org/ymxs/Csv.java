@@ -38,6 +38,11 @@ import org.ymxs.YMXS.Tune;
  * not set. Nothing is folded into runs or events as the text form folds
  * them: what that form does for a reader looking down a stream, this does
  * by being a table a spreadsheet sorts and filters.
+ *
+ * <p>A tune opens with its own table and the tables after it are that
+ * tune's, until the next tune opens; a source does the same for the values
+ * after it. So no table names which tune or which source a row belongs to:
+ * where it stands is what says it.
  */
 public final class Csv {
 
@@ -51,83 +56,67 @@ public final class Csv {
 
     /** {@code multi} as tables. */
     public static String write(Multi multi) {
-        List<Tune> tunes = multi.tunes();
         StringBuilder out = new StringBuilder();
-
         table(out, "multi", "format", "version", "tunes");
-        row(out, Json.FORMAT, Json.VERSION, tunes.size());
-
-        table(out, "tune", "tune", "title", "composer", "writer", "rate", "rows", "repeat");
-        for (int at = 0; at < tunes.size(); at++) {
-            Tune tune = tunes.get(at);
-            row(out, at + 1, tune.title(), tune.composer(), tune.writer(), tune.rate(),
-                    Tunes.size(tune.table()), repeat(tune.table()));
+        row(out, Json.FORMAT, Json.VERSION, multi.tunes().size());
+        for (Tune tune : multi.tunes()) {
+            tune(out, tune);
         }
+        return out.toString();
+    }
 
-        table(out, "source", "tune", "source", "name", "repeat");
-        for (int at = 0; at < tunes.size(); at++) {
-            List<Source> sources = Tunes.sources(tunes.get(at));
-            for (int one = 0; one < sources.size(); one++) {
-                row(out, at + 1, one + 1, Tunes.name(sources.get(one)),
-                        repeat(Tunes.table(sources.get(one))));
+    /** One tune: what it is called, and then its own tables. */
+    private static void tune(StringBuilder out, Tune tune) {
+        table(out, "tune", "title", "composer", "writer", "rate", "rows", "repeat");
+        row(out, tune.title(), tune.composer(), tune.writer(), tune.rate(),
+                Tunes.size(tune.table()), repeat(tune.table()));
+
+        List<Source> sources = Tunes.sources(tune);
+        for (Source source : sources) {
+            table(out, "source", "name", "repeat");
+            row(out, Tunes.name(source), repeat(Tunes.table(source)));
+            table(out, "value", "row", "value");
+            List<Integer> values = Tunes.values(source);
+            for (int line = 0; line < values.size(); line++) {
+                row(out, line, values.get(line));
             }
         }
 
-        table(out, "value", "tune", "source", "row", "value");
-        for (int at = 0; at < tunes.size(); at++) {
-            List<Source> sources = Tunes.sources(tunes.get(at));
-            for (int one = 0; one < sources.size(); one++) {
-                List<Integer> values = Tunes.values(sources.get(one));
-                for (int line = 0; line < values.size(); line++) {
-                    row(out, at + 1, one + 1, line, values.get(line));
-                }
-            }
-        }
-
-        List<Object> named = new ArrayList<>(List.of("row", "tune", "row"));
+        List<Object> named = new ArrayList<>(List.of("row", "row"));
         for (Register register : Register.values()) {
             named.add(Json.name(register));
         }
         table(out, named.toArray());
-        for (int at = 0; at < tunes.size(); at++) {
-            List<Row> rows = Tunes.rows(tunes.get(at));
-            for (int line = 0; line < rows.size(); line++) {
-                Map<Register, Integer> sets = rows.get(line).registers();
-                if (sets.isEmpty()) {
-                    continue;
-                }
-                List<Object> said = new ArrayList<>(List.of(at + 1, line));
-                for (Register register : Register.values()) {
-                    said.add(sets.containsKey(register) ? sets.get(register) : "");
-                }
-                row(out, said.toArray());
+        List<Row> rows = Tunes.rows(tune);
+        for (int line = 0; line < rows.size(); line++) {
+            Map<Register, Integer> sets = rows.get(line).registers();
+            if (sets.isEmpty()) {
+                continue;
             }
+            List<Object> said = new ArrayList<>(List.of((Object) line));
+            for (Register register : Register.values()) {
+                said.add(sets.containsKey(register) ? sets.get(register) : "");
+            }
+            row(out, said.toArray());
         }
 
-        table(out, "effect", "tune", "row", "timer", "shape", "target", "source",
-                "prescaler", "count", "timerReset", "placeReset");
-        for (int at = 0; at < tunes.size(); at++) {
-            Tune tune = tunes.get(at);
-            List<Source> sources = Tunes.sources(tune);
-            List<Row> rows = Tunes.rows(tune);
-            for (int line = 0; line < rows.size(); line++) {
-                for (Map.Entry<Timer, Effect> one : Tunes.effects(rows.get(line)).entrySet()) {
-                    switch (one.getValue()) {
-                        case Start start -> row(out, at + 1, line, one.getKey(), "start",
-                                Tunes.name(start.target()),
-                                sources.indexOf(start.source()) + 1,
-                                Chip.divides(start.prescaler()), start.count(),
-                                start.timerReset(), start.placeReset());
-                        case Retune retune -> row(out, at + 1, line, one.getKey(), "retune",
-                                "", "", Chip.divides(retune.prescaler()), retune.count(),
-                                retune.timerReset(), retune.placeReset());
-                        case Stop ignored -> row(out, at + 1, line, one.getKey(), "stop",
-                                "", "", "", "", "", "");
-                    }
+        table(out, "effect", "row", "timer", "shape", "target", "source", "prescaler",
+                "count", "timerReset", "placeReset");
+        for (int line = 0; line < rows.size(); line++) {
+            for (Map.Entry<Timer, Effect> one : Tunes.effects(rows.get(line)).entrySet()) {
+                switch (one.getValue()) {
+                    case Start start -> row(out, line, one.getKey(), "start",
+                            Tunes.name(start.target()), sources.indexOf(start.source()) + 1,
+                            Chip.divides(start.prescaler()), start.count(),
+                            start.timerReset(), start.placeReset());
+                    case Retune retune -> row(out, line, one.getKey(), "retune", "", "",
+                            Chip.divides(retune.prescaler()), retune.count(),
+                            retune.timerReset(), retune.placeReset());
+                    case Stop ignored -> row(out, line, one.getKey(), "stop", "", "", "", "",
+                            "", "");
                 }
             }
         }
-        return out.toString();
     }
 
     /** A line naming a table and its columns, with a blank line before it. */
@@ -164,8 +153,9 @@ public final class Csv {
 
     // ----------------------------------------------------------------- in
 
-    /** One table: what its columns are called, and its rows. */
-    private record Held(List<String> columns, List<List<String>> rows) {
+    /** One table: what it is called, what its columns are called, and its
+     *  rows. */
+    private record Held(String named, List<String> columns, List<List<String>> rows) {
 
         /** The cell {@code named} of {@code row}, or an empty text where
          *  the table has no such column. */
@@ -181,8 +171,12 @@ public final class Csv {
      *     states a structure no player plays
      */
     public static Multi read(String text) {
-        Map<String, Held> tables = tables(text);
-        Held multi = table(tables, "multi");
+        List<Held> sections = sections(text);
+        if (sections.isEmpty() || !sections.get(0).named().equals("multi")) {
+            throw new IllegalArgumentException("the first table is not \"" + TABLE
+                    + "multi\"");
+        }
+        Held multi = sections.get(0);
         if (multi.rows().size() != 1) {
             throw new IllegalArgumentException("the multi table holds " + multi.rows().size()
                     + " rows, and it holds one");
@@ -197,91 +191,100 @@ public final class Csv {
             throw new IllegalArgumentException("version " + version + ", and this reads "
                     + Json.VERSION);
         }
-
-        Held told = table(tables, "tune");
-        List<List<Integer>> counts = new ArrayList<>();
-        List<List<String>> named = new ArrayList<>();
-        List<List<OptionalInt>> repeats = new ArrayList<>();
-        List<List<Map<Register, Integer>>> registers = new ArrayList<>();
-        List<List<Map<Timer, Effect>>> effects = new ArrayList<>();
-        for (List<String> one : told.rows()) {
-            int rows = number(told.of(one, "rows"), "rows");
-            counts.add(new ArrayList<>());
-            named.add(new ArrayList<>());
-            repeats.add(new ArrayList<>());
-            registers.add(empty(rows, Register.class));
-            effects.add(empty(rows, Timer.class));
-        }
-
-        Held sources = table(tables, "source");
-        for (List<String> one : sources.rows()) {
-            int tune = number(sources.of(one, "tune"), "tune") - 1;
-            named.get(tune).add(sources.of(one, "name"));
-            repeats.get(tune).add(maybe(sources.of(one, "repeat")));
-            counts.get(tune).add(0);
-        }
-        List<List<List<Integer>>> values = new ArrayList<>();
-        for (List<String> tune : named) {
-            List<List<Integer>> held = new ArrayList<>();
-            for (int at = 0; at < tune.size(); at++) {
-                held.add(new ArrayList<>());
-            }
-            values.add(held);
-        }
-        Held said = table(tables, "value");
-        for (List<String> one : said.rows()) {
-            int tune = number(said.of(one, "tune"), "tune") - 1;
-            int source = number(said.of(one, "source"), "source") - 1;
-            if (source < 0 || source >= values.get(tune).size()) {
-                throw new IllegalArgumentException("a value of source "
-                        + said.of(one, "source") + ", and tune " + (tune + 1) + " holds "
-                        + values.get(tune).size());
-            }
-            values.get(tune).get(source).add(number(said.of(one, "value"), "value"));
-        }
-        List<List<Source>> built = new ArrayList<>();
-        for (int at = 0; at < named.size(); at++) {
-            List<Source> held = new ArrayList<>();
-            for (int one = 0; one < named.get(at).size(); one++) {
-                held.add(new Single(named.get(at).get(one),
-                        new Table<>(values.get(at).get(one), repeats.get(at).get(one))));
-            }
-            built.add(held);
-        }
-
-        Held table = table(tables, "row");
-        for (List<String> one : table.rows()) {
-            int tune = number(table.of(one, "tune"), "tune") - 1;
-            int at = row(registers.get(tune).size(), table.of(one, "row"), "a row");
-            for (Register register : Register.values()) {
-                String cell = table.of(one, Json.name(register));
-                if (!cell.isEmpty()) {
-                    registers.get(tune).get(at).put(register,
-                            number(cell, Json.name(register)));
-                }
-            }
-        }
-
-        Held acts = table(tables, "effect");
-        for (List<String> one : acts.rows()) {
-            int tune = number(acts.of(one, "tune"), "tune") - 1;
-            int at = row(effects.get(tune).size(), acts.of(one, "row"), "an effect");
-            effects.get(tune).get(at).put(Timer.valueOf(acts.of(one, "timer")),
-                    effect(acts, one, built.get(tune), at));
-        }
-
         List<Tune> tunes = new ArrayList<>();
-        for (int at = 0; at < told.rows().size(); at++) {
-            List<String> one = told.rows().get(at);
-            List<Row> rows = new ArrayList<>();
-            for (int line = 0; line < registers.get(at).size(); line++) {
-                rows.add(new Row(registers.get(at).get(line), effects.get(at).get(line)));
+        int at = 1;
+        while (at < sections.size()) {
+            if (!sections.get(at).named().equals("tune")) {
+                throw new IllegalArgumentException("a \"" + TABLE + sections.get(at).named()
+                        + "\" table before any tune names itself");
             }
-            tunes.add(new Tune(told.of(one, "title"), told.of(one, "composer"),
-                    told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
-                    new Table<>(rows, maybe(told.of(one, "repeat")))));
+            int from = at++;
+            List<Held> mine = new ArrayList<>();
+            while (at < sections.size() && !sections.get(at).named().equals("tune")) {
+                mine.add(sections.get(at));
+                at++;
+            }
+            tunes.add(tune(sections.get(from), mine, tunes.size() + 1));
         }
         return Check.must(new Multi(tunes));
+    }
+
+    /** One tune, out of the table that names it and the tables after it.
+     *  A source opens its own table, and the values after it are that
+     *  source's. */
+    private static Tune tune(Held told, List<Held> mine, int number) {
+        if (told.rows().size() != 1) {
+            throw new IllegalArgumentException("tune " + number + " is named by "
+                    + told.rows().size() + " rows, and one names it");
+        }
+        List<String> one = told.rows().get(0);
+        int count = number(told.of(one, "rows"), "rows");
+        List<String> named = new ArrayList<>();
+        List<OptionalInt> repeats = new ArrayList<>();
+        List<List<Integer>> values = new ArrayList<>();
+        List<Map<Register, Integer>> registers = empty(count, Register.class);
+        List<Map<Timer, Effect>> effects = empty(count, Timer.class);
+        List<Held> acts = new ArrayList<>();
+        for (Held held : mine) {
+            switch (held.named()) {
+                case "source" -> {
+                    if (held.rows().size() != 1) {
+                        throw new IllegalArgumentException("tune " + number + " holds a"
+                                + " source named by " + held.rows().size() + " rows, and one"
+                                + " names it");
+                    }
+                    named.add(held.of(held.rows().get(0), "name"));
+                    repeats.add(maybe(held.of(held.rows().get(0), "repeat")));
+                    values.add(new ArrayList<>());
+                }
+                case "value" -> {
+                    if (values.isEmpty()) {
+                        throw new IllegalArgumentException("tune " + number + " holds values"
+                                + " before any source names itself");
+                    }
+                    List<Integer> held0 = values.get(values.size() - 1);
+                    for (List<String> line : held.rows()) {
+                        held0.add(number(held.of(line, "value"), "value"));
+                    }
+                }
+                case "row" -> {
+                    for (List<String> line : held.rows()) {
+                        int at = row(count, held.of(line, "row"), "tune " + number
+                                + " holds a row");
+                        for (Register register : Register.values()) {
+                            String cell = held.of(line, Json.name(register));
+                            if (!cell.isEmpty()) {
+                                registers.get(at).put(register,
+                                        number(cell, Json.name(register)));
+                            }
+                        }
+                    }
+                }
+                case "effect" -> acts.add(held);
+                default -> throw new IllegalArgumentException("tune " + number + " holds a \""
+                        + TABLE + held.named() + "\" table, which this form does not name");
+            }
+        }
+        List<Source> sources = new ArrayList<>();
+        for (int at = 0; at < named.size(); at++) {
+            sources.add(new Single(named.get(at), new Table<>(values.get(at),
+                    repeats.get(at))));
+        }
+        for (Held held : acts) {
+            for (List<String> line : held.rows()) {
+                int at = row(count, held.of(line, "row"), "tune " + number
+                        + " holds an effect");
+                effects.get(at).put(Timer.valueOf(held.of(line, "timer")),
+                        effect(held, line, sources, at));
+            }
+        }
+        List<Row> rows = new ArrayList<>();
+        for (int at = 0; at < count; at++) {
+            rows.add(new Row(registers.get(at), effects.get(at)));
+        }
+        return new Tune(told.of(one, "title"), told.of(one, "composer"),
+                told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
+                new Table<>(rows, maybe(told.of(one, "repeat"))));
     }
 
     private static Effect effect(Held acts, List<String> one, List<Source> sources, int at) {
@@ -342,17 +345,9 @@ public final class Csv {
         return said.isEmpty() ? OptionalInt.empty() : OptionalInt.of(number(said, "repeat"));
     }
 
-    private static Held table(Map<String, Held> tables, String named) {
-        Held held = tables.get(named);
-        if (held == null) {
-            throw new IllegalArgumentException("no \"" + TABLE + named + "\" table");
-        }
-        return held;
-    }
-
-    /** The tables the text holds, by the name each one's line gives. */
-    private static Map<String, Held> tables(String text) {
-        Map<String, Held> out = new LinkedHashMap<>();
+    /** The tables the text holds, in the order it holds them. */
+    private static List<Held> sections(String text) {
+        List<Held> out = new ArrayList<>();
         Held here = null;
         for (String line : text.split("\n", -1)) {
             if (line.isBlank()) {
@@ -360,11 +355,12 @@ public final class Csv {
             }
             if (line.startsWith("###")) {
                 List<String> named = cells(line.substring(3).strip());
-                if (named.isEmpty()) {
+                if (named.isEmpty() || named.get(0).isBlank()) {
                     throw new IllegalArgumentException("a table with no name: " + line);
                 }
-                here = new Held(named.subList(1, named.size()), new ArrayList<>());
-                out.put(named.get(0), here);
+                here = new Held(named.get(0), named.subList(1, named.size()),
+                        new ArrayList<>());
+                out.add(here);
                 continue;
             }
             if (here == null) {

@@ -8,24 +8,30 @@ either reads into the same structure.
 ### multi,format,version,tunes
 ymxs,1,1
 
-### tune,tune,title,composer,writer,rate,rows,repeat
-1,Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
+### tune,title,composer,writer,rate,rows,repeat
+Synthetic,Test,ym-to-ymxs,50,400,0
 
-### source,tune,source,name,repeat
-1,1,square 13,0
-1,2,recording 0,
+### source,name,repeat
+square 13,0
 
-### value,tune,source,row,value
-1,1,0,13
-1,1,1,0
+### value,row,value
+0,13
+1,0
 
-### row,tune,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
-1,0,163,2,238,14,238,14,12,56,15,0,0,0,0,
-1,1,142,12,,,,,28,49,12,,,,,
+### source,name,repeat
+recording 0,
 
-### effect,tune,row,timer,shape,target,source,prescaler,count,timerReset,placeReset
-1,0,A,start,setR8,1,50,60,true,true
-1,1,A,retune,,,50,61,false,false
+### value,row,value
+0,8
+1,9
+
+### row,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
+0,64,1,48,2,32,3,0,56,,12,11,0,0,
+1,65,,49,,33,,1,,,,,3,,
+
+### effect,row,timer,shape,target,source,prescaler,count,timerReset,placeReset
+0,A,start,setR8,1,50,60,true,true
+1,A,retune,,,50,61,false,false
 ```
 
 ## How it reads
@@ -44,23 +50,29 @@ column a register. Nothing is folded into runs or events as the text form
 folds them: what that form does for a reader looking down a stream, this
 does by being a table a spreadsheet sorts and filters.
 
-`tune` is the tune's number, 1 upward, so a multi of several tunes holds
-one set of tables with a column saying which tune a row belongs to.
+**Where a table stands says what it belongs to.** A tune opens with its
+own table, and the tables after it are that tune's until the next tune
+opens. A source does the same for the values after it. So no table names
+which tune or which source a row belongs to, and a tune's tables read as
+one run of them.
 
 ## What each table holds
 
-| table | one row a |
+| table | holds |
 |---|---|
-| `multi` | file: what it is, its version, and how many tunes it holds |
-| `tune` | tune |
-| `source` | source, in the order a row first starts it |
-| `value` | value of a source, in its own order |
-| `row` | row of a tune that sets a register |
-| `effect` | effect a row states |
+| `multi` | one row: what the file is, its version, and how many tunes it holds |
+| `tune` | one row, and it opens a tune |
+| `source` | one row, and it opens a source, in the order a row first starts it |
+| `value` | one row a value of the source it comes after |
+| `row` | one row a row of the tune that sets a register |
+| `effect` | one row an effect a row of the tune states |
 
 **An empty cell in `row`** is a register that row does not set. A row that
 sets none is no row of the table: the `row` column says which row a line
 is, and `rows` in the `tune` table says how many the tune has.
+
+**A tune that runs no source** opens no `source` table and no `value`
+table.
 
 **An empty cell in `effect`** is a part that shape does not hold. A
 `retune` names no target and no source; a `stop` names nothing but where

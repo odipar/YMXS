@@ -58,10 +58,11 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###")).toList();
         List<String> named = lines.stream()
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
-        assertEquals(List.of("multi", "tune", "source", "value", "row", "effect"), named);
-        assertEquals(List.of("row", "tune", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
+        assertEquals(List.of("multi", "tune", "row", "effect"), named,
+                "circus runs no source, so it opens none");
+        assertEquals(List.of("row", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
-                Csv.cells(lines.get(4).substring(3).strip()),
+                Csv.cells(lines.get(2).substring(3).strip()),
                 "a row of a tune is a row here, with a column a register");
     }
 
@@ -72,12 +73,41 @@ final class CsvTest {
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(4, rows.size(), "one line a row that sets something");
         List<String> first = Csv.cells(rows.get(0));
-        assertEquals("1", first.get(0), "the tune");
-        assertEquals("0", first.get(1), "the row");
-        assertEquals("163", first.get(2), "R0");
+        assertEquals("0", first.get(0), "the row");
+        assertEquals("163", first.get(1), "R0");
         List<String> second = Csv.cells(rows.get(1));
-        assertEquals("", second.get(4), "row 1 does not set R2, so its cell is empty");
-        assertEquals("12", second.get(3), "and it does set R1");
+        assertEquals("", second.get(3), "row 1 does not set R2, so its cell is empty");
+        assertEquals("12", second.get(2), "and it does set R1");
+    }
+
+    @Test
+    void eachSourceOpensATableOfItsOwn() {
+        Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
+                new Row(Map.of(), Map.of(Timer.A, Tunes.struck(Tunes.setting(Register.R8),
+                        Tunes.repeating("first", List.of(15, 0), 0), Prescaler.BY_4, 100))),
+                new Row(Map.of(), Map.of(Timer.D, Tunes.struck(Tunes.setting(Register.R9),
+                        Tunes.once("second", List.of(1, 2, 3)), Prescaler.BY_4, 100)))), 0));
+        List<String> named = Csv.write(Tunes.multi(tune)).lines()
+                .filter(one -> one.startsWith("###"))
+                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+        assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
+                "row", "effect"), named,
+                "a source opens its own table and its values come after it");
+        assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
+    }
+
+    @Test
+    void aTuneOpensItsOwnTablesAndTheNextTuneOpensTheNext() {
+        Tune one = new Tune("one", "", "", 50,
+                Tunes.repeating(List.of(Tunes.row(Map.of(Register.R0, 1))), 0));
+        Tune two = new Tune("two", "", "", 60,
+                Tunes.repeating(List.of(Tunes.row(Map.of(Register.R0, 2))), 0));
+        Multi multi = new Multi(List.of(one, two));
+        String csv = Csv.write(multi);
+        assertEquals(2, csv.lines().filter(said -> said.startsWith("### tune,")).count(),
+                "one table a tune opens it");
+        assertTrue(!csv.contains(",tune,"), "and no table names which tune a row belongs to");
+        assertEquals(multi, Csv.read(csv));
     }
 
     @Test
@@ -111,7 +141,7 @@ final class CsvTest {
         String csv = Csv.write(Tunes.multi(tune));
         List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### row"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
-        assertEquals(List.of("1,0,,,,,,,,56,,,,,,", "1,2,,,,,,,,49,,,,,,"), rows,
+        assertEquals(List.of("0,,,,,,,,56,,,,,,", "2,,,,,,,,49,,,,,,"), rows,
                 "the row column says which row, so a row that sets nothing is left out");
         assertEquals(Tunes.multi(tune), Csv.read(csv), "and it reads back to three rows");
     }
@@ -157,17 +187,11 @@ final class CsvTest {
                 ### multi,version,tunes,format
                 1,1,ymxs
 
-                ### tune,rows,rate,repeat,writer,composer,title,tune
-                1,50,0,a writer,a composer,a title,1
+                ### tune,rows,rate,repeat,writer,composer,title
+                1,50,0,a writer,a composer,a title
 
-                ### source,tune,source,name,repeat
-
-                ### value,tune,source,row,value
-
-                ### row,r0,tune,row
-                200,1,0
-
-                ### effect,tune,row,timer,shape,target,source,prescaler,count,timerReset,placeReset
+                ### row,r0,row
+                200,0
                 """;
         Tune tune = Csv.read(csv).tunes().get(0);
         assertEquals("a title", tune.title());

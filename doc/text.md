@@ -4,40 +4,45 @@ JSON, and one way of writing the structure down. The structure is the
 records under `src/main/java/org/ymxs/`; nothing here is in them, and a
 second form would change none of them.
 
+It holds the same tables [the table form](csv.md) holds, so a reader that
+has one has the other.
+
 ```json
 {
   "format": "ymxs",
   "version": 1,
   "tunes": [
     {
-      "title": "world completed 1",
-      "composer": "Jochen Hippel",
+      "title": "Synthetic",
+      "composer": "Test",
       "writer": "ym-to-ymxs",
       "rate": 50,
-      "rows": 179,
+      "frames": 400,
       "repeat": 0,
       "sources": [
-        {"name": "drum 0", "repeat": null, "rows": [8, 12, 15, 13]}
+        {"name": "square 13", "repeat": 0, "values": [13,0]},
+        {"name": "recording 0", "repeat": null, "values": [8,9,10,11]}
       ],
-      "r0": [
-        [0, 123],
-        [3, [119, 115]],
-        [1, [119, 169]]
-      ],
-      "r8": [
-        [0, [14, 13]],
-        [4, [12, 11, 14, 13]]
+      "rows": [
+        {"row": 0, "r0": 64, "r1": 1, "r7": 56, "r9": 12},
+        {"row": 1, "r0": 65, "r2": 49, "r6": 1}
       ],
       "effects": [
-        [0, {"D": {"start": {"target": "setR10", "source": 1, "prescaler": 4,
-                             "count": 102, "timerReset": true,
-                             "placeReset": true}}}],
-        [3, {"D": {"stop": {}}}]
+        {"row": 0, "timer": "A", "shape": "start", "target": "setR8",
+         "source": 1, "prescaler": 50, "count": 60,
+         "timerReset": true, "placeReset": true},
+        {"row": 1, "timer": "A", "shape": "retune", "prescaler": 50,
+         "count": 61, "timerReset": false, "placeReset": false}
       ]
     }
   ]
 }
 ```
+
+**Everything states where it stands.** A row says which row it is and an
+effect says which row it is on, so nothing is folded into runs and no
+count is carried from one entry to the next. What a reader has to do to
+make one of these is put down what it knows, one entry at a time.
 
 ## A tune
 
@@ -45,34 +50,20 @@ second form would change none of them.
 |---|---|
 | `title`, `composer`, `writer` | text, empty where none is given |
 | `rate` | how often the player is called for this tune, in Hz |
-| `rows` | how many rows the tune has |
+| `frames` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
-| `sources` | the sources the rows start, numbered 1 upward in the order a row first starts each |
-| `r0` to `r13` | one register's stream, absent where no row sets it |
-| `effects` | what the rows state of the effects |
+| `sources` | the sources its rows start, in the order a row first starts each |
+| `rows` | the rows that set a register |
+| `effects` | what its rows state of the effects |
 
-`rows` is stated because a tune is written stream by stream, and a tune
-whose last rows set nothing still plays them.
+`frames` is stated because a row that sets nothing is no entry in `rows`.
 
-## A stream
+## A row
 
-`r0` to `r13`, each a list of runs. A run is a stretch of rows that all
-set that register:
+`row` is which row it is, and every key after it is a register that row
+sets: `r0` to `r13`, each holding the value that register takes.
 
-| a run | gives |
-|---|---|
-| `[3, 119]` | one row, three rows past the end of the run before it |
-| `[3, [119, 115]]` | two rows, the first three rows past that end |
-
-The number before the values is the rows between the end of the last run
-and the start of this one, so the first run's number is its own row. The
-values of a run are consecutive rows, one a row.
-
-A register absent from the row a run reaches is one that row does not
-write, which is the structure's own rule and needs nothing of this form
-to state it.
-
-| stream | sets | takes |
+| key | sets | takes |
 |---|---|---|
 | `r0`, `r2`, `r4` | a voice's tone period, fine | 0 to 255 |
 | `r1`, `r3`, `r5` | a voice's tone period, coarse | 0 to 15 |
@@ -83,20 +74,15 @@ to state it.
 | `r12` | the envelope period, coarse | 0 to 255 |
 | `r13` | the envelope shape | 0 to 15 |
 
-## The effects
+A register with no key is one that row does not write.
 
-`effects` is a list of events, each the row it stands on and the timers
-that row states an effect against. The keys are `A`, `B`, `C` and `D`,
-the timers themselves. The rows ascend, and a row stating no effect has
-no entry.
+## An effect
 
-An event states its own row rather than a gap. A stream is read for its
-shape and an event for where it falls, and there are few events beside
-the rows.
+`row` is which row states it and `timer` which of `A`, `B`, `C` and `D`
+it states it against. `shape` is one of three, and what it holds after
+that is that shape's:
 
-Each timer's value states one of three things:
-
-| the shape | holds |
+| shape | holds |
 |---|---|
 | `start` | `target`, `source`, `prescaler`, `count`, `timerReset`, `placeReset` |
 | `retune` | `prescaler`, `count`, `timerReset`, `placeReset` |
@@ -107,29 +93,20 @@ number, 1 upward into the tune's `sources`. `prescaler` is one of the
 seven a timer divides by: 4, 10, 16, 50, 64, 100 or 200. `count` is 1 to
 256.
 
-A shape states the whole of what the effect is from that row on. A
-`start` states its target and its rate where the effect already ran at
-them, and a `retune` the rate where only the count moved. Writing only
-the parts that moved is a form's work, and this form does not do it.
-
 ## A source
 
 | key | gives |
 |---|---|
 | `name` | what a writer calls it, empty where it calls it nothing |
 | `repeat` | the row it repeats to, or `null` for one that plays once |
-| `rows` | the values, one a tick |
+| `values` | its rows, one value a row |
 
 ## The layout
 
-This form writes one run a line and one event a line, and wraps a run's
-values at twenty, so a reader looks down a stream or across a row without
-a tool. A reader takes any JSON of this shape.
-
-`Json` maps the structure to a JSON tree and back, `Layout` says where the
-lines break, and a JSON library does the escaping, the parsing and the
-writing. [The table form](csv.md) is the same content the other way
-round.
+One row a line, one effect a line, and a source's values wrapped at
+twenty. `Json` maps the structure to a JSON tree and back, `Layout` says
+where the lines break, and a JSON library does the escaping, the parsing
+and the writing. A reader takes any JSON of this shape.
 
 ## What is turned away
 
@@ -137,8 +114,8 @@ round.
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | R6.1 |
-| a run or an event past `rows` | the tune holds no such row |
-| an effect stating other than one of the three shapes | there are three |
+| a row or an effect past `frames` | the tune holds no such row |
+| a `shape` that is none of the three | there are three |
 | a source number the tune does not hold | it names nothing |
 
 Everything else a record turns away where it is made: a register value

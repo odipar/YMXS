@@ -8,7 +8,7 @@ either reads into the same structure.
 ### multi,format,version,tunes
 ymxs,1,1
 
-### tune,title,composer,writer,rate,rows,repeat
+### tune,title,composer,writer,rate,frames,repeat
 Synthetic,Test,ym-to-ymxs,50,400,0
 
 ### source,name,repeat
@@ -45,10 +45,9 @@ recording 0,
 - A column is found by its name, so the order the columns come in is the
   file's own.
 
-**These are ordinary tables.** A row of a tune is a row here, with a
-column a register. Nothing is folded into runs or events as the text form
-folds them: what that form does for a reader looking down a stream, this
-does by being a table a spreadsheet sorts and filters.
+**These are ordinary tables**, and they are the tables
+[the text form](text.md) writes as JSON: a reader that has one form has
+the other. A row of a tune is a row here, with a column a register.
 
 **Where a table stands says what it belongs to.** A tune opens with its
 own table, and the tables after it are that tune's until the next tune
@@ -69,7 +68,7 @@ one run of them.
 
 **An empty cell in `row`** is a register that row does not set. A row that
 sets none is no row of the table: the `row` column says which row a line
-is, and `rows` in the `tune` table says how many the tune has.
+is, and `frames` in the `tune` table says how many the tune has.
 
 **A tune that runs no source** opens no `source` table and no `value`
 table.

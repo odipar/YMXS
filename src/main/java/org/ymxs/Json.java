@@ -27,12 +27,11 @@ import org.ymxs.YMXS.Tune;
  * read from is {@link Text}'s, and escaping, parsing and laying out are
  * the JSON library's; this maps, and nothing else.
  *
- * <p>A tune is written stream by stream. A register's stream is a list of
- * runs, a run being a stretch of rows that all set it, and the number
- * before a run's values is the rows between the end of the run before it
- * and its own first row. The effects are written the other way, as events
- * at their own row, since an event is a thing a reader looks for by row
- * and there are few of them.
+ * <p>A tune is written plainly: its sources, then the rows that set a
+ * register, then the effects its rows state. Every one of those states
+ * where it stands, so nothing is folded into runs or counted in gaps. It
+ * is the shape {@link Csv} holds, written as JSON: a reader that has one
+ * has the other.
  *
  * <p>A source is written by its number, 1 upward into the sources a tune's
  * rows start ({@link Tunes#sources}). The name beside it is what a writer
@@ -72,7 +71,7 @@ public final class Json {
         out.put("composer", tune.composer());
         out.put("writer", tune.writer());
         out.put("rate", tune.rate());
-        out.put("rows", Tunes.size(tune.table()));
+        out.put("frames", Tunes.size(tune.table()));
         put(out, "repeat", tune.table().repeat());
         List<Source> sources = Tunes.sources(tune);
         ArrayNode held = out.putArray("sources");
@@ -80,93 +79,57 @@ public final class Json {
             ObjectNode one = held.addObject();
             one.put("name", Tunes.name(source));
             put(one, "repeat", Tunes.table(source).repeat());
-            ArrayNode values = one.putArray("rows");
+            ArrayNode values = one.putArray("values");
             for (int value : Tunes.values(source)) {
                 values.add(value);
             }
         }
-        for (Register register : Register.values()) {
-            stream(out, tune, register);
+        List<Row> rows = Tunes.rows(tune);
+        ArrayNode said = out.putArray("rows");
+        for (int at = 0; at < rows.size(); at++) {
+            Map<Register, Integer> sets = Tunes.registers(rows.get(at));
+            if (sets.isEmpty()) {
+                continue;
+            }
+            ObjectNode one = said.addObject();
+            one.put("row", at);
+            for (Map.Entry<Register, Integer> set : sets.entrySet()) {
+                one.put(name(set.getKey()), set.getValue());
+            }
         }
-        events(out, tune, sources);
+        ArrayNode acts = out.putArray("effects");
+        for (int at = 0; at < rows.size(); at++) {
+            for (Map.Entry<Timer, Effect> one : Tunes.effects(rows.get(at)).entrySet()) {
+                acts.add(of(at, one.getKey(), one.getValue(), sources));
+            }
+        }
         return out;
     }
 
-    /** One register's runs: a stretch of rows that all set it, after a gap
-     *  of the rows since the run before it ended. */
-    private static void stream(ObjectNode out, Tune tune, Register register) {
-        List<Row> rows = Tunes.rows(tune);
-        ArrayNode runs = MAKE.arrayNode();
-        int at = 0;
-        int end = 0;
-        while (at < rows.size()) {
-            if (!rows.get(at).registers().containsKey(register)) {
-                at++;
-                continue;
-            }
-            int from = at;
-            List<Integer> run = new ArrayList<>();
-            while (at < rows.size() && rows.get(at).registers().containsKey(register)) {
-                run.add(rows.get(at).registers().get(register));
-                at++;
-            }
-            ArrayNode one = runs.addArray();
-            one.add(from - end);
-            end = at;
-            if (run.size() == 1) {
-                one.add(run.get(0));
-            } else {
-                ArrayNode values = one.addArray();
-                for (int value : run) {
-                    values.add(value);
-                }
-            }
-        }
-        if (!runs.isEmpty()) {
-            out.set(name(register), runs);
-        }
-    }
-
-    /** The effects as events, each at its own row. */
-    private static void events(ObjectNode out, Tune tune, List<Source> sources) {
-        List<Row> rows = Tunes.rows(tune);
-        ArrayNode events = out.putArray("effects");
-        for (int at = 0; at < rows.size(); at++) {
-            Map<Timer, Effect> here = Tunes.effects(rows.get(at));
-            if (here.isEmpty()) {
-                continue;
-            }
-            ArrayNode event = events.addArray();
-            event.add(at);
-            ObjectNode timers = event.addObject();
-            for (Map.Entry<Timer, Effect> one : here.entrySet()) {
-                timers.set(one.getKey().name(), of(one.getValue(), sources));
-            }
-        }
-    }
-
-    /** What a row states of one effect: the shape it names, and what that
-     *  shape holds. */
-    private static ObjectNode of(Effect effect, List<Source> sources) {
+    /** One effect a row states: where it stands, which timer, which shape,
+     *  and that shape's own values. */
+    private static ObjectNode of(int at, Timer timer, Effect effect, List<Source> sources) {
         ObjectNode out = MAKE.objectNode();
+        out.put("row", at);
+        out.put("timer", timer.name());
         switch (effect) {
             case Start start -> {
-                ObjectNode said = out.putObject("start");
-                said.put("target", Tunes.name(start.target()));
-                said.put("source", sources.indexOf(start.source()) + 1);
-                said.put("prescaler", Chip.divides(start.prescaler()));
-                said.put("count", start.count());
-                said.put("timerReset", start.timerReset());
-                said.put("placeReset", start.placeReset());
+                out.put("shape", "start");
+                out.put("target", Tunes.name(start.target()));
+                out.put("source", sources.indexOf(start.source()) + 1);
+                out.put("prescaler", Chip.divides(start.prescaler()));
+                out.put("count", start.count());
+                out.put("timerReset", start.timerReset());
+                out.put("placeReset", start.placeReset());
             }
             case Retune retune -> {
-                ObjectNode said = out.putObject("retune");
-                said.put("prescaler", Chip.divides(retune.prescaler()));
-                said.put("count", retune.count());
-                said.put("timerReset", retune.timerReset());
-                said.put("placeReset", retune.placeReset());
+                out.put("shape", "retune");
+                out.put("prescaler", Chip.divides(retune.prescaler()));
+                out.put("count", retune.count());
+                out.put("timerReset", retune.timerReset());
+                out.put("placeReset", retune.placeReset());
             }
-            case Stop ignored -> out.putObject("stop");
+            case Stop ignored -> out.put("shape", "stop");
         }
         return out;
     }
@@ -198,15 +161,14 @@ public final class Json {
 
     /** One tune out of a JSON tree. */
     public static Tune tune(JsonNode tree) {
-        int count = number(tree, "rows");
+        int count = number(tree, "frames");
         List<Source> sources = new ArrayList<>();
         for (JsonNode one : array(tree, "sources")) {
             List<Integer> values = new ArrayList<>();
-            for (JsonNode value : array(one, "rows")) {
+            for (JsonNode value : array(one, "values")) {
                 values.add(value.intValue());
             }
-            sources.add(new Single(text(one, "name"),
-                    new Table<>(values, repeat(one))));
+            sources.add(new Single(text(one, "name"), new Table<>(values, repeat(one))));
         }
         List<Map<Register, Integer>> registers = new ArrayList<>();
         List<Map<Timer, Effect>> effects = new ArrayList<>();
@@ -214,35 +176,18 @@ public final class Json {
             registers.add(new EnumMap<>(Register.class));
             effects.add(new EnumMap<>(Timer.class));
         }
-        for (Register register : Register.values()) {
-            JsonNode runs = tree.get(name(register));
-            if (runs == null) {
-                continue;
-            }
-            int at = 0;
-            for (JsonNode run : runs) {
-                at += run.get(0).intValue();
-                JsonNode values = run.get(1);
-                if (values.isArray()) {
-                    for (JsonNode value : values) {
-                        put(registers, count, at++, register, value.intValue());
-                    }
-                } else {
-                    put(registers, count, at++, register, values.intValue());
+        for (JsonNode one : array(tree, "rows")) {
+            int at = row(count, number(one, "row"), "a row");
+            for (Register register : Register.values()) {
+                JsonNode value = one.get(name(register));
+                if (value != null) {
+                    registers.get(at).put(register, number(one, name(register)));
                 }
             }
         }
-        for (JsonNode event : array(tree, "effects")) {
-            int at = event.get(0).intValue();
-            if (at < 0 || at >= count) {
-                throw new IllegalArgumentException("an effect at row " + at + ", and the tune"
-                        + " holds " + count + " rows");
-            }
-            JsonNode timers = event.get(1);
-            for (Map.Entry<String, JsonNode> one : timers.properties()) {
-                effects.get(at).put(Timer.valueOf(one.getKey()),
-                        effect(one.getValue(), sources, at));
-            }
+        for (JsonNode one : array(tree, "effects")) {
+            int at = row(count, number(one, "row"), "an effect");
+            effects.get(at).put(Timer.valueOf(text(one, "timer")), effect(one, sources, at));
         }
         List<Row> rows = new ArrayList<>();
         for (int at = 0; at < count; at++) {
@@ -252,26 +197,32 @@ public final class Json {
                 number(tree, "rate"), new Table<>(rows, repeat(tree)));
     }
 
-    private static Effect effect(JsonNode tree, List<Source> sources, int at) {
-        if (tree.size() != 1) {
-            throw new IllegalArgumentException("the effect at row " + at + " states "
-                    + tree.size() + " things, and it states one of start, retune and stop");
+    private static int row(int count, int at, String what) {
+        if (at < 0 || at >= count) {
+            throw new IllegalArgumentException(what + " at row " + at + ", and the tune holds "
+                    + count + " rows");
         }
-        String shape = tree.properties().iterator().next().getKey();
-        JsonNode of = tree.get(shape);
+        return at;
+    }
+
+    /** What a row states of one effect, out of the shape it names and that
+     *  shape's own fields. */
+    private static Effect effect(JsonNode said, List<Source> sources, int at) {
+        String shape = text(said, "shape");
         return switch (shape) {
             case "start" -> {
-                int number = number(of, "source");
+                int number = number(said, "source");
                 if (number < 1 || number > sources.size()) {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + number + ", and the tune holds " + sources.size());
                 }
-                yield new Start(target(text(of, "target")), sources.get(number - 1),
-                        Chip.prescaler(number(of, "prescaler")), number(of, "count"),
-                        flag(of, "timerReset"), flag(of, "placeReset"));
+                yield new Start(target(text(said, "target")), sources.get(number - 1),
+                        Chip.prescaler(number(said, "prescaler")), number(said, "count"),
+                        flag(said, "timerReset"), flag(said, "placeReset"));
             }
-            case "retune" -> new Retune(Chip.prescaler(number(of, "prescaler")),
-                    number(of, "count"), flag(of, "timerReset"), flag(of, "placeReset"));
+            case "retune" -> new Retune(Chip.prescaler(number(said, "prescaler")),
+                    number(said, "count"), flag(said, "timerReset"),
+                    flag(said, "placeReset"));
             case "stop" -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " states \"" + shape
                     + "\" of an effect, and it states one of start, retune and stop");
@@ -303,6 +254,15 @@ public final class Json {
                     + " tune holds " + count + " rows");
         }
         rows.get(at).put(register, value);
+    }
+
+    private static void put(List<Map<Timer, Effect>> rows, int count, int at, Timer timer,
+                            Effect effect) {
+        if (at < 0 || at >= count) {
+            throw new IllegalArgumentException("Timer " + timer + " states something of row "
+                    + at + ", and the tune holds " + count + " rows");
+        }
+        rows.get(at).put(timer, effect);
     }
 
     private static void put(ObjectNode out, String key, OptionalInt repeat) {

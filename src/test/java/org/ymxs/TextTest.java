@@ -141,15 +141,26 @@ final class TextTest {
     }
 
     @Test
-    void aRunPastTheRowCountIsTurnedAway() {
+    void aRowPastTheFrameCountIsTurnedAway() {
         String text = """
                 {"format":"ymxs","version":1,"tunes":[{"title":"","composer":"",
-                 "writer":"","rate":50,"rows":2,"repeat":null,"sources":[],
-                 "r0":[[5,1]],"effects":[]}]}""";
+                 "writer":"","rate":50,"frames":2,"repeat":null,"sources":[],
+                 "rows":[{"row":5,"r0":1}],"effects":[]}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
                 () -> Text.read(text));
         String said = String.valueOf(no.getMessage());
-        assertTrue(said.contains("r0 sets row 5"), said);
+        assertTrue(said.contains("a row at row 5"), said);
+    }
+
+    @Test
+    void aTuneWritesTheSameShapeTheTableFormHolds() {
+        Tune tune = new Tune("a tune", "", "", 50, Tunes.repeating(List.of(
+                Tunes.row(Map.of(Register.R0, 1)), Tunes.NOTHING), 0));
+        String text = Text.write(Tunes.multi(tune));
+        assertTrue(text.contains("\"frames\": 2"), text);
+        assertTrue(text.contains("{\"row\": 0, \"r0\": 1}"),
+                "a row states where it stands and what it sets, and nothing else");
+        assertTrue(!text.contains("\"row\": 1"), "a row that sets nothing is no row here");
     }
 
     @Test

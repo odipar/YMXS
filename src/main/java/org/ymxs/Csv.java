@@ -33,11 +33,10 @@ import org.ymxs.YMXS.Tune;
  *   1,Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
  * </pre>
  *
- * <p>The tables are ordinary tables. A row of a tune is a row here, with a
- * column a register, and a cell that is empty is a register the row does
- * not set. Nothing is folded into runs or events as the text form folds
- * them: what that form does for a reader looking down a stream, this does
- * by being a table a spreadsheet sorts and filters.
+ * <p>The tables are ordinary tables, and they are the tables {@link Json}
+ * writes as JSON: a reader that has one form has the other. A row of a
+ * tune is a row here, with a column a register, and a cell that is empty
+ * is a register the row does not set.
  *
  * <p>A tune opens with its own table and the tables after it are that
  * tune's, until the next tune opens; a source does the same for the values
@@ -67,7 +66,7 @@ public final class Csv {
 
     /** One tune: what it is called, and then its own tables. */
     private static void tune(StringBuilder out, Tune tune) {
-        table(out, "tune", "title", "composer", "writer", "rate", "rows", "repeat");
+        table(out, "tune", "title", "composer", "writer", "rate", "frames", "repeat");
         row(out, tune.title(), tune.composer(), tune.writer(), tune.rate(),
                 Tunes.size(tune.table()), repeat(tune.table()));
 
@@ -218,7 +217,7 @@ public final class Csv {
                     + told.rows().size() + " rows, and one names it");
         }
         List<String> one = told.rows().get(0);
-        int count = number(told.of(one, "rows"), "rows");
+        int count = number(told.of(one, "frames"), "frames");
         List<String> named = new ArrayList<>();
         List<OptionalInt> repeats = new ArrayList<>();
         List<List<Integer>> values = new ArrayList<>();

@@ -187,7 +187,7 @@ final class CsvTest {
                 ### multi,version,tunes,format
                 1,1,ymxs
 
-                ### tune,rows,rate,repeat,writer,composer,title
+                ### tune,frames,rate,repeat,writer,composer,title
                 1,50,0,a writer,a composer,a title
 
                 ### row,r0,row

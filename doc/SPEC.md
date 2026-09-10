@@ -270,10 +270,20 @@ a value once and tests nothing.
    run.
 
 Four rules that bound a writer of an earlier draft are gone, because the
-records hold them where a row is made: an effect a row starts is one the
-tune runs, a source and a target a row names are ones this document
+structure holds them where a row is made: an effect a row starts is one
+the tune runs, a source and a target a row names are ones this document
 defines, a row that starts an effect for the first time states its target,
 and a row that stops an effect states no rate.
+
+Three of the five above are read off a tune's rows, and `bin/ymxs-check`
+names the row that breaks one. Rule 2 leaves an order to the writer, so
+there is nothing to read. Rule 4 asks for a value where a stopped timer
+begins a whole period with it or without it, so there is no way to state
+it wrongly.
+
+A source that plays once states when it starts and never when it is done,
+so how long it runs is reckoned from its rate, and a reading that rests on
+that reckoning is marked as one that does.
 
 ---
 

@@ -209,8 +209,8 @@ public final class Read {
                         lastKind[i] = slot[i].kind();
                         lastTarget[i] = slot[i].target();
                         if (slot[i].kind() == Slot.RECORDING) {
-                            drumEnd[i] = f + frames(Tunes.size(Tunes.table(names)), slot[i].prescaler(),
-                                    slot[i].count(), song.playerHz());
+                            drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.table(names)),
+                                    slot[i].prescaler(), slot[i].count(), song.playerHz());
                         }
                     } else if (slot[i].prescaler() != prescalerHeld[i]
                             || slot[i].count() != countHeld[i]) {
@@ -313,12 +313,4 @@ public final class Read {
         }
     }
 
-    /** The frames a source of {@code rows} rows takes at a rate, rounded
-     *  up, with a sixteenth of a frame for the start running into its own
-     *  frame. */
-    static int frames(int rows, Prescaler prescaler, int count, int rate) {
-        long divisor = (long) Chip.divides(prescaler) * count;
-        long scaled = (long) rows * divisor * rate + Chip.CLOCK / 16;
-        return (int) ((scaled + Chip.CLOCK - 1) / Chip.CLOCK);
-    }
 }

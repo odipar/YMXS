@@ -76,6 +76,117 @@ final class CheckTest {
                 Check.of(new YMXS.Multi(List.of())));
     }
 
+    // ------------------------------ what SPEC.md 6 asks of a writer
+
+    private static final Source SQUARE = Tunes.repeating("square", List.of(15, 0), 0);
+    private static final Source OTHER = Tunes.repeating("other", List.of(12, 0), 0);
+    private static final Source LONGER = Tunes.repeating("longer", List.of(15, 8, 0), 0);
+    private static final Source DRUM = Tunes.once("drum", List.of(8, 12, 15, 13));
+
+    /** A tune of these rows, at 50 Hz, repeating to row 0. */
+    private static Tune of(Row... rows) {
+        return new Tune("", "", "", 50, Tunes.repeating(List.of(rows), 0));
+    }
+
+    private static Row starts(Source source, boolean placeReset) {
+        return new Row(Map.of(), Map.of(Timer.A, new Start(Tunes.setting(Register.R8),
+                source, Prescaler.BY_4, 100, true, placeReset)));
+    }
+
+    @Test
+    void aRowThatSetsARegisterAnEffectRunsOnIsSaid() {
+        Tune tune = of(starts(SQUARE, true), Tunes.row(Map.of(Register.R8, 12)));
+        assertEquals(List.of("row 1: Timer A runs on R8, and this row sets it"),
+                Check.writing(tune));
+    }
+
+    @Test
+    void theRowThatStopsTheEffectMaySetIt() {
+        Tune tune = of(starts(SQUARE, true),
+                new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)));
+        assertEquals(List.of(), Check.writing(tune),
+                "the row that stops it takes the register back");
+    }
+
+    @Test
+    void anEffectOnTheEnvelopeShapeHoldsNothingAgainstTheRow() {
+        Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
+        Tune tune = of(new Row(Map.of(), Map.of(Timer.A, new Start(
+                        Tunes.setting(Register.R13), buzzer, Prescaler.BY_4, 100, true, true))),
+                Tunes.row(Map.of(Register.R13, 9)));
+        assertEquals(List.of(), Check.writing(tune),
+                "the frame's own write to R13 restarts the envelope beside the ticks'");
+    }
+
+    @Test
+    void aStartWithoutThePlaceResetOnATimerThatHasRunNothingIsSaid() {
+        assertEquals(List.of("row 0: Timer A starts a source without the place's reset,"
+                + " and this timer has run none: the place stands where nothing put it"),
+                Check.writing(of(starts(SQUARE, false))));
+    }
+
+    @Test
+    void aSourceOfTheRowCountBeforeItMayLeaveThePlaceWhereItIs() {
+        Tune tune = of(starts(SQUARE, true), starts(OTHER, false));
+        assertEquals(List.of(), Check.writing(tune),
+                "two sources of two rows on one target: the wave keeps its phase");
+    }
+
+    @Test
+    void aSourceOfAnotherRowCountMayNot() {
+        Tune tune = of(starts(SQUARE, true), starts(LONGER, false));
+        assertEquals(List.of("row 1: Timer A starts a source of 3 rows without the place's"
+                + " reset, and the one before it held 2"), Check.writing(tune));
+    }
+
+    @Test
+    void aStartOnAnotherTargetMayNot() {
+        Row elsewhere = new Row(Map.of(), Map.of(Timer.A, new Start(
+                Tunes.setting(Register.R9), OTHER, Prescaler.BY_4, 100, true, false)));
+        Tune tune = of(starts(SQUARE, true), elsewhere);
+        assertEquals(List.of("row 1: Timer A starts a source on setR9 without the place's"
+                + " reset, and this timer last ran on setR8"), Check.writing(tune));
+    }
+
+    @Test
+    void aRetuneOfAnEffectThatRunsNothingIsSaid() {
+        Tune tune = of(new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))));
+        assertEquals(List.of("row 0: Timer A retunes an effect that runs nothing: a rate"
+                + " written to a timer with nothing on it starts that timer with nothing"
+                + " to run"), Check.writing(tune));
+    }
+
+    @Test
+    void aPlayOnceSourceThatIsOverLeavesTheRegisterToTheRows() {
+        // four rows at 4 x 100 are over inside one frame of a 50 Hz tune
+        Row start = new Row(Map.of(), Map.of(Timer.A, new Start(Tunes.setting(Register.R8),
+                DRUM, Prescaler.BY_4, 100, true, true)));
+        assertEquals(1, Chip.frames(4, Prescaler.BY_4, 100, 50));
+        assertEquals(List.of(), Check.writing(of(start, Tunes.row(Map.of(Register.R8, 12)))),
+                "the source has run out, so the register is the rows' again");
+    }
+
+    @Test
+    void whatRestsOnHowLongAPlayOnceSourceRunsSaysSo() {
+        // four rows at 200 x 200 take about four frames of a 50 Hz tune
+        Row start = new Row(Map.of(), Map.of(Timer.A, new Start(Tunes.setting(Register.R8),
+                DRUM, Prescaler.BY_200, 200, true, true)));
+        Tune tune = of(start, Tunes.row(Map.of(Register.R8, 12)));
+        List<String> said = Check.writing(tune);
+        assertEquals(1, said.size(), said.toString());
+        assertTrue(said.get(0).endsWith("reckoned from its rate"), said.get(0));
+        assertEquals(4, Chip.frames(4, Prescaler.BY_200, 200, 50),
+                "the frames the reckoning gives it");
+    }
+
+    @Test
+    void aTuneThatKeepsTheRulesSaysNothing() {
+        Tune tune = of(starts(SQUARE, true), Tunes.NOTHING,
+                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
+                new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)));
+        assertEquals(List.of(), Check.writing(tune));
+    }
+
     @Test
     void aTableRepeatingPastItsLastRowIsSaid() {
         Tune tune = new Tune("", "", "", 50,

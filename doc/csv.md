@@ -80,10 +80,10 @@ misread.
 ## Between the two forms
 
 ```bash
-bin/ymxs-convert tune.json tune.csv
-bin/ymxs-convert tune.csv tune.json
+bin/ymxs-json-to-csv < tune.json > tune.csv
+bin/ymxs-csv-to-json < tune.csv > tune.json
 ```
 
-The name it writes says which form to write. `doc/tunes/circus.csv` is one
-tune in this form and `doc/tunes/circus.json` the same tune in the other,
-and a test holds the two to one structure.
+`doc/tunes/circus.csv` is one tune in this form and
+`doc/tunes/circus.json` the same tune in the other, and a test holds the
+two to one structure.

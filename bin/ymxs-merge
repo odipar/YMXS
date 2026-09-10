@@ -1,0 +1,3 @@
+#!/bin/sh
+# Several tunes on standard input into one multi. doc/tools.md.
+exec "$(dirname -- "$0")/run" org.ymxs.tool.Merge "$@"

@@ -1,0 +1,60 @@
+#!/bin/sh
+# What every tool in this directory runs through. It builds where a source
+# or the pom is newer than the last build, and runs the class it is given.
+#
+#   bin/run org.ymxs.tool.Checking [what to hand it ...]
+#
+# Everything a tool does is Java's, so a script beside this one names a
+# class and nothing else. doc/tools.md.
+set -e
+
+if [ $# -eq 0 ]; then
+    echo "run: a class to run, and what to hand it" >&2
+    exit 2
+fi
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+classes=$root/target/classes
+path=$root/target/classpath.txt
+built=$classes/.built
+lock=$root/target/.building
+
+# Whether a build is owed: nothing built yet, no classpath written, or a
+# source newer than the last build.
+owed() {
+    [ ! -f "$built" ] || [ ! -f "$path" ] || [ -n "$(find "$root/src/main/java" \
+        "$root/pom.xml" -newer "$built" -print -quit 2>/dev/null)" ]
+}
+
+build() {
+    (cd "$root" && mvn -q compile >/dev/null \
+        && mvn -q dependency:build-classpath -Dmdep.outputFile=target/classpath.txt >/dev/null)
+    : > "$built"
+}
+
+if owed; then
+    # A pipe starts every tool at once, so two of them can owe the same
+    # build. mkdir either makes the directory or does not, so the first
+    # one through builds and the rest wait on it.
+    mkdir -p "$root/target"
+    waited=0
+    while ! mkdir "$lock" 2>/dev/null; do
+        waited=$((waited + 1))
+        if [ "$waited" -gt 180 ]; then
+            echo "run: a build has held $lock for three minutes" >&2
+            exit 2
+        fi
+        sleep 1
+    done
+    trap 'rmdir "$lock" 2>/dev/null || true' EXIT INT TERM
+    # The one that waited may have nothing left to do.
+    if owed; then
+        build
+    fi
+    rmdir "$lock" 2>/dev/null || true
+    trap - EXIT INT TERM
+fi
+
+class=$1
+shift
+exec java -ea -cp "$classes:$(cat "$path")" "$class" "$@"

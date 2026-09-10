@@ -28,17 +28,15 @@ src/main/java/org/ymxs/Check.java   what a structure has to satisfy
 src/main/java/org/ymxs/Json.java    the structure to a JSON tree and back
 src/main/java/org/ymxs/Text.java    that tree written and read as text
 src/main/java/org/ymxs/Csv.java     the table form, written and read
+src/main/java/org/ymxs/tool/        the tools, each a filter
 src/main/java/org/ymxs/ym/          an example: a YM register dump read in
 doc/SPEC.md                         what a player does with a structure
 doc/text.md                         the text form, written out
 doc/csv.md                          the table form, written out
+doc/tools.md                        the tools, and what they exit with
 doc/ym.md                           the example, written out
-doc/tunes/                          tunes in that form, read back by the tests
-src/main/java/org/ymxs/tool/        the tools
-bin/ym-to-ymxs                      a dump into the text form
-bin/packed-ym-to-ymxs               a distributed .ym into the text form
-bin/ymxs-check                      what a tune gets wrong, and what it breaks
-bin/ymxs-convert                    one form into the other
+doc/tunes/                          tunes in both forms, read back by the tests
+bin/                                a line a tool, and bin/run under them all
 ```
 
 `YMXS.java` holds the structure and nothing else: bare records and sealed
@@ -51,7 +49,15 @@ they read it.
 
 Java 23 and Maven. `mvn test` reads every tune under `doc/tunes` back in
 both forms, holds SPEC.md's listing to the records, reads a dump the test
-writes itself, and holds the documents to the house style.
+writes itself and an archive holding another, runs the tools in a pipe,
+and holds the documents to the house style.
+
+```bash
+bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
+```
+
+Every tool reads standard input and writes standard output, so they stand
+in a pipe. [doc/tools.md](doc/tools.md) has them.
 
 ## Where the figures come from
 

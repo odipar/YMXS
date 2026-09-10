@@ -9,27 +9,26 @@ is not this one maps onto the structure, and because the figures the
 records and [SPEC.md](SPEC.md) state were read off dumps, so a reader can
 run them again.
 
+```bash
+bin/ym-to-ymxs < tune.ym > tune.json
 ```
-bin/ym-to-ymxs in.ym [more.ym ...] out.json [-rROW | -r]
-bin/packed-ym-to-ymxs in.ym [more.ym ...] out.json [-rROW | -r]
+
+A dump on standard input, the text form on standard output. What it came
+to goes to standard error. `-rROW` makes a tune that repeats to that row
+and `-r` one that plays once; without either, a tune repeats to the frame
+the dump names.
+
+A distributed `.ym` is usually an archive holding the dump, and either
+reads: `Lha` unpacks one where it is handed one. That is plumbing and no
+part of the format; it is here so that a reader hands over the file as it
+was distributed rather than unpacking it first with a tool of their own.
+
+One dump is one tune, so what comes out is a multi of one.
+`bin/ymxs-merge` puts several together:
+
+```bash
+{ bin/ym-to-ymxs < one.ym; bin/ym-to-ymxs < two.ym; } | bin/ymxs-merge > both.json
 ```
-
-Each dump named becomes a tune, and the tunes go into one multi in the
-order named. `-rROW` makes a tune that repeats to that row and `-r` one
-that plays once; without either, a tune repeats to the frame the dump
-names. What each dump came to goes to standard error and the file written
-to standard output.
-
-A distributed `.ym` is usually an archive holding the dump.
-`bin/ym-to-ymxs` reads the dump; handed an archive, it names it as one and
-asks for it unpacked.
-
-`bin/packed-ym-to-ymxs` is the one to run on a file as it was
-distributed. It unpacks what it is handed with `7z`, `7zz` or `lha`,
-whichever is on the path, and runs the reader on what comes out, so the
-reader itself stays a reader of dumps. A file that is already a dump is
-passed through, and a name it cannot find a dump in is named rather than
-read.
 
 ## What a dump holds
 
@@ -90,9 +89,9 @@ recording whose sample the file does not hold. Both are counted and said.
 
 `doc/tunes/` holds five tunes this made, and the tests read every one of
 them back. `ReadTest` builds a dump in the test rather than reading a
-file, so what a frame holds is stated where it is read, and `PackedTest`
-runs the script the way a reader runs it.
+file, so what a frame holds is stated where it is read.
 
-What the script unpacks is not read by a test: an archive cannot be made
-on every machine, and a test that needs one to be there is a test that is
-sometimes not run. Everything around the unpacking is read.
+`src/test/resources/packed.ym` is 162 bytes of `-lh5-`, and the tune
+inside it is the one `doc/tunes/circus.json` holds, so `PackedTest` reads
+what comes out of the unpacking against a tune that was read another way.
+`PipeTest` runs the tools the way a reader runs them, in a pipe.

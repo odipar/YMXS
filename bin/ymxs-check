@@ -1,16 +1,3 @@
 #!/bin/sh
-# What a tune gets wrong, and what a writer keeps to that it does not. doc/SPEC.md 6.
-#
-# A wrapper: it builds where a source or the pom is newer than the last
-# build, and runs the tool. Everything the tool does is Java's.
-set -e
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-classes=$root/target/classes
-path=$root/target/classpath.txt
-built=$classes/.built
-if [ ! -f "$built" ] || [ ! -f "$path" ] || [ -n "$(find "$root/src/main/java" "$root/pom.xml" -newer "$built" -print -quit 2>/dev/null)" ]; then
-    (cd "$root" && mvn -q compile >/dev/null \
-        && mvn -q dependency:build-classpath -Dmdep.outputFile=target/classpath.txt >/dev/null)
-    : > "$built"
-fi
-exec java -ea -cp "$classes:$(cat "$path")" org.ymxs.tool.Checking "$@"
+# What a tune gets wrong, and what a writer keeps to that it does not. doc/tools.md.
+exec "$(dirname -- "$0")/run" org.ymxs.tool.Checking "$@"

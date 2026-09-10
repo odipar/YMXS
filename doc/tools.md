@@ -17,9 +17,21 @@ bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 | `ymxs-csv-to-json` | the table form | the text form |
 | `ymxs-merge` | several tunes, one file after another | one multi |
 
-Each is a shell script wrapping a Java class. The script builds where a
-source is newer than the last build and runs the tool; everything the tool
-does is Java's.
+Each is a shell script naming a Java class and nothing else:
+
+```sh
+#!/bin/sh
+# The text form into the table form. doc/csv.md.
+exec "$(dirname -- "$0")/run" org.ymxs.tool.ToCsv "$@"
+```
+
+`bin/run` is what they all go through. It builds where a source or the pom
+is newer than the last build, then runs the class it is given. Everything
+a tool does is Java's.
+
+A pipe starts every tool in it at once, so two of them can owe the same
+build. `bin/run` takes a lock by making a directory, which either happens
+or does not: the first one through builds and the rest wait on it.
 
 ## What a tool exits with
 

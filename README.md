@@ -36,7 +36,7 @@ doc/csv.md                          the table form, written out
 doc/tools.md                        the tools, and what they exit with
 doc/ym.md                           the example, written out
 doc/tunes/                          tunes in both forms, read back by the tests
-bin/                                a wrapper a tool, reading standard input
+bin/                                a line a tool, and bin/run under them all
 ```
 
 `YMXS.java` holds the structure and nothing else: bare records and sealed

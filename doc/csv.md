@@ -25,7 +25,7 @@ recording 0,
 0,8
 1,9
 
-### row,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
+### rows,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 0,64,1,48,2,32,3,0,56,,12,11,0,0,
 1,65,,49,,33,,1,,,,,3,,
 
@@ -66,10 +66,10 @@ one run of them.
 | `tune` | one row, and it opens a tune |
 | `source` | one row, and it opens a source, in the order a row first starts it |
 | `value` | one row a value of the source it comes after |
-| `row` | one row a row of the tune that sets a register |
+| `rows` | one row a row of the tune that sets a register |
 | `timerA` to `timerD` | one row an effect a row states on that timer |
 
-**An empty cell in `row`** is a register that row does not set. A row that
+**An empty cell in `rows`** is a register that row does not set. A row that
 sets none is no row of the table: the `row` column says which row a line
 is, and `frames` in the `tune` table says how many the tune has.
 

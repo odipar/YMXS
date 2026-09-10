@@ -81,7 +81,7 @@ public final class Csv {
             }
         }
 
-        List<Object> named = new ArrayList<>(List.of("row", "row"));
+        List<Object> named = new ArrayList<>(List.of("rows", "row"));
         for (Register register : Register.values()) {
             named.add(Json.name(register));
         }
@@ -267,7 +267,7 @@ public final class Csv {
                         held0.add(number(held.of(line, "value"), "value"));
                     }
                 }
-                case "row" -> {
+                case "rows" -> {
                     for (List<String> line : held.rows()) {
                         int at = row(count, held.of(line, "row"), "tune " + number
                                 + " holds a row");

@@ -58,9 +58,9 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###")).toList();
         List<String> named = lines.stream()
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
-        assertEquals(List.of("multi", "tune", "row"), named,
+        assertEquals(List.of("multi", "tune", "rows"), named,
                 "circus runs no source and states no effect, so it opens neither");
-        assertEquals(List.of("row", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
+        assertEquals(List.of("rows", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
                 Csv.cells(lines.get(2).substring(3).strip()),
                 "a row of a tune is a row here, with a column a register");
@@ -69,7 +69,7 @@ final class CsvTest {
     @Test
     void aRowIsARowAndAnEmptyCellIsARegisterItDoesNotSet() throws IOException {
         List<String> rows = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
-                .dropWhile(one -> !one.startsWith("### row"))
+                .dropWhile(one -> !one.startsWith("### rows"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(4, rows.size(), "one line a row that sets something");
         List<String> first = Csv.cells(rows.get(0));
@@ -91,7 +91,7 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###"))
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
-                "row", "timerA", "timerD"), named,
+                "rows", "timerA", "timerD"), named,
                 "a source opens its own table, and so does a timer any row states");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
@@ -168,7 +168,7 @@ final class CsvTest {
                 Tunes.row(Map.of(Register.R7, 56)), Tunes.NOTHING,
                 Tunes.row(Map.of(Register.R7, 49))), 0));
         String csv = Csv.write(Tunes.multi(tune));
-        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### row"))
+        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### rows"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of("0,,,,,,,,56,,,,,,", "2,,,,,,,,49,,,,,,"), rows,
                 "the row column says which row, so a row that sets nothing is left out");
@@ -219,7 +219,7 @@ final class CsvTest {
                 ### tune,frames,rate,repeat,writer,composer,title
                 1,50,0,a writer,a composer,a title
 
-                ### row,r0,row
+                ### rows,r0,row
                 200,0
                 """;
         Tune tune = Csv.read(csv).tunes().get(0);

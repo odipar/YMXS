@@ -1,22 +1,21 @@
 package org.ymxs.ym;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
-import org.ymxs.Tunes;
-import org.ymxs.YMXS.Multi;
 import org.ymxs.Text;
+import org.ymxs.Tunes;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.tool.Tool;
 
 /**
- * {@code ym-to-ymxs in.ym [more.ym ...] out.json}: dumps read into one
- * multi, written as the text form. A dump this does not read gets a line
- * on standard error beginning {@code ym-to-ymxs: } and an exit of 1; a
- * file that does not read or write gets the same and an exit of 2, as
- * does a wrong call.
+ * {@code ym-to-ymxs}: a YM5!/YM6! register dump on standard input, the
+ * text form on standard output. A distributed {@code .ym} is usually an
+ * archive holding the dump, and either reads.
+ *
+ * <p>One dump is one tune, so what comes out is a multi of one.
+ * {@code ymxs-merge} puts several together.
  *
  * <p>{@code -r} makes a tune that plays once, and {@code -rROW} one that
  * repeats to that row; without either, a tune repeats to the frame the
@@ -28,10 +27,11 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        List<String> named = new ArrayList<>();
+        List<String> rest = new ArrayList<>(Arrays.asList(args));
+        Tool tool = Tool.of("ym-to-ymxs", rest, "-r");
         OptionalInt repeat = OptionalInt.empty();
         boolean stated = false;
-        for (String arg : args) {
+        for (String arg : rest) {
             if (arg.equals("-r")) {
                 stated = true;
             } else if (arg.startsWith("-r")) {
@@ -39,46 +39,24 @@ public final class Main {
                 try {
                     repeat = OptionalInt.of(Integer.parseInt(arg.substring(2)));
                 } catch (NumberFormatException wrong) {
-                    System.err.println("ym-to-ymxs: " + arg + " is not a row number");
-                    System.exit(2);
-                    return;
+                    throw tool.usage(arg + " is not a row number");
                 }
             } else {
-                named.add(arg);
+                throw tool.usage("ym-to-ymxs reads a dump on standard input and writes the"
+                        + " text form on standard output. It takes -rROW, -r and -silent,"
+                        + " and \"" + arg + "\" is none of them.");
             }
         }
-        if (named.size() < 2) {
-            System.err.println("ym-to-ymxs in.ym [more.ym ...] out.json [-rROW | -r]");
-            System.exit(2);
-            return;
-        }
-        List<Tune> tunes = new ArrayList<>();
-        for (int at = 0; at + 1 < named.size(); at++) {
-            try {
-                Dump.Song song = Dump.read(Files.readAllBytes(Path.of(named.get(at))));
-                OptionalInt to = stated ? repeat : OptionalInt.of(row(song));
-                Read.Reading reading = Read.of(song, "ym-to-ymxs", to);
-                tunes.add(reading.tune());
-                said(named.get(at), reading);
-            } catch (Dump.Unreadable | IllegalArgumentException wrong) {
-                System.err.println("ym-to-ymxs: " + named.get(at) + ": " + wrong.getMessage());
-                System.exit(1);
-                return;
-            } catch (IOException failed) {
-                System.err.println("ym-to-ymxs: " + failed);
-                System.exit(2);
-                return;
-            }
-        }
-        Path out = Path.of(named.get(named.size() - 1));
+        Dump.Song song;
+        Read.Reading reading;
         try {
-            Files.writeString(out, Text.write(new Multi(tunes)));
-        } catch (IOException failed) {
-            System.err.println("ym-to-ymxs: " + failed);
-            System.exit(2);
-            return;
+            song = Dump.read(tool.bytes());
+            reading = Read.of(song, "ym-to-ymxs", stated ? repeat : OptionalInt.of(row(song)));
+        } catch (Dump.Unreadable | IllegalArgumentException no) {
+            throw tool.wrong(Tool.WRONG, String.valueOf(no.getMessage()));
         }
-        System.out.println(out + ": " + tunes.size() + (tunes.size() == 1 ? " tune" : " tunes"));
+        tool.write(Text.write(Tunes.multi(reading.tune())));
+        said(tool, song, reading);
     }
 
     /** The row a dump repeats to, or 0 where it names none this reads. */
@@ -87,12 +65,16 @@ public final class Main {
         return loop >= 0 && loop < song.frames() ? (int) loop : 0;
     }
 
-    /** What one dump came to, on standard error. */
-    private static void said(String name, Read.Reading reading) {
+    /** What the dump came to, on standard error. */
+    private static void said(Tool tool, Dump.Song song, Read.Reading reading) {
+        if (!tool.says()) {
+            return;
+        }
         Tune tune = reading.tune();
-        StringBuilder out = new StringBuilder(name + ": " + Tunes.size(tune.table())
-                + " rows at " + tune.rate() + " Hz, " + Tunes.sources(tune).size()
-                + " sources, timers " + Tunes.timers(tune));
+        StringBuilder out = new StringBuilder(song.format() + " \"" + song.name() + "\" by \""
+                + song.author() + "\", " + Tunes.size(tune.table()) + " rows at " + tune.rate()
+                + " Hz, " + Tunes.sources(tune).size() + " sources, timers "
+                + Tunes.timers(tune));
         Read.Said said = reading.said();
         if (said.dropped() > 0) {
             out.append(", ").append(said.dropped()).append(" slots this does not read");
@@ -105,6 +87,6 @@ public final class Main {
             out.append(", ").append(said.cutAtRepeat())
                     .append(" recordings cut at the row the tune repeats to");
         }
-        System.err.println(out);
+        tool.say(out.toString());
     }
 }

@@ -124,10 +124,18 @@ final class ReadTest {
     }
 
     @Test
-    void anArchiveIsSaidToBeOneRatherThanRead() {
-        byte[] archive = {0x22, 0x2D, '-', 'l', 'h', '5', '-', 0x00};
+    void anArchiveThatWillNotUnpackIsSaidToBeOne() {
+        // an -lh5- header long enough to be taken for an archive, and
+        // nothing behind it
+        byte[] archive = new byte[22];
+        archive[0] = 0x22;
+        archive[2] = '-';
+        archive[3] = 'l';
+        archive[4] = 'h';
+        archive[5] = '5';
+        archive[6] = '-';
         Dump.Unreadable no = assertThrows(Dump.Unreadable.class, () -> Dump.read(archive));
-        assertTrue(String.valueOf(no.getMessage()).contains("unpack it first"),
+        assertTrue(String.valueOf(no.getMessage()).contains("does not unpack"),
                 String.valueOf(no.getMessage()));
     }
 

@@ -10,6 +10,9 @@ import java.nio.charset.StandardCharsets;
  * strings ended by a zero, and then the frames: either sixteen vectors of
  * one register each, or one record of sixteen bytes a frame. Both come out
  * as sixteen register vectors.
+ *
+ * <p>A distributed {@code .ym} is usually an archive holding that, and
+ * {@link Lha} unpacks one, so what this is handed reads either way.
  */
 public final class Dump {
 
@@ -60,10 +63,13 @@ public final class Dump {
      * @throws Unreadable where it is not a YM5! or YM6! dump
      */
     public static Song read(byte[] data) {
-        if (data.length > 2 && (data[2] & 0xFF) == '-' && data.length > 6
-                && (data[3] & 0xFF) == 'l') {
-            throw new Unreadable("this is an archive holding a dump, not a dump: unpack it"
-                    + " first, with lha or 7z");
+        if (Lha.isArchive(data)) {
+            try {
+                data = Lha.unpack(data);
+            } catch (IllegalArgumentException no) {
+                throw new Unreadable("this is an archive holding a dump, and it does not"
+                        + " unpack: " + no.getMessage());
+            }
         }
         return new Dump(data).run();
     }

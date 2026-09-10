@@ -36,6 +36,29 @@ public final class Text {
         }
     }
 
+    /**
+     * Every multi {@code text} holds, one after another. JSON puts no
+     * count in front of a stream of values, so this is what a reader gets
+     * where several files are handed to it as one.
+     *
+     * @throws IllegalArgumentException where the text is not JSON, not this
+     *     form, or states a structure no player plays
+     */
+    public static java.util.List<Multi> readAll(String text) {
+        java.util.List<Multi> out = new java.util.ArrayList<>();
+        try (com.fasterxml.jackson.databind.MappingIterator<com.fasterxml.jackson.databind
+                .JsonNode> trees = MAPPER.readerFor(
+                        com.fasterxml.jackson.databind.JsonNode.class).readValues(text)) {
+            while (trees.hasNext()) {
+                out.add(Json.multi(trees.next()));
+            }
+        } catch (java.io.IOException wrong) {
+            throw new IllegalArgumentException("this is not JSON: " + wrong.getMessage(),
+                    wrong);
+        }
+        return out;
+    }
+
     /** The multi {@code text} holds.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this

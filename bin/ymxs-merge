@@ -1,5 +1,5 @@
 #!/bin/sh
-# A YM register dump, packed or not, into the text form. doc/ym.md.
+# Several tunes on standard input into one multi. doc/text.md.
 #
 # A wrapper: it builds where a source or the pom is newer than the last
 # build, and runs the tool. Everything the tool does is Java's.
@@ -13,4 +13,4 @@ if [ ! -f "$built" ] || [ ! -f "$path" ] || [ -n "$(find "$root/src/main/java" "
         && mvn -q dependency:build-classpath -Dmdep.outputFile=target/classpath.txt >/dev/null)
     : > "$built"
 fi
-exec java -ea -cp "$classes:$(cat "$path")" org.ymxs.ym.Main "$@"
+exec java -ea -cp "$classes:$(cat "$path")" org.ymxs.tool.Merge "$@"

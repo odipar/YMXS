@@ -58,8 +58,8 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###")).toList();
         List<String> named = lines.stream()
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
-        assertEquals(List.of("multi", "tune", "row", "effect"), named,
-                "circus runs no source, so it opens none");
+        assertEquals(List.of("multi", "tune", "row"), named,
+                "circus runs no source and states no effect, so it opens neither");
         assertEquals(List.of("row", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
                 Csv.cells(lines.get(2).substring(3).strip()),
@@ -91,8 +91,8 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###"))
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
-                "row", "effect"), named,
-                "a source opens its own table and its values come after it");
+                "row", "timer0", "timer3"), named,
+                "a source opens its own table, and so does a timer any row states");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
 
@@ -108,6 +108,35 @@ final class CsvTest {
                 "one table a tune opens it");
         assertTrue(!csv.contains(",tune,"), "and no table names which tune a row belongs to");
         assertEquals(multi, Csv.read(csv));
+    }
+
+    @Test
+    void aTimerHoldsWhatTheTextFormHoldsOfIt() {
+        Source square = Tunes.repeating("square", List.of(15, 0), 0);
+        Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
+                new Row(Map.of(), Map.of(Timer.A, Tunes.struck(
+                        Tunes.setting(Register.R8), square, Prescaler.BY_4, 100))),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
+        List<String> rows = Csv.write(Tunes.multi(tune)).lines()
+                .dropWhile(one -> !one.startsWith("### timer0"))
+                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+        assertEquals(List.of(
+                "0,0,8,1,4,100,1,1",
+                "1,1,,,4,90,0,0",
+                "2,2,,,,,,"),
+                rows,
+                "a shape, a target and the two resets are the numbers the text form writes,"
+                        + " and a cell is empty where that form says none");
+        assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
+    }
+
+    @Test
+    void aTimerNoRowStatesOpensNoTable() {
+        Tune tune = new Tune("", "", "", 50,
+                Tunes.repeating(List.of(Tunes.row(Map.of(Register.R0, 1))), 0));
+        assertTrue(!Csv.write(Tunes.multi(tune)).contains("### timer"),
+                Csv.write(Tunes.multi(tune)));
     }
 
     @Test

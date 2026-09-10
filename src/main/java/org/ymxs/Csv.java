@@ -99,21 +99,42 @@ public final class Csv {
             row(out, said.toArray());
         }
 
-        table(out, "effect", "row", "timer", "shape", "target", "source", "prescaler",
-                "count", "timerReset", "placeReset");
+        for (Timer timer : Timer.values()) {
+            timer(out, timer, rows, sources);
+        }
+    }
+
+    /** One timer's table, where any row states something on it. The values
+     *  are the ones {@link Json} writes, and a cell is empty where that
+     *  form would say none. */
+    private static void timer(StringBuilder out, Timer timer, List<Row> rows,
+                              List<Source> sources) {
+        boolean any = false;
+        for (Row row : rows) {
+            if (row.effects().containsKey(timer)) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        table(out, "timer" + timer.ordinal(), "row", "shape", "target", "source",
+                "prescaler", "count", "timerReset", "placeReset");
         for (int line = 0; line < rows.size(); line++) {
-            for (Map.Entry<Timer, Effect> one : Tunes.effects(rows.get(line)).entrySet()) {
-                switch (one.getValue()) {
-                    case Start start -> row(out, line, one.getKey(), "start",
-                            Tunes.name(start.target()), sources.indexOf(start.source()) + 1,
-                            Chip.divides(start.prescaler()), start.count(),
-                            start.timerReset(), start.placeReset());
-                    case Retune retune -> row(out, line, one.getKey(), "retune", "", "",
-                            Chip.divides(retune.prescaler()), retune.count(),
-                            retune.timerReset(), retune.placeReset());
-                    case Stop ignored -> row(out, line, one.getKey(), "stop", "", "", "", "",
-                            "", "");
-                }
+            Effect effect = rows.get(line).effects().get(timer);
+            if (effect == null) {
+                continue;
+            }
+            switch (effect) {
+                case Start start -> row(out, line, Json.START,
+                        Tunes.number(start.target()), sources.indexOf(start.source()) + 1,
+                        Chip.divides(start.prescaler()), start.count(),
+                        start.timerReset() ? 1 : 0, start.placeReset() ? 1 : 0);
+                case Retune retune -> row(out, line, Json.RETUNE, "", "",
+                        Chip.divides(retune.prescaler()), retune.count(),
+                        retune.timerReset() ? 1 : 0, retune.placeReset() ? 1 : 0);
+                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "");
             }
         }
     }
@@ -259,9 +280,14 @@ public final class Csv {
                         }
                     }
                 }
-                case "effect" -> acts.add(held);
-                default -> throw new IllegalArgumentException("tune " + number + " holds a \""
-                        + TABLE + held.named() + "\" table, which this form does not name");
+                default -> {
+                    if (!held.named().startsWith("timer")) {
+                        throw new IllegalArgumentException("tune " + number + " holds a \""
+                                + TABLE + held.named() + "\" table, which this form does not"
+                                + " name");
+                    }
+                    acts.add(held);
+                }
             }
         }
         List<Source> sources = new ArrayList<>();
@@ -270,11 +296,11 @@ public final class Csv {
                     repeats.get(at))));
         }
         for (Held held : acts) {
+            Timer timer = timer(held.named(), number);
             for (List<String> line : held.rows()) {
                 int at = row(count, held.of(line, "row"), "tune " + number
                         + " holds an effect");
-                effects.get(at).put(Timer.valueOf(held.of(line, "timer")),
-                        effect(held, line, sources, at));
+                effects.get(at).put(timer, effect(held, line, sources, at));
             }
         }
         List<Row> rows = new ArrayList<>();
@@ -286,27 +312,40 @@ public final class Csv {
                 new Table<>(rows, maybe(told.of(one, "repeat"))));
     }
 
+    /** The timer a table of that name holds. */
+    private static Timer timer(String named, int tune) {
+        int at = number(named.substring("timer".length()), "a timer");
+        if (at < 0 || at >= Timer.values().length) {
+            throw new IllegalArgumentException("tune " + tune + " holds a \"" + TABLE + named
+                    + "\" table, and a timer is timer0 to timer"
+                    + (Timer.values().length - 1));
+        }
+        return Timer.values()[at];
+    }
+
     private static Effect effect(Held acts, List<String> one, List<Source> sources, int at) {
-        String shape = acts.of(one, "shape");
+        int shape = number(acts.of(one, "shape"), "shape");
         return switch (shape) {
-            case "start" -> {
+            case Json.START -> {
                 int number = number(acts.of(one, "source"), "source");
                 if (number < 1 || number > sources.size()) {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + number + ", and the tune holds " + sources.size());
                 }
-                yield new Start(Json.target(acts.of(one, "target")), sources.get(number - 1),
+                yield new Start(Tunes.target(number(acts.of(one, "target"), "target")),
+                        sources.get(number - 1),
                         Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                         number(acts.of(one, "count"), "count"),
                         flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
             }
-            case "retune" -> new Retune(
+            case Json.RETUNE -> new Retune(
                     Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                     number(acts.of(one, "count"), "count"),
                     flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
-            case "stop" -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " states \"" + shape
-                    + "\" of an effect, and it states one of start, retune and stop");
+            case Json.STOP -> Tunes.STOP;
+            default -> throw new IllegalArgumentException("row " + at + " states shape "
+                    + shape + " of an effect, and a shape is " + Json.START + ", "
+                    + Json.RETUNE + " or " + Json.STOP);
         };
     }
 
@@ -336,8 +375,9 @@ public final class Csv {
         }
     }
 
+    /** A cell holding 1 or 0, as {@link Json} writes one. */
     private static boolean flag(String said) {
-        return Boolean.parseBoolean(said.strip());
+        return number(said, "true or false") == 1;
     }
 
     private static OptionalInt maybe(String said) {

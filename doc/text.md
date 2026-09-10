@@ -25,8 +25,8 @@ for a reader who would rather open one in a spreadsheet.
       "rows": {
         "r0": [163,142,251,89],
         "r1": [2,12,4,2],
-        "r2": [238,null,null,null],
-        "r7": [56,49,null,56]
+        "r2": [238,-1,-1,-1],
+        "r7": [56,49,-1,56]
       },
       "timer0": {
         "shape": [0,1,-1,2],
@@ -67,7 +67,8 @@ column, and a timer no row states has none.
 ## The registers
 
 `rows` holds a column a register, `r0` to `r13`, each one value a row.
-**`null` is a register that row does not set.**
+**-1 is a register that row does not set**, which no register takes as a
+value.
 
 | key | sets | takes |
 |---|---|---|
@@ -85,7 +86,7 @@ column, and a timer no row states has none.
 A timer is a structure of its own, since a row states an effect on as many
 of the four as it likes: `timer0` is Timer A, `timer1` B, `timer2` C and
 `timer3` D. Each holds seven columns, one value a row, and **-1 is what a
-row states nothing of.**
+row states nothing of**, as it is in a register's column.
 
 | column | holds |
 |---|---|

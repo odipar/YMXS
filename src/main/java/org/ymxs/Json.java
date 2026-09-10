@@ -29,11 +29,10 @@ import org.jspecify.annotations.Nullable;
  * the JSON library's; this maps, and nothing else.
  *
  * <p>A tune is written column by column. A register's column stands one
- * value a row, null where the row does not set it; a timer's columns
- * stand one value a row of what the row states of the effect there,
- * {@link #NONE} where it states nothing. Every column is as long as the
- * tune, so a row is what every column holds at that place and nothing has
- * to be counted to find it.
+ * value a row and a timer's columns stand one value a row of what the row
+ * states of the effect there, {@link #NONE} where a row states nothing.
+ * Every column is as long as the tune, so a row is what every column holds
+ * at that place and nothing has to be counted to find it.
  *
  * <p>A timer is a structure of its own, {@code timer0} to {@code timer3},
  * because a row states an effect on as many of the four as it likes. A
@@ -70,8 +69,9 @@ public final class Json {
         return out;
     }
 
-    /** What a column holds where the row it stands on states nothing: -1
-     *  in a timer's column, and null in a register's. */
+    /** What a column holds where the row it stands on states nothing. No
+     *  register takes it and no part of an effect is it, so it names
+     *  nothing else. */
     public static final int NONE = -1;
 
     /** What a shape is written as. */
@@ -110,20 +110,17 @@ public final class Json {
         return out;
     }
 
-    /** One register's column: its value on every row, and null where the
-     *  row does not set it. A register no row sets has no column. */
+    /** One register's column: its value on every row, and {@link #NONE}
+     *  where the row does not set it. A register no row sets has no
+     *  column. */
     private static void column(ObjectNode out, String named, List<Row> rows,
                                Register register) {
         ArrayNode values = MAKE.arrayNode();
         boolean any = false;
         for (Row row : rows) {
             Integer value = row.registers().get(register);
-            if (value == null) {
-                values.addNull();
-            } else {
-                values.add(value.intValue());
-                any = true;
-            }
+            values.add(value == null ? NONE : value.intValue());
+            any = any || value != null;
         }
         if (any) {
             out.set(named, values);
@@ -252,8 +249,14 @@ public final class Json {
                 }
                 held(column, count, name(register));
                 for (int at = 0; at < count; at++) {
-                    if (!column.get(at).isNull()) {
-                        registers.get(at).put(register, column.get(at).intValue());
+                    if (!column.get(at).isIntegralNumber()) {
+                        throw new IllegalArgumentException(name(register) + " holds "
+                                + column.get(at) + " at row " + at + ", and a whole number"
+                                + " is asked");
+                    }
+                    int value = column.get(at).intValue();
+                    if (value != NONE) {
+                        registers.get(at).put(register, value);
                     }
                 }
             }

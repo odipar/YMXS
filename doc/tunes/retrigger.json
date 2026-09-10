@@ -3,15 +3,15 @@
   "version": 1,
   "tunes": [
     {
-      "title": "Retrigger retune, built",
-      "composer": "",
+      "title": "Synthetic",
+      "composer": "Test",
       "writer": "ym-to-ymxs",
       "rate": 50,
       "rows": 600,
       "repeat": 0,
       "sources": [
-        {"name": "source 1", "repeat": 0, "rows": [10]},
-        {"name": "source 2", "repeat": 0, "rows": [12]}
+        {"name": "buzzer 10", "repeat": 0, "rows": [10]},
+        {"name": "buzzer 12", "repeat": 0, "rows": [12]}
       ],
       "r0": [
         [0, [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,

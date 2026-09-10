@@ -3,15 +3,15 @@
   "version": 1,
   "tunes": [
     {
-      "title": "Digidrum preempt, built",
-      "composer": "",
+      "title": "Synthetic",
+      "composer": "Test",
       "writer": "ym-to-ymxs",
       "rate": 50,
       "rows": 400,
       "repeat": 0,
       "sources": [
-        {"name": "source 1", "repeat": 0, "rows": [13,0]},
-        {"name": "source 2", "repeat": null, "rows": [8,9,10,11,12,13,13,14,14,14,13,13,12,11,10,8,7,6,5,4,
+        {"name": "square 13", "repeat": 0, "rows": [13,0]},
+        {"name": "recording 0", "repeat": null, "rows": [8,9,10,11,12,13,13,14,14,14,13,13,12,11,10,8,7,6,5,4,
           3,2,2,1,1,2,2,3,4,5,6,7,8,9,11,12,12,13,14,14,
           14,13,13,12,11,10,9,8,6,5,4,3,2,2,1,1,1,2,2,3,
           4,5,6,8,9,10,11,12,13,13,14,14,14,13,12,12,11,9,8,7,

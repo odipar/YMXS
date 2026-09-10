@@ -3,14 +3,14 @@
   "version": 1,
   "tunes": [
     {
-      "title": "Turrican 2 - world completed 1",
-      "composer": "",
+      "title": "Turrican 2 - World completed",
+      "composer": "Jochen Hippel (Chris Huelsbeck)",
       "writer": "ym-to-ymxs",
       "rate": 50,
       "rows": 178,
       "repeat": 177,
       "sources": [
-        {"name": "source 1", "repeat": null, "rows": [8,8,9,8,9,9,5,8,8,9,12,8,8,13,11,11,8,8,11,3,
+        {"name": "recording 1", "repeat": null, "rows": [8,8,9,8,9,9,5,8,8,9,12,8,8,13,11,11,8,8,11,3,
           13,2,8,12,6,0,5,9,3,0,9,0,3,8,13,1,9,11,15,3,
           15,15,15,15,15,12,15,15,11,9,12,13,1,4,9,3,1,0,0,0,
           1,0,0,0,0,0,0,0,0,0,1,1,7,0,15,8,15,15,15,15,

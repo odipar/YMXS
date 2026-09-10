@@ -106,4 +106,19 @@ public final class Chip {
     public static int rate(Prescaler prescaler, int count) {
         return CLOCK / (divides(prescaler) * count);
     }
+
+    /**
+     * The frames a source of {@code rows} rows takes at this rate, where
+     * the player is called {@code called} times a second: rounded up, with
+     * a sixteenth of a frame for the start running into its own frame.
+     *
+     * <p>This is a reckoning and not a reading. A tune states when a source
+     * starts and never when it is done, so how long one that plays once
+     * runs is worked out from its rate, and anything read off that says so.
+     */
+    public static int frames(int rows, Prescaler prescaler, int count, int called) {
+        long divisor = (long) divides(prescaler) * count;
+        long scaled = (long) rows * divisor * called + CLOCK / 16;
+        return (int) ((scaled + CLOCK - 1) / CLOCK);
+    }
 }

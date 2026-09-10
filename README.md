@@ -29,7 +29,9 @@ doc/SPEC.md                         what a player does with a structure
 doc/text.md                         the text form, written out
 doc/ym.md                           the example, written out
 doc/tunes/                          tunes in that form, read back by the tests
+src/main/java/org/ymxs/tool/        the tools
 bin/ym-to-ymxs                      a dump into the text form
+bin/ymxs-check                      what a tune gets wrong, and what it breaks
 ```
 
 `YMXS.java` holds the structure and nothing else: bare records and sealed

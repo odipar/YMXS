@@ -8,18 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
-import org.ymxs.Effect;
-import org.ymxs.Prescaler;
-import org.ymxs.Register;
-import org.ymxs.Retune;
-import org.ymxs.Row;
-import org.ymxs.Source;
-import org.ymxs.Start;
-import org.ymxs.Stop;
-import org.ymxs.Table;
-import org.ymxs.Target;
-import org.ymxs.Timer;
-import org.ymxs.Tune;
+import org.ymxs.Chip;
+import org.ymxs.Tunes;
+import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Retune;
+import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.Source;
+import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Stop;
+import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Target;
+import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Tune;
 
 /**
  * A dump read into a {@link Tune}: one row a frame, and a source for each
@@ -103,7 +105,7 @@ public final class Read {
             rows.add(new Row(registers.get(f), effects.get(f)));
         }
         Tune tune = new Tune(song.name(), song.author(), writer, song.playerHz(),
-                read.sources, new Table<>(rows, repeat));
+                new Table<>(rows, repeat));
         return new Reading(tune, new Said(read.dropped, read.preempted, read.cutAtRepeat));
     }
 
@@ -176,7 +178,7 @@ public final class Read {
                     if (drum && f < drumEnd[i] && !keyframe) {
                         // the recording plays on: the dump states only its start
                     } else if (running[i].on() || keyframe) {
-                        here.put(TIMER_OF[i], Stop.STOP);
+                        here.put(TIMER_OF[i], Tunes.STOP);
                         running[i] = Slot.EMPTY;
                         runs[i] = null;
                     }
@@ -199,7 +201,7 @@ public final class Read {
                         boolean unmoved = !keyframe && slot[i].kind() == Slot.SQUARE
                                 && lastKind[i] == Slot.SQUARE
                                 && lastTarget[i] == slot[i].target();
-                        here.put(TIMER_OF[i], new Start(Target.setting(slot[i].target()),
+                        here.put(TIMER_OF[i], new Start(Tunes.setting(slot[i].target()),
                                 names, slot[i].prescaler(), slot[i].count(), stopped,
                                 !unmoved));
                         running[i] = slot[i];
@@ -207,7 +209,7 @@ public final class Read {
                         lastKind[i] = slot[i].kind();
                         lastTarget[i] = slot[i].target();
                         if (slot[i].kind() == Slot.RECORDING) {
-                            drumEnd[i] = f + frames(names.table().size(), slot[i].prescaler(),
+                            drumEnd[i] = f + frames(Tunes.size(Tunes.table(names)), slot[i].prescaler(),
                                     slot[i].count(), song.playerHz());
                         }
                     } else if (slot[i].prescaler() != prescalerHeld[i]
@@ -220,7 +222,7 @@ public final class Read {
                 }
                 if (running[i].kind() == Slot.SQUARE
                         || running[i].kind() == Slot.RECORDING) {
-                    owned |= 1 << running[i].target().number();
+                    owned |= 1 << Chip.number(running[i].target());
                 }
                 if (running[i].kind() == Slot.RECORDING) {
                     reg[7] |= 0x09 << running[i].voice();
@@ -231,7 +233,7 @@ public final class Read {
                 if ((owned & 1 << c) != 0) {
                     held[c] = -1;                   // the effect's register, and no row's
                 } else if (reg[c] != held[c]) {
-                    sets.put(Register.at(c), reg[c]);
+                    sets.put(Chip.register(c), reg[c]);
                     held[c] = reg[c];
                 }
             }
@@ -298,16 +300,16 @@ public final class Read {
                 // states no level of its own, so the voice holds what the
                 // last row set for a timer's period and the first tick
                 // opens the loud half.
-                return Source.repeating("square " + data, List.of(data, 0), 0);
+                return Tunes.repeating("square " + data, List.of(data, 0), 0);
             case Slot.BUZZER:
-                return Source.repeating("buzzer " + data, List.of(data), 0);
+                return Tunes.repeating("buzzer " + data, List.of(data), 0);
             default:
                 List<Integer> rows = new ArrayList<>();
                 for (byte one : samples[data]) {
                     rows.add((int) one);
                 }
                 rows.add(PARK);
-                return Source.once("recording " + data, rows);
+                return Tunes.once("recording " + data, rows);
         }
     }
 
@@ -315,8 +317,8 @@ public final class Read {
      *  up, with a sixteenth of a frame for the start running into its own
      *  frame. */
     static int frames(int rows, Prescaler prescaler, int count, int rate) {
-        long divisor = (long) prescaler.divides() * count;
-        long scaled = (long) rows * divisor * rate + Prescaler.CLOCK / 16;
-        return (int) ((scaled + Prescaler.CLOCK - 1) / Prescaler.CLOCK);
+        long divisor = (long) Chip.divides(prescaler) * count;
+        long scaled = (long) rows * divisor * rate + Chip.CLOCK / 16;
+        return (int) ((scaled + Chip.CLOCK - 1) / Chip.CLOCK);
     }
 }

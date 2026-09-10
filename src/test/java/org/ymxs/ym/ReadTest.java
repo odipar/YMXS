@@ -10,16 +10,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
-import org.ymxs.Multi;
-import org.ymxs.Prescaler;
-import org.ymxs.Register;
-import org.ymxs.Single;
-import org.ymxs.Start;
-import org.ymxs.Stop;
-import org.ymxs.Target;
+import org.ymxs.Tunes;
+import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Single;
+import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Stop;
+import org.ymxs.YMXS.Target;
 import org.ymxs.Text;
-import org.ymxs.Timer;
-import org.ymxs.Tune;
+import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Tune;
 
 /**
  * The example against a dump built here, so that what it reads is stated
@@ -120,7 +121,7 @@ final class ReadTest {
         assertEquals("a composer", tune.composer());
         assertEquals("a test", tune.writer());
         assertEquals(50, tune.rate());
-        assertEquals(2, tune.table().size());
+        assertEquals(2, Tunes.size(tune.table()));
         assertEquals(OptionalInt.of(0), tune.table().repeat());
     }
 
@@ -129,12 +130,12 @@ final class ReadTest {
         Dumped dumped = new Dumped(4, 0, List.of())
                 .set(0, 0, 200).set(1, 0, 200).set(2, 0, 201).set(3, 0, 201);
         Tune tune = read(dumped);
-        assertEquals(200, tune.rows().get(0).registers().get(Register.R0),
+        assertEquals(200, Tunes.rows(tune).get(0).registers().get(Register.R0),
                 "the row the tune repeats to sets every register");
-        assertTrue(!tune.rows().get(1).registers().containsKey(Register.R0),
+        assertTrue(!Tunes.rows(tune).get(1).registers().containsKey(Register.R0),
                 "a row the dump does not move sets nothing");
-        assertEquals(201, tune.rows().get(2).registers().get(Register.R0));
-        assertTrue(!tune.rows().get(3).registers().containsKey(Register.R0));
+        assertEquals(201, Tunes.rows(tune).get(2).registers().get(Register.R0));
+        assertTrue(!Tunes.rows(tune).get(3).registers().containsKey(Register.R0));
     }
 
     @Test
@@ -146,28 +147,28 @@ final class ReadTest {
         }
         Tune tune = read(dumped);
 
-        assertEquals(1, tune.sources().size());
-        Single source = assertInstanceOf(Single.class, tune.sources().get(0));
-        assertEquals(List.of(12, 0), source.values());
-        assertEquals(OptionalInt.of(0), source.table().repeat());
+        assertEquals(1, Tunes.sources(tune).size());
+        Single source = assertInstanceOf(Single.class, Tunes.sources(tune).get(0));
+        assertEquals(List.of(12, 0), Tunes.values(source));
+        assertEquals(OptionalInt.of(0), Tunes.table(source).repeat());
 
-        assertEquals(java.util.EnumSet.of(Timer.A), tune.timers());
+        assertEquals(java.util.EnumSet.of(Timer.A), Tunes.timers(tune));
         Start start = assertInstanceOf(Start.class,
-                tune.rows().get(2).effects().get(Timer.A));
-        assertEquals(Target.setting(Register.R8), start.target());
+                Tunes.rows(tune).get(2).effects().get(Timer.A));
+        assertEquals(Tunes.setting(Register.R8), start.target());
         assertEquals(Prescaler.BY_4, start.prescaler());
         assertEquals(100, start.count());
         assertTrue(start.timerReset(), "the timer was stopped, so it takes a whole period");
         assertTrue(start.placeReset(), "no wave ran before it, so the place goes to row 0");
 
         for (int f = 3; f <= 5; f++) {
-            assertTrue(tune.rows().get(f).effects().isEmpty(),
+            assertTrue(Tunes.rows(tune).get(f).effects().isEmpty(),
                     "row " + f + " states nothing: the wave runs on unchanged");
         }
-        assertInstanceOf(Stop.class, tune.rows().get(6).effects().get(Timer.A));
-        assertTrue(!tune.rows().get(2).registers().containsKey(Register.R8),
+        assertInstanceOf(Stop.class, Tunes.rows(tune).get(6).effects().get(Timer.A));
+        assertTrue(!Tunes.rows(tune).get(2).registers().containsKey(Register.R8),
                 "the wave owns the volume, so no row sets it while it runs");
-        assertEquals(9, tune.rows().get(6).registers().get(Register.R8),
+        assertEquals(9, Tunes.rows(tune).get(6).registers().get(Register.R8),
                 "the row that stops it takes the register back, to the value the dump"
                         + " holds there");
     }
@@ -179,16 +180,16 @@ final class ReadTest {
         dumped.slot1(1, 2, 1, 1, 100).set(1, 9, 0);
         Tune tune = read(dumped);
 
-        assertEquals(1, tune.sources().size());
-        Single source = assertInstanceOf(Single.class, tune.sources().get(0));
-        assertEquals(List.of(0, 4, 15, 8, 13), source.values(),
+        assertEquals(1, Tunes.sources(tune).size());
+        Single source = assertInstanceOf(Single.class, Tunes.sources(tune).get(0));
+        assertEquals(List.of(0, 4, 15, 8, 13), Tunes.values(source),
                 "the sample's high four bits a row, and a closing row at mid-scale");
-        assertEquals(OptionalInt.empty(), source.table().repeat(), "a recording plays once");
+        assertEquals(OptionalInt.empty(), Tunes.table(source).repeat(), "a recording plays once");
 
         Start start = assertInstanceOf(Start.class,
-                tune.rows().get(1).effects().get(Timer.D));
-        assertEquals(Target.setting(Register.R9), start.target());
-        assertEquals(0b010010, tune.rows().get(1).registers().get(Register.R7),
+                Tunes.rows(tune).get(1).effects().get(Timer.D));
+        assertEquals(Tunes.setting(Register.R9), start.target());
+        assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
                 "a recording silences its own voice's tone and noise while it runs, which"
                         + " for voice B is bits 1 and 4");
     }
@@ -197,7 +198,7 @@ final class ReadTest {
     void aTuneReadFromADumpWritesAsTheTextForm() {
         Dumped dumped = new Dumped(4, 0, List.of()).set(0, 0, 100).set(2, 0, 101);
         dumped.slot0(1, 1, 0, 2, 50).set(1, 8, 9);
-        Multi multi = Multi.of(read(dumped));
+        Multi multi = Tunes.multi(read(dumped));
         String text = Text.write(multi);
         assertEquals(multi, Text.read(text));
         assertEquals(text, Text.write(Text.read(text)));

@@ -7,12 +7,11 @@
  * <p>How a tune is written down is a form, and no form is the format.
  * doc/text.md is one; a player's own is another.
  *
- * <p>The whole of it:
+ * <p>{@link org.ymxs.YMXS} holds the whole of it, nested:
  *
  * <pre>
  *  Multi   one Tune or more
- *  Tune    a title, a composer, a writer, a rate, its Sources, and its
- *          Table of Rows
+ *  Tune    a title, a composer, a writer, a rate, and its Table of Rows
  *  Table   rows, and the row they repeat to: a tune's and a source's
  *  Row     the Registers it sets, and the Effect it states on each Timer
  *  Effect  Start, Retune or Stop: the three things a row does to one
@@ -20,21 +19,31 @@
  *  Source  what a tick advances a Table of, sealed on Single
  * </pre>
  *
+ * <p>Nothing there holds a method of its own beyond the accessors a record
+ * gives. What is read off a structure is read by a function outside it:
+ * {@link org.ymxs.Chip} for what the two chips give, {@link org.ymxs.Tunes}
+ * for what a structure holds, and {@link org.ymxs.Check} for what a
+ * structure has to satisfy. Each reads by pattern matching and states
+ * every shape, so a shape added stops them compiling until they read it.
+ *
+ * <p>A tune's sources are the ones its rows start, in the order a row
+ * first starts each. A source no row starts is not one the tune holds.
+ *
  * <p>An effect is a source connected to a target on one timer, so a row
- * states one against a {@link org.ymxs.Timer} and the timer is the
+ * states one against a {@link org.ymxs.YMXS.Timer} and the timer is the
  * effect.
  *
  * <p>A row states what it sets and says nothing about the rest. A
  * register no row has set holds what the chip was left at; a register a
  * row set holds that value until another row sets it, or until an
- * effect's ticks write it. That is why {@link org.ymxs.Row} holds maps
+ * effect's ticks write it. That is why {@link org.ymxs.YMXS.Row} holds maps
  * rather than a value a register: a key that is absent is a value the row
  * does not set.
  *
- * <p>Each record reads its own values where it is made, so a structure
- * that exists is one a player can play. What SPEC.md 6 asks of a writer
- * reads across rows rather than within one, and a walk over a tune reads
- * that.
+ * <p>{@link org.ymxs.Check} gives what is wrong with a structure rather
+ * than throwing at the first of it, so one call names everything a writer
+ * has to mend. What SPEC.md 6 asks of a writer reads across rows rather
+ * than within one, and it does not read that yet.
  *
  * <p><b>Nothing here is arranged for a form's benefit.</b> The records
  * state the music; turning it into something small to store and cheap to
@@ -51,13 +60,13 @@
  * row to a target that takes it, and that a tune holds the sources its
  * rows start.
  *
- * <p>One field is Optional: the row a {@link org.ymxs.Table} repeats to,
+ * <p>One field is Optional: the row a {@link org.ymxs.YMXS.Table} repeats to,
  * where empty is a table that plays once. A name, a title and a composer
  * are text, where empty and absent are one state. Everywhere else absence
- * is a key that is not in a map, or a shape of {@link org.ymxs.Effect}
+ * is a key that is not in a map, or a shape of {@link org.ymxs.YMXS.Effect}
  * that does not hold the part.
  *
- * <p>{@link org.ymxs.Target} and {@link org.ymxs.Source} are sealed, and
+ * <p>{@link org.ymxs.YMXS.Target} and {@link org.ymxs.YMXS.Source} are sealed, and
  * a later version adding a kind of either adds it there. Every switch
  * that has not read the new one then stops compiling, which is what makes
  * an added kind a change to this specification.

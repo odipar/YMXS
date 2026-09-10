@@ -6,9 +6,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
-import org.ymxs.Multi;
+import org.ymxs.Tunes;
+import org.ymxs.YMXS.Multi;
 import org.ymxs.Text;
-import org.ymxs.Tune;
+import org.ymxs.YMXS.Tune;
 
 /**
  * {@code ym-to-ymxs in.ym [more.ym ...] out.json}: dumps read into one
@@ -89,9 +90,9 @@ public final class Main {
     /** What one dump came to, on standard error. */
     private static void said(String name, Read.Reading reading) {
         Tune tune = reading.tune();
-        StringBuilder out = new StringBuilder(name + ": " + tune.table().size() + " rows at "
-                + tune.rate() + " Hz, " + tune.sources().size() + " sources, timers "
-                + tune.timers());
+        StringBuilder out = new StringBuilder(name + ": " + Tunes.size(tune.table())
+                + " rows at " + tune.rate() + " Hz, " + Tunes.sources(tune).size()
+                + " sources, timers " + Tunes.timers(tune));
         Read.Said said = reading.said();
         if (said.dropped() > 0) {
             out.append(", ").append(said.dropped()).append(" slots this does not read");

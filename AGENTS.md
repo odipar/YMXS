@@ -96,9 +96,9 @@ them:
   columns, a register *keeps* a value, a file *has* tunes in it.
 - **states.** `the rate the tune states` is `the tune's rate`. A row *sets* a
   register, a document *defines* a rule.
-- **gives.** `what the two chips give` is `the two chips' own figures`. A chip
-  does not give: a clock *counts*, a timer *counts* a period, and a column
-  *is* one value a row.
+- **gives.** `what the two chips give` is `the figures of the two chips`. A
+  chip does not give: a clock *counts*, a timer *counts* a period, and a
+  column *is* one value a row.
 - **takes.** `a value the register takes` is `a value that fits the register`,
   and `a reader takes any JSON of this shape` is `a reader reads any JSON of
   this shape`. A tick *reads* a row, a tool's flags *are* what they are, and

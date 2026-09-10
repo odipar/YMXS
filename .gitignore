@@ -2,3 +2,10 @@ target/
 *.class
 .DS_Store
 .idea/
+
+# Scratch output. A tune belongs under doc/tunes or in a scratch directory,
+# never at the root, and this keeps a stray one out of a commit.
+/*.json
+/*.csv
+/*.ymxr
+/*.ym

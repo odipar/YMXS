@@ -69,17 +69,17 @@ public interface YMXS {
     record Stop() implements Effect { }
 
     /** What a timer's tick calls with a source's row: a procedure that
-     *  takes one row and writes it. A later version names targets reaching
+     *  takes one row and writes it. A later version has targets reaching
      *  the MC68901's own registers, and targets taking a row of more than
      *  one value. */
     sealed interface Target permits SetRegister { }
 
-    /** The targets this version names, {@code setR0} to {@code setR13},
+    /** The targets this version has, {@code setR0} to {@code setR13},
      *  which write a source's row to one YM2149 register. */
     record SetRegister(Register register) implements Target { }
 
     /** A table a tick advances a row at a time, its target writing each
-     *  row. A later version names sources of more than one value a row. */
+     *  row. A later version has sources of more than one value a row. */
     sealed interface Source permits Single { }
 
     /** The sources this version has: one value a row, which is the row

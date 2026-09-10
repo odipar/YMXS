@@ -24,7 +24,7 @@ import org.ymxs.YMXS.Tune;
  * in a spreadsheet than in an editor (doc/csv.md). It holds what
  * {@link Text} holds, and either reads into the same structure.
  *
- * <p>A line beginning {@link #TABLE} names a table and its columns. Every
+ * <p>A line beginning {@link #TABLE} gives a table and its columns. Every
  * line after it is one row of that table, in ordinary comma-separated
  * values, until the next such line.
  *
@@ -40,12 +40,12 @@ import org.ymxs.YMXS.Tune;
  *
  * <p>A tune opens with its own table and the tables after it are that
  * tune's, until the next tune opens; a source does the same for the values
- * after it. So no table names which tune or which source a row belongs to:
+ * after it. So no table states which tune or which source a row belongs to:
  * where it stands is what says it.
  */
 public final class Csv {
 
-    /** What a line naming a table and its columns begins with. */
+    /** What a line giving a table and its columns begins with. */
     public static final String TABLE = "### ";
 
     private Csv() {
@@ -139,7 +139,7 @@ public final class Csv {
         }
     }
 
-    /** A line naming a table and its columns, with a blank line before it. */
+    /** A line giving a table and its columns, with a blank line before it. */
     private static void table(StringBuilder out, Object... named) {
         if (out.length() > 0) {
             out.append('\n');
@@ -175,7 +175,7 @@ public final class Csv {
 
     /** One table: what it is called, what its columns are called, and its
      *  rows. */
-    private record Held(String named, List<String> columns, List<List<String>> rows) {
+    private record Held(String name, List<String> columns, List<List<String>> rows) {
 
         /** The cell {@code named} of {@code row}, or an empty text where
          *  the table has no such column. */
@@ -192,7 +192,7 @@ public final class Csv {
      */
     public static Multi read(String text) {
         List<Held> sections = sections(text);
-        if (sections.isEmpty() || !sections.get(0).named().equals("multi")) {
+        if (sections.isEmpty() || !sections.get(0).name().equals("multi")) {
             throw new IllegalArgumentException("the first table is not \"" + TABLE
                     + "multi\"");
         }
@@ -214,13 +214,13 @@ public final class Csv {
         List<Tune> tunes = new ArrayList<>();
         int at = 1;
         while (at < sections.size()) {
-            if (!sections.get(at).named().equals("tune")) {
-                throw new IllegalArgumentException("a \"" + TABLE + sections.get(at).named()
-                        + "\" table before any tune names itself");
+            if (!sections.get(at).name().equals("tune")) {
+                throw new IllegalArgumentException("a \"" + TABLE + sections.get(at).name()
+                        + "\" table before any tune opens");
             }
             int from = at++;
             List<Held> mine = new ArrayList<>();
-            while (at < sections.size() && !sections.get(at).named().equals("tune")) {
+            while (at < sections.size() && !sections.get(at).name().equals("tune")) {
                 mine.add(sections.get(at));
                 at++;
             }
@@ -229,38 +229,38 @@ public final class Csv {
         return Check.must(new Multi(tunes));
     }
 
-    /** One tune, out of the table that names it and the tables after it.
+    /** One tune, out of the table that opens it and the tables after it.
      *  A source opens its own table, and the values after it are that
      *  source's. */
     private static Tune tune(Held told, List<Held> mine, int number) {
         if (told.rows().size() != 1) {
-            throw new IllegalArgumentException("tune " + number + " is named by "
-                    + told.rows().size() + " rows, and one names it");
+            throw new IllegalArgumentException("tune " + number + " is opened by "
+                    + told.rows().size() + " rows, and one row opens it");
         }
         List<String> one = told.rows().get(0);
         int count = number(told.of(one, "frames"), "frames");
-        List<String> named = new ArrayList<>();
+        List<String> names = new ArrayList<>();
         List<OptionalInt> repeats = new ArrayList<>();
         List<List<Integer>> values = new ArrayList<>();
         List<Map<Register, Integer>> registers = empty(count, Register.class);
         List<Map<Timer, Effect>> effects = empty(count, Timer.class);
         List<Held> acts = new ArrayList<>();
         for (Held held : mine) {
-            switch (held.named()) {
+            switch (held.name()) {
                 case "source" -> {
                     if (held.rows().size() != 1) {
                         throw new IllegalArgumentException("tune " + number + " holds a"
-                                + " source named by " + held.rows().size() + " rows, and one"
-                                + " names it");
+                                + " source opened by " + held.rows().size() + " rows, and"
+                                + " one row opens it");
                     }
-                    named.add(held.of(held.rows().get(0), "name"));
+                    names.add(held.of(held.rows().get(0), "name"));
                     repeats.add(maybe(held.of(held.rows().get(0), "repeat")));
                     values.add(new ArrayList<>());
                 }
                 case "value" -> {
                     if (values.isEmpty()) {
                         throw new IllegalArgumentException("tune " + number + " holds values"
-                                + " before any source names itself");
+                                + " before any source opens");
                     }
                     List<Integer> held0 = values.get(values.size() - 1);
                     for (List<String> line : held.rows()) {
@@ -281,22 +281,22 @@ public final class Csv {
                     }
                 }
                 default -> {
-                    if (!held.named().startsWith("timer")) {
+                    if (!held.name().startsWith("timer")) {
                         throw new IllegalArgumentException("tune " + number + " holds a \""
-                                + TABLE + held.named() + "\" table, which this form does not"
-                                + " name");
+                                + TABLE + held.name() + "\" table, which this form does"
+                                + " not have");
                     }
                     acts.add(held);
                 }
             }
         }
         List<Source> sources = new ArrayList<>();
-        for (int at = 0; at < named.size(); at++) {
-            sources.add(new Single(named.get(at), new Table<>(values.get(at),
+        for (int at = 0; at < names.size(); at++) {
+            sources.add(new Single(names.get(at), new Table<>(values.get(at),
                     repeats.get(at))));
         }
         for (Held held : acts) {
-            Timer timer = timer(held.named(), number);
+            Timer timer = timer(held.name(), number);
             for (List<String> line : held.rows()) {
                 int at = row(count, held.of(line, "row"), "tune " + number
                         + " holds an effect");
@@ -313,14 +313,14 @@ public final class Csv {
     }
 
     /** The timer a table of that name holds. */
-    private static Timer timer(String named, int tune) {
-        String said = named.substring("timer".length());
+    private static Timer timer(String table, int tune) {
+        String said = table.substring("timer".length());
         for (Timer timer : Timer.values()) {
             if (timer.name().equals(said)) {
                 return timer;
             }
         }
-        throw new IllegalArgumentException("tune " + tune + " holds a \"" + TABLE + named
+        throw new IllegalArgumentException("tune " + tune + " holds a \"" + TABLE + table
                 + "\" table, and a timer is timerA to timer"
                 + Timer.values()[Timer.values().length - 1]);
     }
@@ -395,17 +395,17 @@ public final class Csv {
                 continue;
             }
             if (line.startsWith("###")) {
-                List<String> named = cells(line.substring(3).strip());
-                if (named.isEmpty() || named.get(0).isBlank()) {
+                List<String> heading = cells(line.substring(3).strip());
+                if (heading.isEmpty() || heading.get(0).isBlank()) {
                     throw new IllegalArgumentException("a table with no name: " + line);
                 }
-                here = new Held(named.get(0), named.subList(1, named.size()),
+                here = new Held(heading.get(0), heading.subList(1, heading.size()),
                         new ArrayList<>());
                 out.add(here);
                 continue;
             }
             if (here == null) {
-                throw new IllegalArgumentException("a row before any table names its"
+                throw new IllegalArgumentException("a row before any table gives its"
                         + " columns: " + line);
             }
             here.rows().add(cells(line));

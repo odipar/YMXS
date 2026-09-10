@@ -44,7 +44,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Json {
 
-    /** What the tree names itself. */
+    /** What the tree calls itself. */
     public static final String FORMAT = "ymxs";
 
     /** The version of the structure this maps. */
@@ -70,7 +70,7 @@ public final class Json {
     }
 
     /** What a column holds where the row it stands on states nothing. No
-     *  register takes it and no part of an effect is it, so it names
+     *  register takes it and no part of an effect is it, so it stands for
      *  nothing else. */
     public static final int NONE = -1;
 

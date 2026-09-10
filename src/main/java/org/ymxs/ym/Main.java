@@ -59,7 +59,7 @@ public final class Main {
         said(tool, song, reading);
     }
 
-    /** The row a dump repeats to, or 0 where it names none this reads. */
+    /** The row a dump repeats to, or 0 where it gives none this reads. */
     private static int row(Dump.Song song) {
         long loop = song.loopFrame();
         return loop >= 0 && loop < song.frames() ? (int) loop : 0;

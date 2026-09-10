@@ -13,7 +13,8 @@ A form is that structure written down, and no form is the format. This
 repository holds the text form, JSON, which a tracker writes and a
 player's tools read.
 
-It names no player. A player names the version of this it reads.
+Nothing here states a player. A player states the version of this it
+reads.
 
 The one dependency is a JSON library, which reads and writes the tree the
 text form maps to. Nothing in the structure depends on it.
@@ -36,7 +37,7 @@ doc/csv.md                          the table form, written out
 doc/tools.md                        the tools, and what they exit with
 doc/ym.md                           the example, written out
 doc/tunes/                          tunes in both forms, read back by the tests
-bin/                                a line a tool, and bin/run under them all
+bin/                                a script a tool, and bin/run under them
 ```
 
 `YMXS.java` holds the structure and nothing else: bare records and sealed

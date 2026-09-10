@@ -15,9 +15,13 @@ player names the version of this it reads.
 ## What is here
 
 ```
-src/main/java/org/ymxs/   the records, and the text form
-doc/text.md               the text form, written out
-doc/tunes/                tunes in that form, which the tests read back
+src/main/java/org/ymxs/      the records, and the text form
+src/main/java/org/ymxs/ym/   an example: a YM register dump read in
+doc/SPEC.md                  what a player does with a structure
+doc/text.md                  the text form, written out
+doc/ym.md                    the example, written out
+doc/tunes/                   tunes in that form, which the tests read back
+bin/ym-to-ymxs               a dump into the text form
 ```
 
 ## The structure

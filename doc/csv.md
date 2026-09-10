@@ -29,7 +29,7 @@ recording 0,
 0,64,1,48,2,32,3,0,56,,12,11,0,0,
 1,65,,49,,33,,1,,,,,3,,
 
-### timer0,row,shape,target,source,prescaler,count,timerReset,placeReset
+### timerA,row,shape,target,source,prescaler,count,timerReset,placeReset
 0,0,8,1,50,60,1,1
 1,1,,,50,61,0,0
 59,2,,,,,,
@@ -67,7 +67,7 @@ one run of them.
 | `source` | one row, and it opens a source, in the order a row first starts it |
 | `value` | one row a value of the source it comes after |
 | `row` | one row a row of the tune that sets a register |
-| `timer0` to `timer3` | one row an effect a row states on that timer |
+| `timerA` to `timerD` | one row an effect a row states on that timer |
 
 **An empty cell in `row`** is a register that row does not set. A row that
 sets none is no row of the table: the `row` column says which row a line
@@ -76,8 +76,8 @@ is, and `frames` in the `tune` table says how many the tune has.
 **A tune that runs no source** opens no `source` table and no `value`
 table.
 
-**A timer opens a table of its own**, `timer0` for Timer A through
-`timer3` for Timer D, and a timer no row states opens none. What its cells
+**A timer opens a table of its own**, `timerA` through `timerD`, and a
+timer no row states opens none. What its cells
 hold is what [the text form](text.md) holds: `shape` 0 a start, 1 a
 retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`; `source` 1
 upward into the tune's sources; `timerReset` and `placeReset` 1 and 0.

@@ -91,7 +91,7 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###"))
                 .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
-                "row", "timer0", "timer3"), named,
+                "row", "timerA", "timerD"), named,
                 "a source opens its own table, and so does a timer any row states");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
@@ -119,7 +119,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
         List<String> rows = Csv.write(Tunes.multi(tune)).lines()
-                .dropWhile(one -> !one.startsWith("### timer0"))
+                .dropWhile(one -> !one.startsWith("### timerA"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of(
                 "0,0,8,1,4,100,1,1",

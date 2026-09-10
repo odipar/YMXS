@@ -176,9 +176,9 @@ final class TextTest {
                                 Prescaler.BY_4, 100))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
         String text = Text.write(Tunes.multi(tune));
-        assertTrue(text.contains("\"timer0\""), "Timer A is timer0");
-        assertTrue(text.contains("\"timer3\""), "Timer D is timer3");
-        assertTrue(!text.contains("\"timer1\""), "a timer no row states has no columns");
+        assertTrue(text.contains("\"timerA\""), "Timer A is timerA");
+        assertTrue(text.contains("\"timerD\""), "Timer D is timerD");
+        assertTrue(!text.contains("\"timerB\""), "a timer no row states has no columns");
         assertTrue(text.contains("\"shape\": [0,2]"), text);
         assertEquals(Tunes.multi(tune), Text.read(text),
                 "and a row may state an effect on more than one timer");

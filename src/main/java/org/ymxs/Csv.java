@@ -119,7 +119,7 @@ public final class Csv {
         if (!any) {
             return;
         }
-        table(out, "timer" + timer.ordinal(), "row", "shape", "target", "source",
+        table(out, "timer" + timer.name(), "row", "shape", "target", "source",
                 "prescaler", "count", "timerReset", "placeReset");
         for (int line = 0; line < rows.size(); line++) {
             Effect effect = rows.get(line).effects().get(timer);
@@ -314,13 +314,15 @@ public final class Csv {
 
     /** The timer a table of that name holds. */
     private static Timer timer(String named, int tune) {
-        int at = number(named.substring("timer".length()), "a timer");
-        if (at < 0 || at >= Timer.values().length) {
-            throw new IllegalArgumentException("tune " + tune + " holds a \"" + TABLE + named
-                    + "\" table, and a timer is timer0 to timer"
-                    + (Timer.values().length - 1));
+        String said = named.substring("timer".length());
+        for (Timer timer : Timer.values()) {
+            if (timer.name().equals(said)) {
+                return timer;
+            }
         }
-        return Timer.values()[at];
+        throw new IllegalArgumentException("tune " + tune + " holds a \"" + TABLE + named
+                + "\" table, and a timer is timerA to timer"
+                + Timer.values()[Timer.values().length - 1]);
     }
 
     private static Effect effect(Held acts, List<String> one, List<Source> sources, int at) {

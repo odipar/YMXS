@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * Every column is as long as the tune, so a row is what every column holds
  * at that place and nothing has to be counted to find it.
  *
- * <p>A timer is a structure of its own, {@code timer0} to {@code timer3},
+ * <p>A timer is a structure of its own, {@code timerA} to {@code timerD},
  * because a row states an effect on as many of the four as it likes. A
  * column that no row fills is left out.
  *
@@ -142,7 +142,7 @@ public final class Json {
         if (!any) {
             return;
         }
-        ObjectNode held = out.putObject("timer" + timer.ordinal());
+        ObjectNode held = out.putObject("timer" + timer.name());
         ArrayNode shape = held.putArray("shape");
         ArrayNode target = held.putArray("target");
         ArrayNode source = held.putArray("source");
@@ -262,12 +262,12 @@ public final class Json {
             }
         }
         for (Timer timer : Timer.values()) {
-            JsonNode held = tree.get("timer" + timer.ordinal());
+            JsonNode held = tree.get("timer" + timer.name());
             if (held == null) {
                 continue;
             }
             if (!held.isObject()) {
-                throw new IllegalArgumentException("timer" + timer.ordinal() + " is "
+                throw new IllegalArgumentException("timer" + timer.name() + " is "
                         + kind(held) + ", and a column a part of an effect is asked");
             }
             for (int at = 0; at < count; at++) {

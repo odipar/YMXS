@@ -28,7 +28,7 @@ for a reader who would rather open one in a spreadsheet.
         "r2": [238,-1,-1,-1],
         "r7": [56,49,-1,56]
       },
-      "timer0": {
+      "timerA": {
         "shape": [0,1,-1,2],
         "target": [8,-1,-1,-1],
         "source": [1,-1,-1,-1],
@@ -60,7 +60,7 @@ column, and a timer no row states has none.
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
 | `sources` | the sources its rows start, in the order a row first starts each |
 | `rows` | a column a register |
-| `timer0` to `timer3` | a column a part of the effect on that timer |
+| `timerA` to `timerD` | a column a part of the effect on that timer |
 
 `frames` says how long every column is, and a reader holds them to it.
 
@@ -84,9 +84,9 @@ value.
 ## The effects
 
 A timer is a structure of its own, since a row states an effect on as many
-of the four as it likes: `timer0` is Timer A, `timer1` B, `timer2` C and
-`timer3` D. Each holds seven columns, one value a row, and **-1 is what a
-row states nothing of**, as it is in a register's column.
+of the four as it likes: `timerA` through `timerD`. Each holds seven
+columns, one value a row, and **-1 is what a row states nothing of**, as
+it is in a register's column.
 
 | column | holds |
 |---|---|

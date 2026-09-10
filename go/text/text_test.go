@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/odipar/ymxs/text"
+	"github.com/odipar/ymxs/go/text"
 )
 
 // The tunes of doc/tunes, which are the documents' own examples.

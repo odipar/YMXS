@@ -21,7 +21,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // Multi is what is wrong with the multi, or an empty list.

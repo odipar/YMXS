@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/odipar/ymxs/text"
-	"github.com/odipar/ymxs/ym"
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/text"
+	"github.com/odipar/ymxs/go/ym"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // The packed dump of the test resources is the tune doc/tunes/circus.json

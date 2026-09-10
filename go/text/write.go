@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // Format is what the tree calls itself.

@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/odipar/ymxs/check"
-	"github.com/odipar/ymxs/ymxs"
+	"github.com/odipar/ymxs/go/check"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // ReadAll is every multi in the text, one after another. JSON puts no

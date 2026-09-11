@@ -180,8 +180,15 @@ volume register, and that conversion is the writer's.
 
 ### 3.3 The rate
 
-The rate is 2,457,600 divided by the prescaler times the count: seven
-prescalers, 4 to 200, and a count of 1 to 256.
+The rate is 2,457,600 divided by the prescaler times the ticks the count
+counts: seven prescalers, 4 to 200, and a count of 0 to 255.
+
+**The count is the timer's data register.** The register is a byte and
+every value of it is a count: a timer loads the value and counts it down
+through zero, so 1 counts one tick and 0 counts 256. Every value of the
+register is a count and every count is a value of it, so this records the
+register and not the ticks. A row that sets no effect on a timer has no
+count, which is a row absent from the effects rather than a count of 0.
 
 A count written while the timer runs loads when the running count reaches
 zero, which moves the pitch without a break. A prescaler written

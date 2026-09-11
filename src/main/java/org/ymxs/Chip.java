@@ -16,9 +16,19 @@ public final class Chip {
     /** The MC68901's clock, in ticks a second. */
     public static final int CLOCK = 2457600;
 
-    /** The largest count a timer counts: its data register is 1 to 255,
-     *  and 0 counts 256. */
-    public static final int MOST_COUNT = 256;
+    /** The largest value a timer's data register reads. The register is a
+     *  byte and every value of it is a count, 0 among them. */
+    public static final int MOST_COUNT = 255;
+
+    /** The ticks a count of 0 counts. A timer counts the register's value
+     *  down through zero, so 0 counts a whole byte round. */
+    public static final int ZERO_COUNTS = 256;
+
+    /** The ticks {@code count} counts: the value itself, and
+     *  {@link #ZERO_COUNTS} where it is 0. */
+    public static int ticks(int count) {
+        return count == 0 ? ZERO_COUNTS : count;
+    }
 
     private Chip() {
     }
@@ -105,7 +115,7 @@ public final class Chip {
     /** The rate a timer runs at with this prescaler and this count, in
      *  ticks a second. */
     public static int rate(Prescaler prescaler, int count) {
-        return CLOCK / (divides(prescaler) * count);
+        return CLOCK / (divides(prescaler) * ticks(count));
     }
 
     /**
@@ -120,7 +130,7 @@ public final class Chip {
      * reported as such.
      */
     public static int frames(int rows, Prescaler prescaler, int count, int called) {
-        long divisor = (long) divides(prescaler) * count;
+        long divisor = (long) divides(prescaler) * ticks(count);
         long scaled = (long) rows * divisor * called + CLOCK / 16;
         return (int) ((scaled + CLOCK - 1) / CLOCK);
     }

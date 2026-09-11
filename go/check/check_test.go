@@ -20,7 +20,7 @@ func TestAStructureOutsideTheTwoChipsIsAFault(t *testing.T) {
 	rows := []ymxs.Row{
 		{Registers: map[ymxs.Register]int{ymxs.R1: 99}, Effects: map[ymxs.Timer]ymxs.Effect{
 			ymxs.TimerA: ymxs.Start{Target: ymxs.Setting(ymxs.R8), Source: square,
-				Prescaler: ymxs.By4, Count: 0}}},
+				Prescaler: ymxs.By4, Count: 256}}},
 	}
 	said := check.Tune(tune(rows, 50))
 	if len(said) != 2 {
@@ -29,7 +29,7 @@ func TestAStructureOutsideTheTwoChipsIsAFault(t *testing.T) {
 	if !strings.Contains(said[0], "R1 is 0 to 15") {
 		t.Errorf("the register is not read: %s", said[0])
 	}
-	if !strings.Contains(said[1], "a count of 0") {
+	if !strings.Contains(said[1], "a count of 256") {
 		t.Errorf("the count is not read: %s", said[1])
 	}
 }

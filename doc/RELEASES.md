@@ -26,6 +26,33 @@ rather than the format.
 
 ## Published
 
+### 0.1.1, 2026-09-11
+
+<https://github.com/odipar/YMXS/releases/tag/v0.1.1>, built from the commit
+tagged `v0.1.1`.
+
+The columns of a table stand over the cells they name.
+
+- A table opened with its name and its column names on one line, so the
+  name took the first column's place and every name after it stood one
+  cell to the left of the cells it names. The name stands alone on the
+  heading line now and the column names on the line after it. `ymxs-json-
+  to-csv` writes that and `ymxs-csv-to-json` reads it, doc/csv.md defines
+  it, and doc/tunes/circus.csv is one tune in it.
+- A column is still found by name, so column order follows the file as it
+  did.
+- Two lines a reader turns away rather than reading as something else: a
+  heading with a comma in it, which is a file of the form this replaced,
+  and a heading with no line after it, which is a table whose name is its
+  last line. Each is reported for what it is.
+
+**A CSV file 0.1.0 wrote is read by no version of this.** The line naming
+the shape is what it gets, and `ymxs-csv-to-json` from 0.1.0 rewrites one
+as JSON for reading here.
+
+JSON is unchanged, and so is the structure's version: it is 1 in both
+forms, and every JSON file 0.1.0 wrote reads here.
+
 ### 0.1.0, 2026-09-10
 
 <https://github.com/odipar/YMXS/releases/tag/v0.1.0>, built from the commit

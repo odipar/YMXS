@@ -32,7 +32,7 @@ import org.ymxs.YMXS.Tune;
  *
  * <pre>
  *   ### tune
- *   title,composer,writer,rate,frames,repeat
+ *   title,composer,writer,rate,rows,repeat
  *   Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
  * </pre>
  *
@@ -69,7 +69,7 @@ public final class Csv {
 
     /** One tune: its `tune` table, then the tables that belong to it. */
     private static void tune(StringBuilder out, Tune tune) {
-        table(out, "tune", "title", "composer", "writer", "rate", "frames", "repeat");
+        table(out, "tune", "title", "composer", "writer", "rate", "rows", "repeat");
         row(out, tune.title(), tune.composer(), tune.writer(), tune.rate(),
                 Tunes.size(tune.table()), repeat(tune.table()));
 
@@ -84,7 +84,7 @@ public final class Csv {
             }
         }
 
-        List<Object> named = new ArrayList<>(List.of("rows", "row"));
+        List<Object> named = new ArrayList<>(List.of("registers", "row"));
         for (Register register : Register.values()) {
             named.add(Json.name(register));
         }
@@ -240,7 +240,7 @@ public final class Csv {
                     + told.rows().size() + " rows, and one row opens it");
         }
         List<String> one = told.rows().get(0);
-        int count = number(told.of(one, "frames"), "frames");
+        int count = number(told.of(one, "rows"), "rows");
         List<String> names = new ArrayList<>();
         List<OptionalInt> repeats = new ArrayList<>();
         List<List<Integer>> values = new ArrayList<>();
@@ -269,7 +269,7 @@ public final class Csv {
                         last.add(number(block.of(line, "value"), "value"));
                     }
                 }
-                case "rows" -> {
+                case "registers" -> {
                     for (List<String> line : block.rows()) {
                         int at = row(count, block.of(line, "row"), "tune " + number
                                 + " sets a row");

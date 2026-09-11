@@ -15,7 +15,8 @@ bin/ym-to-ymxs < tune.ym > tune.json
 
 A dump on standard input, JSON on standard output, the result on standard
 error. `-rROW` produces a tune that repeats to that row and `-r` one that
-plays once; without either, a tune repeats to the frame the dump marks.
+plays once; without either, a tune repeats to the row of the frame the
+dump marks.
 
 A distributed `.ym` is usually an archive containing the dump, and both
 forms read: `Lha` unpacks an archive. That is plumbing, outside the

@@ -26,7 +26,7 @@ import (
 const Format = "ymxs"
 
 // Version is the version of the structure this maps.
-const Version = 1
+const Version = 2
 
 // None is what stands in a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
@@ -78,7 +78,7 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 		o.text("composer", tune.Composer)
 		o.text("writer", tune.Writer)
 		o.number("rate", tune.Rate)
-		o.number("frames", len(rows))
+		o.number("rows", len(rows))
 		o.repeat("repeat", tune.Table)
 		o.field("sources", func() {
 			w.array(depth+1, len(sources), func(at int) {
@@ -92,7 +92,7 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				})
 			})
 		})
-		o.field("rows", func() {
+		o.field("registers", func() {
 			w.object(depth+1, func(sets *entries) {
 				for _, register := range ymxs.Registers {
 					column, any := registerColumn(rows, register)

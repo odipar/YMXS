@@ -86,7 +86,7 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	if !ok {
 		return ymxs.Tune{}, fmt.Errorf("a tune is %s, and an object is asked", kind(tree))
 	}
-	frames, err := number(at, "frames")
+	rows, err := number(at, "rows")
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
@@ -94,28 +94,28 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
-	registers := make([]map[ymxs.Register]int, frames)
-	effects := make([]map[ymxs.Timer]ymxs.Effect, frames)
-	for i := 0; i < frames; i++ {
+	registers := make([]map[ymxs.Register]int, rows)
+	effects := make([]map[ymxs.Timer]ymxs.Effect, rows)
+	for i := 0; i < rows; i++ {
 		registers[i] = map[ymxs.Register]int{}
 		effects[i] = map[ymxs.Timer]ymxs.Effect{}
 	}
-	if rows, set := at["rows"]; set && rows != nil {
-		sets, ok := rows.(map[string]any)
+	if written, set := at["registers"]; set && written != nil {
+		sets, ok := written.(map[string]any)
 		if !ok {
-			return ymxs.Tune{}, fmt.Errorf("rows is %s, and a column a register is asked",
-				kind(rows))
+			return ymxs.Tune{}, fmt.Errorf("registers is %s, and a column a register is"+
+				" asked", kind(written))
 		}
 		for _, register := range ymxs.Registers {
 			column, set := sets[Name(register)]
 			if !set {
 				continue
 			}
-			values, err := sized(column, frames, Name(register))
+			values, err := sized(column, rows, Name(register))
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
-			for row := 0; row < frames; row++ {
+			for row := 0; row < rows; row++ {
 				value, err := whole(values[row], fmt.Sprintf("%s at row %d",
 					Name(register), row))
 				if err != nil {
@@ -137,8 +137,8 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 			return ymxs.Tune{}, fmt.Errorf("timer%s is %s, and a column a part of an"+
 				" effect is asked", timer, kind(written))
 		}
-		for row := 0; row < frames; row++ {
-			effect, on, err := effectOf(columns, row, sources, timer, frames)
+		for row := 0; row < rows; row++ {
+			effect, on, err := effectOf(columns, row, sources, timer, rows)
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
@@ -147,8 +147,8 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 			}
 		}
 	}
-	built := make([]ymxs.Row, frames)
-	for row := 0; row < frames; row++ {
+	built := make([]ymxs.Row, rows)
+	for row := 0; row < rows; row++ {
 		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row]}
 	}
 	title, err := text(at, "title")
@@ -221,8 +221,8 @@ func sourcesOf(at map[string]any) ([]ymxs.Source, error) {
 // effectOf is one row's operation on the effect of one timer, and whether
 // the row acts on it at all.
 func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.Timer,
-	frames int) (ymxs.Effect, bool, error) {
-	shape, err := column(columns, "shape", at, timer, frames)
+	rows int) (ymxs.Effect, bool, error) {
+	shape, err := column(columns, "shape", at, timer, rows)
 	if err != nil || shape == None {
 		return nil, false, err
 	}
@@ -231,7 +231,7 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 			return 0
 		}
 		var value int
-		value, err = column(columns, named, at, timer, frames)
+		value, err = column(columns, named, at, timer, rows)
 		return value
 	}
 	switch shape {
@@ -283,12 +283,12 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 
 // column is one value of one of a timer's columns.
 func column(columns map[string]any, named string, at int, timer ymxs.Timer,
-	frames int) (int, error) {
+	rows int) (int, error) {
 	written, set := columns[named]
 	if !set {
 		return 0, fmt.Errorf("Timer %s has no %q column", timer, named)
 	}
-	values, err := sized(written, frames, fmt.Sprintf("Timer %s's %s", timer, named))
+	values, err := sized(written, rows, fmt.Sprintf("Timer %s's %s", timer, named))
 	if err != nil {
 		return 0, err
 	}
@@ -296,15 +296,15 @@ func column(columns map[string]any, named string, at int, timer ymxs.Timer,
 }
 
 // sized reads a column, which is one value a row, so its length is the
-// tune's.
-func sized(written any, frames int, named string) ([]any, error) {
+// tune's row count.
+func sized(written any, rows int, named string) ([]any, error) {
 	values, ok := written.([]any)
 	if !ok {
 		return nil, fmt.Errorf("%s is %s, and a column is asked", named, kind(written))
 	}
-	if len(values) != frames {
-		return nil, fmt.Errorf("%s is %d values long, and the tune runs %d frames",
-			named, len(values), frames)
+	if len(values) != rows {
+		return nil, fmt.Errorf("%s is %d values long, and the tune has %d rows",
+			named, len(values), rows)
 	}
 	return values, nil
 }

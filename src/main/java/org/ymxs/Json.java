@@ -47,7 +47,7 @@ public final class Json {
     public static final String FORMAT = "ymxs";
 
     /** The version of the structure this maps. */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 
@@ -85,7 +85,7 @@ public final class Json {
         out.put("composer", tune.composer());
         out.put("writer", tune.writer());
         out.put("rate", tune.rate());
-        out.put("frames", Tunes.size(tune.table()));
+        out.put("rows", Tunes.size(tune.table()));
         put(out, "repeat", tune.table().repeat());
         List<Source> sources = Tunes.sources(tune);
         ArrayNode written = out.putArray("sources");
@@ -99,7 +99,7 @@ public final class Json {
             }
         }
         List<Row> rows = Tunes.rows(tune);
-        ObjectNode sets = out.putObject("rows");
+        ObjectNode sets = out.putObject("registers");
         for (Register register : Register.values()) {
             column(sets, name(register), rows, register);
         }
@@ -220,7 +220,7 @@ public final class Json {
 
     /** One tune out of a JSON tree. */
     public static Tune tune(JsonNode tree) {
-        int count = number(tree, "frames");
+        int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
         for (JsonNode one : array(tree, "sources")) {
             List<Integer> values = new ArrayList<>();
@@ -235,14 +235,14 @@ public final class Json {
             registers.add(new EnumMap<>(Register.class));
             effects.add(new EnumMap<>(Timer.class));
         }
-        JsonNode rows = tree.get("rows");
-        if (rows != null) {
-            if (!rows.isObject()) {
-                throw new IllegalArgumentException("rows is " + kind(rows) + ", and a column"
-                        + " a register is asked");
+        JsonNode sets = tree.get("registers");
+        if (sets != null) {
+            if (!sets.isObject()) {
+                throw new IllegalArgumentException("registers is " + kind(sets) + ", and a"
+                        + " column a register is asked");
             }
             for (Register register : Register.values()) {
-                JsonNode column = rows.get(name(register));
+                JsonNode column = sets.get(name(register));
                 if (column == null) {
                     continue;
                 }
@@ -285,44 +285,44 @@ public final class Json {
     }
 
     /** A column is one value a row, so its length is the tune's. */
-    private static void sized(JsonNode column, int frames, String named) {
+    private static void sized(JsonNode column, int rows, String named) {
         if (!column.isArray()) {
             throw new IllegalArgumentException(named + " is " + column + ", and a column is"
                     + " asked");
         }
-        if (column.size() != frames) {
+        if (column.size() != rows) {
             throw new IllegalArgumentException(named + " is " + column.size()
-                    + " values long, and the tune runs " + frames + " frames");
+                    + " values long, and the tune has " + rows + " rows");
         }
     }
 
     /** One row's operation on the effect of one timer, or null where the
      *  row leaves it alone. */
     private static @Nullable Effect effect(JsonNode columns, int at, List<Source> sources,
-                                           Timer timer, int frames) {
-        int shape = column(columns, "shape", at, timer, frames);
+                                           Timer timer, int rows) {
+        int shape = column(columns, "shape", at, timer, rows);
         if (shape == NONE) {
             return null;
         }
         return switch (shape) {
             case START -> {
-                int source = column(columns, "source", at, timer, frames);
+                int source = column(columns, "source", at, timer, rows);
                 if (source < 1 || source > sources.size()) {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + source + ", and the tune runs " + sources.size());
                 }
-                yield new Start(Tunes.target(column(columns, "target", at, timer, frames)),
+                yield new Start(Tunes.target(column(columns, "target", at, timer, rows)),
                         sources.get(source - 1),
-                        Chip.prescaler(column(columns, "prescaler", at, timer, frames)),
-                        column(columns, "count", at, timer, frames),
-                        column(columns, "timerReset", at, timer, frames) == 1,
-                        column(columns, "placeReset", at, timer, frames) == 1);
+                        Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
+                        column(columns, "count", at, timer, rows),
+                        column(columns, "timerReset", at, timer, rows) == 1,
+                        column(columns, "placeReset", at, timer, rows) == 1);
             }
             case RETUNE -> new Retune(
-                    Chip.prescaler(column(columns, "prescaler", at, timer, frames)),
-                    column(columns, "count", at, timer, frames),
-                    column(columns, "timerReset", at, timer, frames) == 1,
-                    column(columns, "placeReset", at, timer, frames) == 1);
+                    Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
+                    column(columns, "count", at, timer, rows),
+                    column(columns, "timerReset", at, timer, rows) == 1,
+                    column(columns, "placeReset", at, timer, rows) == 1);
             case STOP -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " on Timer " + timer + ", and a shape is " + START + ", "
@@ -341,13 +341,13 @@ public final class Json {
         return String.valueOf(node);
     }
 
-    private static int column(JsonNode columns, String named, int at, Timer timer, int frames) {
+    private static int column(JsonNode columns, String named, int at, Timer timer, int rows) {
         JsonNode column = columns.get(named);
         if (column == null) {
             throw new IllegalArgumentException("Timer " + timer + " has no \"" + named
                     + "\" column");
         }
-        sized(column, frames, "Timer " + timer + "'s " + named);
+        sized(column, rows, "Timer " + timer + "'s " + named);
         if (!column.get(at).isIntegralNumber()) {
             throw new IllegalArgumentException("Timer " + timer + "'s " + named + " is "
                     + column.get(at) + " at row " + at + ", and a whole number is asked");

@@ -5,10 +5,10 @@ A tune as tables, for reading in a spreadsheet.
 ```
 ### multi
 format,version,tunes
-ymxs,1,1
+ymxs,2,1
 
 ### tune
-title,composer,writer,rate,frames,repeat
+title,composer,writer,rate,rows,repeat
 Synthetic,Test,ym-to-ymxs,50,400,0
 
 ### source
@@ -29,7 +29,7 @@ row,value
 0,8
 1,9
 
-### rows
+### registers
 row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 0,64,1,48,2,32,3,0,56,,12,11,0,0,
 1,65,,49,,33,,1,,,,,3,,
@@ -59,6 +59,10 @@ column a register. [JSON](json.md) writes the same tune the other way
 round, a column at a time, and a filled cell is identical in both: the
 same numbers, and the same enumerations for a shape, a target and a timer.
 
+**A row is one entry of the tune's table, and a frame is one call of the
+player.** The table advances one row a frame, so this file records rows
+and counts no frames ([SPEC.md](SPEC.md) 4).
+
 **Position determines what a table belongs to.** A tune opens with a
 `tune` table, and the tables after it belong to that tune until the next
 `tune` table. A source opens with a `source` table, and the values after
@@ -73,12 +77,12 @@ or its source, and the tables of one tune stand together.
 | `tune` | one row, and it opens a tune |
 | `source` | one row, and it opens a source, in first-start order |
 | `value` | one row a value of the source it comes after |
-| `rows` | one row a row of the tune that sets a register |
+| `registers` | one row a row of the tune that sets a register |
 | `timerA` to `timerD` | one row an effect on that timer |
 
-**An empty cell in `rows`** is a register that row does not set. Only a
-row that sets a register is a line of the table: the `row` column is the
-row number, and `frames` in the `tune` table is the count.
+**An empty cell in `registers`** is a register that row does not set.
+Only a row that sets a register is a line of the table: the `row` column
+is the row number, and `rows` in the `tune` table is the count.
 
 **Each source a tune runs opens a `source` table and a `value` table.**
 

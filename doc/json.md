@@ -10,19 +10,19 @@ reading in a spreadsheet.
 ```json
 {
   "format": "ymxs",
-  "version": 1,
+  "version": 2,
   "tunes": [
     {
       "title": "Circus Attractions #2",
       "composer": "Mad Max",
       "writer": "ym-to-ymxs",
       "rate": 50,
-      "frames": 4,
+      "rows": 4,
       "repeat": 0,
       "sources": [
         {"name": "square 13", "repeat": 0, "values": [13,0]}
       ],
-      "rows": {
+      "registers": {
         "r0": [163,142,251,89],
         "r1": [2,12,4,2],
         "r2": [238,-1,-1,-1],
@@ -46,6 +46,12 @@ reading in a spreadsheet.
 tune.** A row is one index across every column, so no row number appears
 in the file.
 
+**A row is one entry of the tune's table, and a frame is one call of the
+player.** The tune's table advances one row a frame, so a file records
+rows and a run counts frames. This file has `rows` and no frame count:
+how many frames a tune runs for is a property of playing it
+([SPEC.md](SPEC.md) 4).
+
 A column appears only where some row fills it: a register some row sets, a
 timer some row acts on.
 
@@ -55,18 +61,18 @@ timer some row acts on.
 |---|---|
 | `title`, `composer`, `writer` | text, empty where absent |
 | `rate` | how often the player is called for this tune, in Hz |
-| `frames` | how many rows the tune has |
+| `rows` | how many rows the tune has |
 | `repeat` | the row it repeats to, or `null` for a tune that plays once |
 | `sources` | the sources its rows start, in first-start order |
-| `rows` | a column a register |
+| `registers` | a column a register |
 | `timerA` to `timerD` | a column a part of the effect on that timer |
 
-`frames` is the length of every column, and a reader verifies each column
+`rows` is the length of every column, and a reader verifies each column
 against it.
 
 ## The registers
 
-`rows` is a column a register, `r0` to `r13`, each one value a row.
+`registers` is a column a register, `r0` to `r13`, each one value a row.
 **-1 stands where the row does not set that register.** No register value
 is -1, so -1 is unambiguous in a column.
 
@@ -121,7 +127,7 @@ is valid input.
 |---|---|
 | a `format` that is not `ymxs` | it is another form |
 | a `version` this does not read | it is another version |
-| a column whose length is not `frames` | a column is one value a row |
+| a column whose length is not `rows` | a column is one value a row |
 | a `shape` outside 0, 1 and 2 | there are three shapes |
 | a source number outside the tune's `sources` | there is no such source |
 

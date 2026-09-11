@@ -8,7 +8,7 @@
 // names stand over the cells they name.
 //
 //	### tune
-//	title,composer,writer,rate,frames,repeat
+//	title,composer,writer,rate,rows,repeat
 //	Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
 //
 // These are ordinary tables, and they are the tables the JSON form writes:
@@ -50,7 +50,7 @@ func Write(multi ymxs.Multi) string {
 // written puts one tune down: its tune table, then the tables that belong
 // to it.
 func written(out *strings.Builder, tune ymxs.Tune) {
-	table(out, "tune", "title", "composer", "writer", "rate", "frames", "repeat")
+	table(out, "tune", "title", "composer", "writer", "rate", "rows", "repeat")
 	row(out, tune.Title, tune.Composer, tune.Writer, tune.Rate, len(tune.Table.Rows),
 		repeatOf(tune.Table.Repeat))
 
@@ -64,7 +64,7 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 		}
 	}
 
-	named := []any{"rows", "row"}
+	named := []any{"registers", "row"}
 	for _, register := range ymxs.Registers {
 		named = append(named, text.Name(register))
 	}
@@ -278,7 +278,7 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 			number, len(told.rows))
 	}
 	one := told.rows[0]
-	count, err := whole(told.of(one, "frames"), "frames")
+	count, err := whole(told.of(one, "rows"), "rows")
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
@@ -314,7 +314,7 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 				}
 				values[len(values)-1] = append(values[len(values)-1], value)
 			}
-		case "rows":
+		case "registers":
 			for _, line := range one.rows {
 				at, err := rowAt(count, one.of(line, "row"),
 					fmt.Sprintf("tune %d sets a row", number))

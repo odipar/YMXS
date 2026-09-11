@@ -58,9 +58,9 @@ final class CsvTest {
                 .toList();
         List<String> named = lines.stream().filter(one -> one.startsWith("###"))
                 .map(one -> one.substring(3).strip()).toList();
-        assertEquals(List.of("multi", "tune", "rows"), named,
+        assertEquals(List.of("multi", "tune", "registers"), named,
                 "circus is rows alone, so those are the three tables it opens");
-        int rows = lines.indexOf("### rows");
+        int rows = lines.indexOf("### registers");
         assertEquals(List.of("row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
                 Csv.cells(lines.get(rows + 1)),
@@ -90,7 +90,7 @@ final class CsvTest {
     @Test
     void aRowIsARowAndAnEmptyCellIsARegisterItDoesNotSet() throws IOException {
         List<String> rows = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
-                .dropWhile(one -> !one.startsWith("### rows"))
+                .dropWhile(one -> !one.startsWith("### registers"))
                 .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(4, rows.size(), "one line a row that sets something");
         List<String> first = Csv.cells(rows.get(0));
@@ -112,7 +112,7 @@ final class CsvTest {
                 .filter(one -> one.startsWith("###"))
                 .map(one -> one.substring(3).strip()).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
-                "rows", "timerA", "timerD"), named,
+                "registers", "timerA", "timerD"), named,
                 "each source opens a table, and so does each timer a row uses");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
@@ -168,8 +168,8 @@ final class CsvTest {
                 .map(one -> one.substring(3).strip()).toList();
         assertEquals(List.of("multi",
                 "tune", "source", "value", "source", "value", "source", "value",
-                        "rows", "timerD",
-                "tune", "source", "value", "rows", "timerD"), named,
+                        "registers", "timerD",
+                "tune", "source", "value", "registers", "timerD"), named,
                 "a tune opens its tables and the next tune opens the next");
     }
 
@@ -231,7 +231,7 @@ final class CsvTest {
                 Tunes.row(Map.of(Register.R7, 56)), Tunes.EMPTY,
                 Tunes.row(Map.of(Register.R7, 49))), 0));
         String csv = Csv.write(Tunes.multi(tune));
-        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### rows"))
+        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### registers"))
                 .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of("0,,,,,,,,56,,,,,,", "2,,,,,,,,49,,,,,,"), rows,
                 "the row column is the row number, so a row that sets none is left out");
@@ -260,7 +260,7 @@ final class CsvTest {
     @Test
     void aTextOfAnotherFormatOrVersionIsTurnedAway() {
         assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi\nformat,version,tunes\nymxr,1,0\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxr,2,0\n"));
         assertThrows(IllegalArgumentException.class,
                 () -> Csv.read("### multi\nformat,version,tunes\nymxs,9,0\n"));
     }
@@ -270,7 +270,7 @@ final class CsvTest {
     @Test
     void aHeadingThisDoesNotReadIsNamed() {
         IllegalArgumentException old = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxs,1,1\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxs,2,1\n"));
         assertTrue(String.valueOf(old.getMessage()).contains("has a comma in it"),
                 String.valueOf(old.getMessage()));
         IllegalArgumentException alone = assertThrows(IllegalArgumentException.class,
@@ -278,7 +278,7 @@ final class CsvTest {
         assertTrue(String.valueOf(alone.getMessage()).contains("names no columns"),
                 String.valueOf(alone.getMessage()));
         IllegalArgumentException last = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi\nformat,version,tunes\nymxs,1,1\n\n### tune\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,2,1\n\n### tune\n"));
         assertTrue(String.valueOf(last.getMessage()).contains("names no columns"),
                 String.valueOf(last.getMessage()));
     }
@@ -296,13 +296,13 @@ final class CsvTest {
         String csv = """
                 ### multi
                 version,tunes,format
-                1,1,ymxs
+                2,1,ymxs
 
                 ### tune
-                frames,rate,repeat,writer,composer,title
+                rows,rate,repeat,writer,composer,title
                 1,50,0,a writer,a composer,a title
 
-                ### rows
+                ### registers
                 r0,row
                 200,0
                 """;

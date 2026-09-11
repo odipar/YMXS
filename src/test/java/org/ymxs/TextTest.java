@@ -109,7 +109,7 @@ final class TextTest {
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
                 Timer.D, new Start(Tunes.setting(Register.R10), drum,
-                        Prescaler.BY_200, 256, false, true))));
+                        Prescaler.BY_200, 0, false, true))));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.B, new Start(Tunes.setting(Register.R13), buzzer,
                         Prescaler.BY_50, 1, true, false),
@@ -143,7 +143,7 @@ final class TextTest {
     @Test
     void aColumnShorterThanTheTuneIsTurnedAway() {
         String text = """
-                {"format":"ymxs","version":2,"tunes":[{"title":"","composer":"",
+                {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
                  "writer":"","rate":50,"rows":4,"repeat":null,"sources":[],
                  "registers":{"r0":[1,2]}}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
@@ -187,7 +187,7 @@ final class TextTest {
     @Test
     void aTextOfTheShapeThisNoLongerWritesIsAnError() {
         String text = """
-                {"format":"ymxs","version":2,"tunes":[{"title":"","composer":"",
+                {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
                  "writer":"","rate":50,"rows":1,"repeat":null,"sources":[],
                  "registers":[{"row":0,"r0":1}],"effects":[]}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,

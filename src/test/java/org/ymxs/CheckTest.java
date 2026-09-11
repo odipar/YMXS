@@ -41,7 +41,8 @@ final class CheckTest {
         assertEquals(List.of(
                 "a rate of 0: a player is called at least once a second",
                 "row 0: R8 is 0 to 31, and this row sets it to 99",
-                "row 1: Timer A: a count of 400: a timer counts 1 to 256",
+                "row 1: Timer A: a count of 400: a timer's data register is a byte,"
+                        + " 0 to 255, and 0 counts 256",
                 "row 1: Timer A: a source on setR8 whose row 0 is 200,"
                         + " and the target is 0 to 31"),
                 Check.of(broken()));

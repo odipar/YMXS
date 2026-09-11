@@ -10,7 +10,7 @@ reading in a spreadsheet.
 ```json
 {
   "format": "ymxs",
-  "version": 2,
+  "version": 3,
   "tunes": [
     {
       "title": "Circus Attractions #2",
@@ -100,7 +100,7 @@ column.
 | `target` | 0 to 13, which is `setR0` to `setR13` |
 | `source` | 1 upward into the tune's `sources` |
 | `prescaler` | one of the seven a timer divides by: 4, 10, 16, 50, 64, 100, 200 |
-| `count` | 1 to 256 |
+| `count` | 0 to 255, the timer's data register, where 0 counts 256 |
 | `timerReset`, `placeReset` | 1 true, 0 false |
 
 A part absent from a shape is -1: `target` and `source` for a retune, all
@@ -132,5 +132,5 @@ is valid input.
 | a source number outside the tune's `sources` | there is no such source |
 
 The remaining errors are rejected where the record is constructed: a
-register value outside its range, a count outside 1 to 256, a source value
+register value outside its range, a count outside 0 to 255, a source value
 outside its target's range, a repeat row past the last row.

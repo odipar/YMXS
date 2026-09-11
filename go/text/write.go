@@ -26,7 +26,7 @@ import (
 const Format = "ymxs"
 
 // Version is the version of the structure this maps.
-const Version = 2
+const Version = 3
 
 // None is what stands in a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an

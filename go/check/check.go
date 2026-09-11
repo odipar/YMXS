@@ -121,9 +121,9 @@ func runs(start ymxs.Start) []string {
 }
 
 func count(at int) []string {
-	if at < 1 || at > ymxs.MostCount {
-		return []string{fmt.Sprintf("a count of %d: a timer counts 1 to %d",
-			at, ymxs.MostCount)}
+	if at < 0 || at > ymxs.MostCount {
+		return []string{fmt.Sprintf("a count of %d: a timer's data register is a"+
+			" byte, 0 to %d, and 0 counts %d", at, ymxs.MostCount, ymxs.ZeroCounts)}
 	}
 	return nil
 }

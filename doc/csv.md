@@ -5,7 +5,7 @@ A tune as tables, for reading in a spreadsheet.
 ```
 ### multi
 format,version,tunes
-ymxs,2,1
+ymxs,3,1
 
 ### tune
 title,composer,writer,rate,rows,repeat

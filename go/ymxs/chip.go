@@ -8,9 +8,22 @@ import "fmt"
 // Clock is the MC68901's clock, in ticks a second.
 const Clock = 2457600
 
-// MostCount is the largest count a timer counts: its data register is 1 to
-// 255, and 0 counts 256.
-const MostCount = 256
+// MostCount is the largest value a timer's data register reads. The
+// register is a byte and every value of it is a count, 0 among them.
+const MostCount = 255
+
+// ZeroCounts is the ticks a count of 0 counts. A timer counts the
+// register's value down through zero, so 0 counts a whole byte round.
+const ZeroCounts = 256
+
+// Ticks is the ticks count counts: the value itself, and ZeroCounts where
+// it is 0.
+func Ticks(count int) int {
+	if count == 0 {
+		return ZeroCounts
+	}
+	return count
+}
 
 // Most is the largest value that fits the register. The smallest is 0.
 //
@@ -110,7 +123,7 @@ func PrescalerBy(by int) (Prescaler, error) {
 // Rate is the rate a timer runs at with this prescaler and this count, in
 // ticks a second.
 func Rate(prescaler Prescaler, count int) int {
-	return Clock / (Divides(prescaler) * count)
+	return Clock / (Divides(prescaler) * Ticks(count))
 }
 
 // Frames is the frames a source of that many rows runs for at this rate,
@@ -123,7 +136,7 @@ func Rate(prescaler Prescaler, count int) int {
 // follows from its rate, and any reading resting on that is reported as
 // such.
 func Frames(rows int, prescaler Prescaler, count, called int) int {
-	divisor := int64(Divides(prescaler)) * int64(count)
+	divisor := int64(Divides(prescaler)) * int64(Ticks(count))
 	scaled := int64(rows)*divisor*int64(called) + Clock/16
 	return int((scaled + Clock - 1) / Clock)
 }

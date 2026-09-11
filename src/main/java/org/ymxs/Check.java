@@ -141,9 +141,10 @@ public final class Check {
     }
 
     private static List<String> count(int count) {
-        if (count < 1 || count > Chip.MOST_COUNT) {
-            return List.of("a count of " + count + ": a timer counts 1 to "
-                    + Chip.MOST_COUNT);
+        if (count < 0 || count > Chip.MOST_COUNT) {
+            return List.of("a count of " + count + ": a timer's data register"
+                    + " is a byte, 0 to " + Chip.MOST_COUNT + ", and 0 counts "
+                    + Chip.ZERO_COUNTS);
         }
         return List.of();
     }

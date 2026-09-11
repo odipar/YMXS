@@ -47,7 +47,7 @@ public final class Json {
     public static final String FORMAT = "ymxs";
 
     /** The version of the structure this maps. */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 

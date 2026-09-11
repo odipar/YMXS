@@ -216,7 +216,7 @@ final class CsvTest {
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
                         Timer.D, new Start(Tunes.setting(Register.R10), drum,
-                                Prescaler.BY_200, 256, false, true))),
+                                Prescaler.BY_200, 0, false, true))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));
@@ -270,7 +270,7 @@ final class CsvTest {
     @Test
     void aHeadingThisDoesNotReadIsNamed() {
         IllegalArgumentException old = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxs,2,1\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxs,3,1\n"));
         assertTrue(String.valueOf(old.getMessage()).contains("has a comma in it"),
                 String.valueOf(old.getMessage()));
         IllegalArgumentException alone = assertThrows(IllegalArgumentException.class,
@@ -278,7 +278,7 @@ final class CsvTest {
         assertTrue(String.valueOf(alone.getMessage()).contains("names no columns"),
                 String.valueOf(alone.getMessage()));
         IllegalArgumentException last = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi\nformat,version,tunes\nymxs,2,1\n\n### tune\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,3,1\n\n### tune\n"));
         assertTrue(String.valueOf(last.getMessage()).contains("names no columns"),
                 String.valueOf(last.getMessage()));
     }
@@ -296,7 +296,7 @@ final class CsvTest {
         String csv = """
                 ### multi
                 version,tunes,format
-                2,1,ymxs
+                3,1,ymxs
 
                 ### tune
                 rows,rate,repeat,writer,composer,title

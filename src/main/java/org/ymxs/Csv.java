@@ -1,6 +1,7 @@
 package org.ymxs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,13 +25,15 @@ import org.ymxs.YMXS.Tune;
  * (doc/csv.md). It writes what {@link Text} writes, and both read into the
  * same structure.
  *
- * <p>A line beginning {@link #TABLE} opens a table and names its columns.
- * Every line after it is one row of that table, in ordinary
- * comma-separated values, until the next such line.
+ * <p>A line beginning {@link #TABLE} opens a table and names it. The line
+ * after it names the columns, and every line after that is one row of the
+ * table, in ordinary comma-separated values, until the next such line. The
+ * column names stand over the cells they name.
  *
  * <pre>
- *   ### tune,tune,title,composer,writer,rate,rows,repeat
- *   1,Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
+ *   ### tune
+ *   title,composer,writer,rate,frames,repeat
+ *   Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
  * </pre>
  *
  * <p>These are ordinary tables, and they are the tables {@link Json}
@@ -144,8 +147,8 @@ public final class Csv {
         if (out.length() > 0) {
             out.append('\n');
         }
-        out.append(TABLE.strip()).append(' ');
-        row(out, named);
+        out.append(TABLE.strip()).append(' ').append(named[0]).append('\n');
+        row(out, Arrays.copyOfRange(named, 1, named.length));
     }
 
     /** One row, each cell quoted where it has a comma, a quote or a
@@ -389,27 +392,51 @@ public final class Csv {
     private static List<Block> sections(String text) {
         List<Block> out = new ArrayList<>();
         Block here = null;
+        // The table whose column names the next line is, none where the
+        // line is a row of the table open.
+        String naming = null;
         for (String line : text.split("\n", -1)) {
             if (line.isBlank()) {
                 continue;
             }
             if (line.startsWith("###")) {
-                List<String> heading = cells(line.substring(3).strip());
-                if (heading.isEmpty() || heading.get(0).isBlank()) {
+                if (naming != null) {
+                    throw new IllegalArgumentException(unnamed(naming));
+                }
+                String name = line.substring(3).strip();
+                if (name.isBlank()) {
                     throw new IllegalArgumentException("a table with no name: " + line);
                 }
-                here = new Block(heading.get(0), heading.subList(1, heading.size()),
-                        new ArrayList<>());
+                if (name.indexOf(',') >= 0) {
+                    throw new IllegalArgumentException("the table name \"" + name
+                            + "\" has a comma in it: a name stands alone on its line, and"
+                            + " the column names on the line after it");
+                }
+                here = new Block(name, new ArrayList<>(), new ArrayList<>());
                 out.add(here);
+                naming = name;
                 continue;
             }
             if (here == null) {
-                throw new IllegalArgumentException("a row before any table names its"
-                        + " columns: " + line);
+                throw new IllegalArgumentException("a row before any table opens: " + line);
+            }
+            if (naming != null) {
+                here.columns().addAll(cells(line));
+                naming = null;
+                continue;
             }
             here.rows().add(cells(line));
         }
+        if (naming != null) {
+            throw new IllegalArgumentException(unnamed(naming));
+        }
         return out;
+    }
+
+    /** A table whose name is the last line of it. */
+    private static String unnamed(String name) {
+        return "the \"" + TABLE + name + "\" table names no columns: the line after the"
+                + " name is the column names";
     }
 
     /** One line's cells; a quoted cell is its content, and two quotes

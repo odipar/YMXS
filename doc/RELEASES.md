@@ -26,6 +26,31 @@ rather than the format.
 
 ## Published
 
+### 0.3.0, 2026-09-11
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.0>, built from the commit
+tagged `v0.3.0`.
+
+**The structure's version is 3, and a file of version 2 is read by no tool
+here.** The count is the timer's data register.
+
+- A timer's data register is a byte and every value of it is a count: the
+  timer loads the value and counts it down through zero, so 1 counts one
+  tick and 0 counts 256. The structure recorded the ticks, 1 to 256, which
+  made 0 a fault and 256 a value. `count` is the register now, 0 to 255.
+- `-1` marks a value a row does not set, as it did, so 0 needed no number
+  outside the byte to stand clear of it.
+- `Chip.ticks` reads the ticks off the count for the two figures that need
+  them: the rate, and the frames a source runs for.
+
+**No file this writes moves.** A YM dump's slot is empty where its count
+register is 0, so the reader never wrote a count of 256, and no tune of the
+corpus or the five under `doc/tunes` has a count outside 31 to 255.
+
+No file of either version is misread: 1 to 255 mean the same in both, and
+the two values that moved are each outside the other version's range, so a
+reader rejects rather than reading them wrong.
+
 ### 0.2.0, 2026-09-11
 
 <https://github.com/odipar/YMXS/releases/tag/v0.2.0>, built from the commit

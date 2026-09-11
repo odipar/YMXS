@@ -1,16 +1,16 @@
 {
   "format": "ymxs",
-  "version": 1,
+  "version": 2,
   "tunes": [
     {
       "title": "Circus Attractions #2",
       "composer": "Mad Max",
       "writer": "ym-to-ymxs",
       "rate": 50,
-      "frames": 4,
+      "rows": 4,
       "repeat": 0,
       "sources": [],
-      "rows": {
+      "registers": {
         "r0": [163,142,251,89],
         "r1": [2,12,4,2],
         "r2": [238,-1,-1,-1],

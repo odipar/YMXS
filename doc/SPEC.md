@@ -9,6 +9,10 @@ document defines the rest: what each value reaches on the two chips, what
 a frame does with a row, what a tick does with a source's row, the rules
 that bind a writer, and what a reader reports.
 
+The block in section 1 is `src/main/java/org/ymxs/YMXS.java` with the
+javadoc off: the declarations as they compile, and `SpecTest` reads the
+two against each other.
+
 A form writes a tune down. [json.md](json.md) is one form; a player's
 binary layout is another.
 
@@ -17,36 +21,61 @@ binary layout is another.
 ## 1. The tune data structure
 
 ```java
-interface YMXS {
+package org.ymxs;
 
-    record Multi(List<Tune> tunes)
+import java.util.List;
+import java.util.Map;
+import java.util.OptionalInt;
+
+public interface YMXS {
+
+    record Multi(List<Tune> tunes) { }
+
     record Tune(String title, String composer, String writer, int rate,
-                Table<Row> table)
-    record Table<T>(List<T> rows, OptionalInt repeat)
-    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects)
+                Table<Row> table) { }
 
-    sealed interface Effect permits Start, Retune, Stop
+    record Table<T>(List<T> rows, OptionalInt repeat) { }
+
+    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
+
+    sealed interface Effect permits Start, Retune, Stop { }
+
     record Start(Target target, Source source, Prescaler prescaler, int count,
-                 boolean timerReset, boolean placeReset) implements Effect
-    record Retune(Prescaler prescaler, int count,
-                  boolean timerReset, boolean placeReset) implements Effect
-    record Stop() implements Effect
+                 boolean timerReset, boolean placeReset) implements Effect { }
 
-    sealed interface Target permits SetRegister
-    record SetRegister(Register register) implements Target
+    record Retune(Prescaler prescaler, int count, boolean timerReset,
+                  boolean placeReset) implements Effect { }
 
-    sealed interface Source permits Single
-    record Single(String name, Table<Integer> table) implements Source
+    record Stop() implements Effect { }
 
-    enum Register  { R0 ... R13 }
-    enum Timer     { A, B, C, D }
-    enum Prescaler { BY_4 ... BY_200 }
+    sealed interface Target permits SetRegister { }
+
+    record SetRegister(Register register) implements Target { }
+
+    sealed interface Source permits Single { }
+
+    record Single(String name, Table<Integer> table) implements Source { }
+
+    enum Register {
+        R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
+    }
+
+    enum Timer { A, B, C, D }
+
+    enum Prescaler { BY_4, BY_10, BY_16, BY_50, BY_64, BY_100, BY_200 }
 }
 ```
 
+**A row is one entry of a table, and a frame is one call of the player.**
 A tune's rows advance one a frame at the tune's rate; a source's rows
 advance one a tick at the rate of its effect's timer. That is the whole
 difference between the two tables.
+
+The two counts part at the end. A tune of R rows that repeats plays R
+frames and begins again; one that plays once runs R frames and a frame
+after them, which advances no row and reports -1 (section 4). So a file
+records rows and a run counts frames: [json.md](json.md) and
+[csv.md](csv.md) write `rows`, and neither writes a frame count.
 
 **The records above have no methods beyond their accessors.** A structure
 is read by a function outside it: `Chip` for the figures of the two chips,

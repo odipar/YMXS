@@ -141,8 +141,10 @@ been struck so far.
 | `Each player names the version of this it reads.` | `A player is a separate program, and pins a version of this format.` |
 | `a table of its own` | `a table` |
 | `for a reader who would rather open one in a spreadsheet` | `for reading in a spreadsheet` |
-| `frames says how long every column is` | `frames is the length of every column` |
+| `frames says how long every column is` | `rows is the length of every column` |
 | `tool.say(...)`, `tool.says()` | `tool.report(...)`, `tool.reports()` |
+| `frames`, for a tune's row count | `rows`; a frame is one call of the player, a row one entry of a table |
+| `rows`, for the columns a register | `registers`, which is what the record names them |
 
 ## A specification defines operations
 

@@ -2,12 +2,14 @@
 // spreadsheet (doc/csv.md). It writes what the text package writes, and
 // both read into the same structure.
 //
-// A line beginning "### " opens a table and names its columns. Every line
-// after it is one row of that table, in ordinary comma-separated values,
-// until the next such line.
+// A line beginning "### " opens a table and names it. The line after it
+// names the columns, and every line after that is one row of the table, in
+// ordinary comma-separated values, until the next such line. The column
+// names stand over the cells they name.
 //
-//	### tune,tune,title,composer,writer,rate,rows,repeat
-//	1,Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
+//	### tune
+//	title,composer,writer,rate,frames,repeat
+//	Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
 //
 // These are ordinary tables, and they are the tables the JSON form writes:
 // one form follows from the other. A row of a tune is a row here, with a
@@ -130,7 +132,9 @@ func table(out *strings.Builder, named ...any) {
 	}
 	out.WriteString(strings.TrimSpace(Table))
 	out.WriteByte(' ')
-	row(out, named...)
+	out.WriteString(said(named[0]))
+	out.WriteByte('\n')
+	row(out, named[1:]...)
 }
 
 // row puts one row down, each cell quoted where it has a comma, a quote or
@@ -493,25 +497,51 @@ func flag(said string) bool {
 func sections(said string) ([]*block, error) {
 	var out []*block
 	var here *block
+	// The table whose column names the next line is, empty where the line
+	// is a row of the table open.
+	naming := ""
 	for _, line := range strings.Split(said, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		if strings.HasPrefix(line, "###") {
-			heading := Cells(strings.TrimSpace(line[3:]))
-			if len(heading) == 0 || strings.TrimSpace(heading[0]) == "" {
+			if naming != "" {
+				return nil, unnamed(naming)
+			}
+			name := strings.TrimSpace(line[3:])
+			if name == "" {
 				return nil, fmt.Errorf("a table with no name: %s", line)
 			}
-			here = &block{name: heading[0], columns: heading[1:]}
+			if strings.Contains(name, ",") {
+				return nil, fmt.Errorf("the table name %q has a comma in it: a name"+
+					" stands alone on its line, and the column names on the line"+
+					" after it", name)
+			}
+			here = &block{name: name}
 			out = append(out, here)
+			naming = name
 			continue
 		}
 		if here == nil {
-			return nil, fmt.Errorf("a row before any table names its columns: %s", line)
+			return nil, fmt.Errorf("a row before any table opens: %s", line)
+		}
+		if naming != "" {
+			here.columns = Cells(line)
+			naming = ""
+			continue
 		}
 		here.rows = append(here.rows, Cells(line))
 	}
+	if naming != "" {
+		return nil, unnamed(naming)
+	}
 	return out, nil
+}
+
+// unnamed is a table whose name is the last line of it.
+func unnamed(name string) error {
+	return fmt.Errorf("the %q table names no columns: the line after the name is the"+
+		" column names", strings.TrimSpace(Table)+" "+name)
 }
 
 // Cells is one line's cells; a quoted cell is its content, and two quotes

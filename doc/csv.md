@@ -3,31 +3,39 @@
 A tune as tables, for reading in a spreadsheet.
 
 ```
-### multi,format,version,tunes
+### multi
+format,version,tunes
 ymxs,1,1
 
-### tune,title,composer,writer,rate,frames,repeat
+### tune
+title,composer,writer,rate,frames,repeat
 Synthetic,Test,ym-to-ymxs,50,400,0
 
-### source,name,repeat
+### source
+name,repeat
 square 13,0
 
-### value,row,value
+### value
+row,value
 0,13
 1,0
 
-### source,name,repeat
+### source
+name,repeat
 recording 0,
 
-### value,row,value
+### value
+row,value
 0,8
 1,9
 
-### rows,row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
+### rows
+row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 0,64,1,48,2,32,3,0,56,,12,11,0,0,
 1,65,,49,,33,,1,,,,,3,,
 
-### timerA,row,shape,target,source,prescaler,count,timerReset,placeReset
+### timerA
+row,shape,target,source,prescaler,count,timerReset,placeReset
 0,0,8,1,50,60,1,1
 1,1,,,50,61,0,0
 59,2,,,,,,
@@ -35,9 +43,12 @@ recording 0,
 
 ## How it reads
 
-- A line beginning `###` opens a table and names its columns.
-- Every line after it is one row of that table, in ordinary
-  comma-separated values, until the next such line.
+- A line beginning `###` opens a table and names it, and the name stands
+  alone on that line.
+- The line after it names the columns, so a column name stands over the
+  cells it names and a reader counts the columns by reading down.
+- Every line after that is one row of the table, in ordinary
+  comma-separated values, until the next `###` line.
 - A blank line is skipped.
 - A cell is quoted where it has a comma or a quote, and two quotes
   inside a quoted cell stand for one.
@@ -87,6 +98,11 @@ marks one that plays once.
 A cell containing a line feed. Quoting covers a comma and a quote; a line
 feed would read as the end of a row, so a title containing one is rejected
 rather than written and misread.
+
+A `###` line with a comma in it, and a `###` line with no line after it.
+The first is a file of the form this replaced, where the name and the
+columns stood on one line; the second is a table whose name is its last
+line.
 
 ## Between the two forms
 

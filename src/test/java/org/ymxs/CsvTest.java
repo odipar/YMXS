@@ -53,24 +53,45 @@ final class CsvTest {
     }
 
     @Test
-    void aHashLineNamesATableAndItsColumns() throws IOException {
+    void aHashLineNamesATableAndTheLineAfterItNamesTheColumns() throws IOException {
         List<String> lines = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
-                .filter(one -> one.startsWith("###")).toList();
-        List<String> named = lines.stream()
-                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+                .toList();
+        List<String> named = lines.stream().filter(one -> one.startsWith("###"))
+                .map(one -> one.substring(3).strip()).toList();
         assertEquals(List.of("multi", "tune", "rows"), named,
                 "circus is rows alone, so those are the three tables it opens");
-        assertEquals(List.of("rows", "row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
+        int rows = lines.indexOf("### rows");
+        assertEquals(List.of("row", "r0", "r1", "r2", "r3", "r4", "r5", "r6",
                 "r7", "r8", "r9", "r10", "r11", "r12", "r13"),
-                Csv.cells(lines.get(2).substring(3).strip()),
+                Csv.cells(lines.get(rows + 1)),
                 "a row of a tune is a row here, with a column a register");
+    }
+
+    /** The point of the two lines: a column name stands over the cells it
+     *  names, so a reader counts the columns of a table by reading down. */
+    @Test
+    void aColumnNameStandsOverTheCellsItNames() throws IOException {
+        List<String> lines = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
+                .toList();
+        for (int at = 0; at < lines.size(); at++) {
+            if (!lines.get(at).startsWith("###")) {
+                continue;
+            }
+            String named = lines.get(at).substring(3).strip();
+            assertTrue(!named.contains(","), "a heading line names the table alone: " + named);
+            int columns = Csv.cells(lines.get(at + 1)).size();
+            for (int row = at + 2; row < lines.size() && !lines.get(row).isBlank(); row++) {
+                assertEquals(columns, Csv.cells(lines.get(row)).size(),
+                        named + ": a row has a cell a column, under the name of it");
+            }
+        }
     }
 
     @Test
     void aRowIsARowAndAnEmptyCellIsARegisterItDoesNotSet() throws IOException {
         List<String> rows = Files.readString(Path.of("doc/tunes/circus.csv")).lines()
                 .dropWhile(one -> !one.startsWith("### rows"))
-                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+                .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(4, rows.size(), "one line a row that sets something");
         List<String> first = Csv.cells(rows.get(0));
         assertEquals("0", first.get(0), "the row");
@@ -89,7 +110,7 @@ final class CsvTest {
                         Tunes.once("second", List.of(1, 2, 3)), Prescaler.BY_4, 100)))), 0));
         List<String> named = Csv.write(Tunes.multi(tune)).lines()
                 .filter(one -> one.startsWith("###"))
-                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+                .map(one -> one.substring(3).strip()).toList();
         assertEquals(List.of("multi", "tune", "source", "value", "source", "value",
                 "rows", "timerA", "timerD"), named,
                 "each source opens a table, and so does each timer a row uses");
@@ -104,7 +125,7 @@ final class CsvTest {
                 Tunes.repeating(List.of(Tunes.row(Map.of(Register.R0, 2))), 0));
         Multi multi = new Multi(List.of(one, two));
         String csv = Csv.write(multi);
-        assertEquals(2, csv.lines().filter(said -> said.startsWith("### tune,")).count(),
+        assertEquals(2, csv.lines().filter(said -> said.equals("### tune")).count(),
                 "one table a tune opens it");
         assertTrue(!csv.contains(",tune,"), "and a table needs no column for its tune");
         assertEquals(multi, Csv.read(csv));
@@ -144,7 +165,7 @@ final class CsvTest {
     void theTablesOfOneTuneStandTogether() throws IOException {
         Multi multi = Text.read(Files.readString(Path.of("doc/tunes/two-tunes.json")));
         List<String> named = Csv.write(multi).lines().filter(one -> one.startsWith("###"))
-                .map(one -> Csv.cells(one.substring(3).strip()).get(0)).toList();
+                .map(one -> one.substring(3).strip()).toList();
         assertEquals(List.of("multi",
                 "tune", "source", "value", "source", "value", "source", "value",
                         "rows", "timerD",
@@ -162,7 +183,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
         List<String> rows = Csv.write(Tunes.multi(tune)).lines()
                 .dropWhile(one -> !one.startsWith("### timerA"))
-                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+                .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of(
                 "0,0,8,1,4,100,1,1",
                 "1,1,,,4,90,0,0",
@@ -211,7 +232,7 @@ final class CsvTest {
                 Tunes.row(Map.of(Register.R7, 49))), 0));
         String csv = Csv.write(Tunes.multi(tune));
         List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### rows"))
-                .skip(1).takeWhile(one -> !one.isBlank()).toList();
+                .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of("0,,,,,,,,56,,,,,,", "2,,,,,,,,49,,,,,,"), rows,
                 "the row column is the row number, so a row that sets none is left out");
         assertEquals(Tunes.multi(tune), Csv.read(csv), "and it reads back to three rows");
@@ -239,15 +260,33 @@ final class CsvTest {
     @Test
     void aTextOfAnotherFormatOrVersionIsTurnedAway() {
         assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxr,1,0\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxr,1,0\n"));
         assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxs,9,0\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,9,0\n"));
+    }
+
+    /** A file of the form this replaced, where the name and the columns
+     *  stood on one line, and a table whose name is its last line. */
+    @Test
+    void aHeadingThisDoesNotReadIsNamed() {
+        IllegalArgumentException old = assertThrows(IllegalArgumentException.class,
+                () -> Csv.read("### multi,format,version,tunes\nymxs,1,1\n"));
+        assertTrue(String.valueOf(old.getMessage()).contains("has a comma in it"),
+                String.valueOf(old.getMessage()));
+        IllegalArgumentException alone = assertThrows(IllegalArgumentException.class,
+                () -> Csv.read("### multi\n"));
+        assertTrue(String.valueOf(alone.getMessage()).contains("names no columns"),
+                String.valueOf(alone.getMessage()));
+        IllegalArgumentException last = assertThrows(IllegalArgumentException.class,
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,1,1\n\n### tune\n"));
+        assertTrue(String.valueOf(last.getMessage()).contains("names no columns"),
+                String.valueOf(last.getMessage()));
     }
 
     @Test
     void aTextWithNoMultiTableIsTurnedAway() {
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### tune,tune\n1\n"));
+                () -> Csv.read("### tune\ntune\n1\n"));
         assertTrue(String.valueOf(no.getMessage()).contains("multi"),
                 String.valueOf(no.getMessage()));
     }
@@ -255,13 +294,16 @@ final class CsvTest {
     @Test
     void aColumnIsFoundByItsNameAndNotItsPlace() {
         String csv = """
-                ### multi,version,tunes,format
+                ### multi
+                version,tunes,format
                 1,1,ymxs
 
-                ### tune,frames,rate,repeat,writer,composer,title
+                ### tune
+                frames,rate,repeat,writer,composer,title
                 1,50,0,a writer,a composer,a title
 
-                ### rows,r0,row
+                ### rows
+                r0,row
                 200,0
                 """;
         Tune tune = Csv.read(csv).tunes().get(0);

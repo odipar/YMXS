@@ -36,9 +36,9 @@ The columns of a table stand over the cells they name.
 - A table opened with its name and its column names on one line, so the
   name took the first column's place and every name after it stood one
   cell to the left of the cells it names. The name stands alone on the
-  heading line now and the column names on the line after it. `ymxs-json-
-  to-csv` writes that and `ymxs-csv-to-json` reads it, doc/csv.md defines
-  it, and doc/tunes/circus.csv is one tune in it.
+  heading line now and the column names on the line after it. The two
+  tools between the forms write it and read it, doc/csv.md defines it,
+  and doc/tunes/circus.csv is one tune in it.
 - A column is still found by name, so column order follows the file as it
   did.
 - Two lines a reader turns away rather than reading as something else: a

@@ -26,6 +26,33 @@ rather than the format.
 
 ## Published
 
+### 0.2.0, 2026-09-11
+
+<https://github.com/odipar/YMXS/releases/tag/v0.2.0>, built from the commit
+tagged `v0.2.0`.
+
+**The structure's version is 2, and a file of version 1 is read by no tool
+here.** One word a thing for a row and a frame.
+
+- A frame is one call of the player and a row is one entry of a table. The
+  tune's table advances one row a frame, so the two counts part at the end,
+  where a tune that plays once runs a frame past its last row. A file
+  records rows and a run counts frames.
+- The tune key `frames` was the row count under a frame's name, and it is
+  `rows`. The key `rows` was the columns a register, which are not rows,
+  and it is `registers`, which is what the record names them.
+- CSV follows: the `tune` table's `frames` column is `rows`, and the
+  `### rows` table is `### registers`.
+- SPEC.md, json.md, csv.md and ym.md define the two words once and use
+  them. A dump's frames keep the name, since a frame is what a dump
+  records.
+
+**Section 1 of SPEC.md is Java that compiles.** It wrote a record with no
+body, an enum with an ellipsis for its constants and no imports, so a
+reader who pasted it read compiler errors. It is
+`src/main/java/org/ymxs/YMXS.java` with the javadoc off now, and `SpecTest`
+reads the two against each other.
+
 ### 0.1.1, 2026-09-11
 
 <https://github.com/odipar/YMXS/releases/tag/v0.1.1>, built from the commit

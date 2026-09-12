@@ -10,3 +10,4 @@ dist/
 /*.csv
 /*.ymxr
 /*.ym
+go/bin/

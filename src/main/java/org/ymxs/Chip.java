@@ -30,6 +30,19 @@ public final class Chip {
         return count == 0 ? ZERO_COUNTS : count;
     }
 
+    /** A 68000 on an Atari ST, in cycles a second. */
+    public static final int CPU_CLOCK = 8_000_000;
+
+    /** The cycles a 68000 spends entering an interrupt and leaving it: 44
+     *  and 20 from the manual, with no cycle of a handler between them. */
+    public static final int TICK_CYCLES = 64;
+
+    /** The ticks a second past which a 68000 spends every cycle it has
+     *  entering interrupts and leaving them, with none for a handler and
+     *  none for the frame. A tune below this may still be more than a
+     *  machine plays, which a player measures of itself. */
+    public static final int MOST_TICKS = CPU_CLOCK / TICK_CYCLES;
+
     private Chip() {
     }
 

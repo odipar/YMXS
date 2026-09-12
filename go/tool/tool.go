@@ -16,6 +16,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/odipar/ymxs/go/check"
+	"github.com/odipar/ymxs/go/ymxs"
 )
 
 // Done is the exit of a tool that completed.
@@ -105,6 +108,29 @@ func (t *Tool) Note(said string) {
 // Reports is whether the tool reports progress.
 func (t *Tool) Reports() bool {
 	return t.reports
+}
+
+// Warnings is the warnings of SPEC.md 6 for every tune of multi, one line
+// each on standard error, and how many there were.
+//
+// Every tool that reads a tune reports these, so a fault a writer left in
+// is named where the tune is used rather than only where it is checked. A
+// warning is a tune that plays, but not as written, so it stands whether
+// or not -silent was passed: that flag quiets what a tool reports of its
+// work, and this is what the tune gets wrong.
+func (t *Tool) Warnings(multi ymxs.Multi) int {
+	count := 0
+	for at, tune := range multi.Tunes {
+		for _, one := range check.Writing(tune) {
+			named := ""
+			if len(multi.Tunes) != 1 {
+				named = fmt.Sprintf("tune %d: ", at+1)
+			}
+			fmt.Fprintln(t.err, t.named+": warning: "+named+one)
+			count++
+		}
+	}
+	return count
 }
 
 // Named is the name the tool reports under.

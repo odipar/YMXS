@@ -30,6 +30,7 @@ public final class ToCsv {
         } catch (IllegalArgumentException no) {
             throw tool.wrong(Tool.WRONG, String.valueOf(no.getMessage()));
         }
+        tool.warnings(multi);
         tool.write(csv);
         int rows = 0;
         for (Tune tune : multi.tunes()) {

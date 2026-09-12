@@ -22,6 +22,7 @@
 package csv
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -387,8 +388,12 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 		}
 		table = ymxs.Repeating(rows, repeat)
 	}
-	return ymxs.Tune{Title: told.of(one, "title"), Composer: told.of(one, "composer"),
-		Writer: told.of(one, "writer"), Rate: rate, Table: table}, nil
+	tune := ymxs.Tune{Title: told.of(one, "title"), Composer: told.of(one, "composer"),
+		Writer: told.of(one, "writer"), Rate: rate, Table: table}
+	if wrong := check.Declared(sources, tune); len(wrong) != 0 {
+		return ymxs.Tune{}, errors.New(strings.Join(wrong, "\n"))
+	}
+	return tune, nil
 }
 
 // timerOf is the timer a table of that name is for.

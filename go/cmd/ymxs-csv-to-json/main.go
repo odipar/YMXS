@@ -21,6 +21,7 @@ func main() {
 		t.Wrong(tool.Wrong, err.Error())
 	}
 	json := text.Write(multi)
+	t.Warnings(multi)
 	t.Write(json)
 	rows := 0
 	for _, tune := range multi.Tunes {

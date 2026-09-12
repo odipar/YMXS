@@ -78,9 +78,10 @@ func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		said := count(e.Count)
+		said = append(said, rate(e.Prescaler, e.Count)...)
 		return append(said, runs(e)...)
 	case ymxs.Retune:
-		return count(e.Count)
+		return append(count(e.Count), rate(e.Prescaler, e.Count)...)
 	case ymxs.Stop:
 		return nil
 	}
@@ -115,6 +116,59 @@ func runs(start ymxs.Start) []string {
 		if value > most {
 			said = append(said, fmt.Sprintf("a source on %s whose row %d is %d, and the"+
 				" target is 0 to %d", ymxs.TargetName(start.Target), at, value, most))
+		}
+	}
+	return said
+}
+
+// rate is what a rate must satisfy: a 68000 services the ticks it comes
+// to. The count is read first, since a count outside the register makes no
+// rate.
+func rate(prescaler ymxs.Prescaler, at int) []string {
+	if at < 0 || at > ymxs.MostCount {
+		return nil
+	}
+	ticks := ymxs.Rate(prescaler, at)
+	if ticks > ymxs.MostTicks {
+		return []string{fmt.Sprintf("a rate of %d ticks a second: a 68000 at %d MHz"+
+			" enters an interrupt and leaves it in %d cycles, so %d a second is every"+
+			" cycle it has", ticks, ymxs.CpuClock/1000000, ymxs.TickCycles,
+			ymxs.MostTicks)}
+	}
+	return nil
+}
+
+// Declared is what is wrong with the sources a form declares beside the
+// tune its rows make, or nil.
+//
+// A form numbers its sources and names them, where the structure reaches a
+// source through the row that starts it (ymxs.Sources). So a form may
+// declare one no row starts, which is dropped where the form is read, and
+// two under one name, which a reader of the form cannot tell apart.
+func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
+	var said []string
+	run := ymxs.Sources(tune)
+	for at, one := range declared {
+		found := false
+		for _, and := range run {
+			if ymxs.SourceEqual(one, and) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			said = append(said, fmt.Sprintf("source %d, %s, is started by no row, and a"+
+				" source a tune does not run is dropped where this form is read",
+				at+1, ymxs.SourceName(one)))
+		}
+	}
+	for at, one := range declared {
+		for and := at + 1; and < len(declared); and++ {
+			if ymxs.SourceName(one) == ymxs.SourceName(declared[and]) &&
+				!ymxs.SourceEqual(one, declared[and]) {
+				said = append(said, fmt.Sprintf("sources %d and %d are both named %s, and"+
+					" their rows differ", at+1, and+1, ymxs.SourceName(one)))
+			}
 		}
 	}
 	return said
@@ -161,10 +215,17 @@ func MustTune(tune ymxs.Tune) (ymxs.Tune, error) {
 // ------------------------------------------------------- SPEC.md 6
 
 // running is what one timer runs, and the row its source ends on.
+// running is what one timer runs: the target and the source, the row the
+// start stands on, the row the source ends on, and the rows that set the
+// target's register while it ran.
 type running struct {
-	target ymxs.Target
-	source ymxs.Source
-	until  int
+	target     ymxs.Target
+	source     ymxs.Source
+	from       int
+	until      int
+	first      int
+	last       int
+	collisions int
 }
 
 // Writing reads the rules of SPEC.md 6 across the tune's rows. A tune that
@@ -181,7 +242,7 @@ type running struct {
 // on that reckoning is reported as such.
 func Writing(tune ymxs.Tune) []string {
 	w := &writing{tune: tune,
-		running:    map[ymxs.Timer]running{},
+		running:    map[ymxs.Timer]*running{},
 		lastSource: map[ymxs.Timer]ymxs.Source{},
 		lastTarget: map[ymxs.Timer]ymxs.Target{}}
 	return w.run()
@@ -190,7 +251,7 @@ func Writing(tune ymxs.Tune) []string {
 type writing struct {
 	tune       ymxs.Tune
 	said       []string
-	running    map[ymxs.Timer]running
+	running    map[ymxs.Timer]*running
 	lastSource map[ymxs.Timer]ymxs.Source
 	lastTarget map[ymxs.Timer]ymxs.Target
 }
@@ -203,14 +264,105 @@ func (w *writing) run() []string {
 		}
 		w.registers(at, row)
 	}
+	for _, timer := range ymxs.Timers {
+		if runs, on := w.running[timer]; on {
+			w.collided(timer, runs)
+		}
+	}
+	w.wrap()
 	return w.said
+}
+
+// repeats is whether this is the row the tune repeats to, where a writer
+// stops every effect so that the wrap resumes from a known setting.
+func (w *writing) repeats(at int) bool {
+	to, on := w.tune.Table.Repeat()
+	return on && to == at
+}
+
+// shared reads rule 2: where two timers write one register, the writer
+// fixes the order. The rule is the writer's to settle, and the row where
+// the second starts is where it arises.
+func (w *writing) shared(at int, timer ymxs.Timer, target ymxs.Target) {
+	register := written(target)
+	for _, one := range ymxs.Timers {
+		runs, on := w.running[one]
+		if one == timer || !on || at >= runs.until {
+			continue
+		}
+		if written(runs.target) == register {
+			w.say(at, timer, fmt.Sprintf("starts on %s, where Timer %s runs: rule 2"+
+				" leaves the order of two timers writing one register to the writer",
+				register, one), runs.until != math.MaxInt32)
+		}
+	}
+}
+
+// wrap reads rule 1 at the wrap: an effect running when the last row has
+// played runs on through the row the tune repeats to, which no row of the
+// next pass started.
+func (w *writing) wrap() {
+	to, on := w.tune.Table.Repeat()
+	if !on {
+		return
+	}
+	last := len(w.tune.Table.Rows) - 1
+	for _, timer := range ymxs.Timers {
+		runs, running := w.running[timer]
+		if !running || last >= runs.until {
+			continue
+		}
+		set := false
+		for _, one := range ymxs.Effects(w.tune.Table.Rows[to]) {
+			if one.Timer == timer {
+				set = true
+			}
+		}
+		if set {
+			continue
+		}
+		said := fmt.Sprintf("the tune repeats to row %d, and Timer %s runs on %s when its"+
+			" last row has played: the wrap resumes with the timer running from the pass"+
+			" before", to, timer, written(runs.target))
+		if runs.until != math.MaxInt32 {
+			said += reckoned
+		}
+		w.said = append(w.said, said)
+	}
+}
+
+// collided is one run of an effect, with the rows that set its register
+// reported as one line.
+func (w *writing) collided(timer ymxs.Timer, runs *running) {
+	if runs.collisions == 0 {
+		return
+	}
+	register := written(runs.target)
+	if runs.collisions == 1 {
+		w.say(runs.first, timer, fmt.Sprintf("runs on %s, and this row sets it", register),
+			runs.until != math.MaxInt32)
+		runs.collisions = 0
+		return
+	}
+	said := fmt.Sprintf("rows %d to %d: Timer %s runs on %s from row %d, and %d of them"+
+		" set it", runs.first, runs.last, timer, register, runs.from, runs.collisions)
+	if runs.until != math.MaxInt32 {
+		said += reckoned
+	}
+	w.said = append(w.said, said)
+	runs.collisions = 0
 }
 
 func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		w.place(at, timer, e)
-		w.running[timer] = running{target: e.Target, source: e.Source, until: w.until(at, e)}
+		w.shared(at, timer, e.Target)
+		if before, on := w.running[timer]; on {
+			w.collided(timer, before)
+		}
+		w.running[timer] = &running{target: e.Target, source: e.Source, from: at,
+			until: w.until(at, e), first: -1, last: -1}
 		w.lastSource[timer] = e.Source
 		w.lastTarget[timer] = e.Target
 	case ymxs.Retune:
@@ -220,7 +372,18 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 				w.reckoned(timer, at))
 		}
 	case ymxs.Stop:
+		runs, on := w.running[timer]
 		delete(w.running, timer)
+		// A stop of a source that has run out by the reckoning is a writer
+		// settling rule 4, and the row a tune repeats to stops every
+		// effect so that the wrap resumes from a known setting. Neither is
+		// a slip. A stop where this timer has run nothing is.
+		if !on && !w.repeats(at) {
+			w.say(at, timer, "stops an effect this timer has not started", false)
+		}
+		if on {
+			w.collided(timer, runs)
+		}
 	}
 }
 
@@ -270,17 +433,20 @@ func (w *writing) registers(at int, row ymxs.Row) {
 		if _, set := row.Registers[register]; !set {
 			continue
 		}
-		w.say(at, timer, fmt.Sprintf("runs on %s, and this row sets it", register),
-			runs.until != math.MaxInt32)
+		if runs.first < 0 {
+			runs.first = at
+		}
+		runs.last = at
+		runs.collisions++
 	}
 }
 
-func (w *writing) runs(timer ymxs.Timer, at int) (running, bool) {
+func (w *writing) runs(timer ymxs.Timer, at int) (*running, bool) {
 	runs, on := w.running[timer]
 	if on && at < runs.until {
 		return runs, true
 	}
-	return running{}, false
+	return nil, false
 }
 
 // reckoned is whether a reading of this timer at this row rests on the
@@ -289,6 +455,11 @@ func (w *writing) reckoned(timer ymxs.Timer, at int) bool {
 	runs, on := w.running[timer]
 	return on && runs.until != math.MaxInt32 && at >= runs.until
 }
+
+// reckoned is what a reading rests on where the source is one that plays
+// once: its end is reckoned from its rate rather than read off a row.
+const reckoned = ", which rests on how long a source that plays once runs, reckoned" +
+	" from its rate"
 
 // until is the row a start's source ends on, or no row where it repeats.
 func (w *writing) until(at int, start ymxs.Start) int {
@@ -307,11 +478,10 @@ func written(target ymxs.Target) ymxs.Register {
 	panic(fmt.Sprintf("no target %T", target))
 }
 
-func (w *writing) say(at int, timer ymxs.Timer, what string, reckoned bool) {
-	rests := ""
-	if reckoned {
-		rests = ", which rests on how long a source that plays once runs, reckoned from" +
-			" its rate"
+func (w *writing) say(at int, timer ymxs.Timer, what string, rests bool) {
+	said := ""
+	if rests {
+		said = reckoned
 	}
-	w.said = append(w.said, fmt.Sprintf("row %d: Timer %s %s%s", at, timer, what, rests))
+	w.said = append(w.said, fmt.Sprintf("row %d: Timer %s %s%s", at, timer, what, said))
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
@@ -96,10 +97,15 @@ public final class Check {
         return switch (effect) {
             case Start start -> {
                 List<String> said = new ArrayList<>(count(start.count()));
+                said.addAll(rate(start.prescaler(), start.count()));
                 said.addAll(runs(start));
                 yield said;
             }
-            case Retune retune -> count(retune.count());
+            case Retune retune -> {
+                List<String> said = new ArrayList<>(count(retune.count()));
+                said.addAll(rate(retune.prescaler(), retune.count()));
+                yield said;
+            }
             case Stop ignored -> List.of();
         };
     }
@@ -138,6 +144,56 @@ public final class Check {
             }
         }
         return said;
+    }
+
+    /**
+     * What is wrong with the sources a form declares beside the tune its
+     * rows make, or an empty list.
+     *
+     * <p>A form numbers its sources and names them, where the structure
+     * reaches a source through the row that starts it ({@link
+     * Tunes#sources}). So a form may declare one no row starts, which is
+     * dropped where the form is read, and two under one name, which a
+     * reader of the form cannot tell apart.
+     */
+    public static List<String> declared(List<Source> declared, Tune tune) {
+        List<String> said = new ArrayList<>();
+        List<Source> run = Tunes.sources(tune);
+        for (int at = 0; at < declared.size(); at++) {
+            if (!run.contains(declared.get(at))) {
+                said.add("source " + (at + 1) + ", " + Tunes.name(declared.get(at))
+                        + ", is started by no row, and a source a tune does not run is"
+                        + " dropped where this form is read");
+            }
+        }
+        for (int at = 0; at < declared.size(); at++) {
+            for (int and = at + 1; and < declared.size(); and++) {
+                if (Tunes.name(declared.get(at)).equals(Tunes.name(declared.get(and)))
+                        && !declared.get(at).equals(declared.get(and))) {
+                    said.add("sources " + (at + 1) + " and " + (and + 1)
+                            + " are both named " + Tunes.name(declared.get(at))
+                            + ", and their rows differ");
+                }
+            }
+        }
+        return said;
+    }
+
+    /** What a rate must satisfy: a 68000 services the ticks it comes to.
+     *  The count is read first, since a count outside the register makes
+     *  no rate. */
+    private static List<String> rate(Prescaler prescaler, int count) {
+        if (count < 0 || count > Chip.MOST_COUNT) {
+            return List.of();
+        }
+        int ticks = Chip.rate(prescaler, count);
+        if (ticks > Chip.MOST_TICKS) {
+            return List.of("a rate of " + ticks + " ticks a second: a 68000 at "
+                    + Chip.CPU_CLOCK / 1000000 + " MHz enters an interrupt and leaves it"
+                    + " in " + Chip.TICK_CYCLES + " cycles, so " + Chip.MOST_TICKS
+                    + " a second is every cycle it has");
+        }
+        return List.of();
     }
 
     private static List<String> count(int count) {
@@ -180,8 +236,39 @@ public final class Check {
         return new Writing(tune).run();
     }
 
-    /** What one timer runs, and the row its source ends on. */
-    private record Running(Target target, Source source, int until) { }
+    /** What one timer runs: the target and the source, the row the start
+     *  stands on, the row the source ends on, and the rows that set the
+     *  target's register while it ran. */
+    private static final class Running {
+
+        private final Target target;
+        private final Source source;
+        private final int from;
+        private final int until;
+        private int first = -1;
+        private int last = -1;
+        private int collisions;
+
+        Running(Target target, Source source, int from, int until) {
+            this.target = target;
+            this.source = source;
+            this.from = from;
+            this.until = until;
+        }
+
+        void collides(int at) {
+            if (first < 0) {
+                first = at;
+            }
+            last = at;
+            collisions++;
+        }
+    }
+
+    /** What a reading rests on where the source is one that plays once:
+     *  its end is reckoned from its rate rather than read off a row. */
+    private static final String RECKONED = ", which rests on how long a source that plays"
+            + " once runs, reckoned from its rate";
 
     /** A walk over a tune's rows, with what each timer runs at every
      *  row. */
@@ -206,6 +293,10 @@ public final class Check {
                 }
                 registers(at, rows.get(at));
             }
+            for (Map.Entry<Timer, Running> one : running.entrySet()) {
+                collided(one.getKey(), one.getValue());
+            }
+            wrap(rows);
             return said;
         }
 
@@ -214,7 +305,12 @@ public final class Check {
             switch (effect) {
                 case Start start -> {
                     place(at, timer, start);
-                    running.put(timer, new Running(start.target(), start.source(),
+                    shared(at, timer, start.target());
+                    Running before = running.get(timer);
+                    if (before != null) {
+                        collided(timer, before);
+                    }
+                    running.put(timer, new Running(start.target(), start.source(), at,
                             until(at, start)));
                     lastSource.put(timer, start.source());
                     lastTarget.put(timer, start.target());
@@ -227,8 +323,90 @@ public final class Check {
                                 + " with no source to run", reckoned(timer, at));
                     }
                 }
-                case Stop ignored -> running.remove(timer);
+                case Stop ignored -> {
+                    Running runs = running.remove(timer);
+                    // A stop of a source that has run out by the reckoning
+                    // is a writer settling rule 4, and the row a tune
+                    // repeats to stops every effect so that the wrap
+                    // resumes from a known setting. Neither is a slip. A
+                    // stop where this timer has run nothing is.
+                    if (runs == null && !repeats(at)) {
+                        say(at, timer, "stops an effect this timer has not started",
+                                false);
+                    }
+                    if (runs != null) {
+                        collided(timer, runs);
+                    }
+                }
             }
+        }
+
+        /** Whether this is the row the tune repeats to, where a writer
+         *  stops every effect so that the wrap resumes from a known
+         *  setting. */
+        private boolean repeats(int at) {
+            return tune.table().repeat().isPresent()
+                    && tune.table().repeat().getAsInt() == at;
+        }
+
+        /** Rule 2: where two timers write one register, the writer fixes
+         *  the order. The rule is the writer's to settle, and the row
+         *  where the second starts is where it arises. */
+        private void shared(int at, Timer timer, Target target) {
+            Register register = written(target);
+            for (Map.Entry<Timer, Running> one : running.entrySet()) {
+                if (one.getKey() == timer || at >= one.getValue().until) {
+                    continue;
+                }
+                if (written(one.getValue().target) == register) {
+                    say(at, timer, "starts on " + register + ", where Timer "
+                            + one.getKey() + " runs: rule 2 leaves the order of two"
+                            + " timers writing one register to the writer",
+                            one.getValue().until != Integer.MAX_VALUE);
+                }
+            }
+        }
+
+        /** Rule 1 at the wrap: an effect running when the last row has
+         *  played runs on through the row the tune repeats to, which no
+         *  row of the next pass started. */
+        private void wrap(List<Row> rows) {
+            if (tune.table().repeat().isEmpty()) {
+                return;
+            }
+            int to = tune.table().repeat().getAsInt();
+            int last = rows.size() - 1;
+            for (Map.Entry<Timer, Running> one : running.entrySet()) {
+                if (last >= one.getValue().until
+                        || Tunes.effects(rows.get(to)).containsKey(one.getKey())) {
+                    continue;
+                }
+                said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
+                        + " runs on " + written(one.getValue().target) + " when its last"
+                        + " row has played: the wrap resumes with the timer running from"
+                        + " the pass before"
+                        + (one.getValue().until != Integer.MAX_VALUE ? RECKONED : ""));
+            }
+        }
+
+        /** One run of an effect, with the rows that set its register
+         *  reported as one line. */
+        private void collided(Timer timer, Running runs) {
+            if (runs.collisions == 0) {
+                return;
+            }
+            Register register = written(runs.target);
+            if (runs.collisions == 1) {
+                say(runs.first, timer, "runs on " + register + ", and this row sets it",
+                        runs.until != Integer.MAX_VALUE);
+                runs.collisions = 0;
+                return;
+            }
+            said.add("rows " + runs.first + " to " + runs.last + ": Timer " + timer
+                    + " runs on " + register + " from row " + runs.from + ", and "
+                    + runs.collisions + " of them set it"
+                    + (runs.until != Integer.MAX_VALUE ? RECKONED : ""));
+            runs.collisions = 0;
         }
 
         /** Rule 3: a start sets the place's reset, unless the source it
@@ -260,33 +438,34 @@ public final class Check {
         }
 
         /** Rule 1: while an effect runs on a register, a row does not set
-         *  that register. */
+         *  that register. The rows of one run are reported as one line
+         *  ({@link #collided}), since a run of a hundred rows is one
+         *  fault and not a hundred. */
         private void registers(int at, Row row) {
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
                 Running runs = one.getValue();
-                if (at >= runs.until()) {
+                if (at >= runs.until) {
                     continue;
                 }
-                Register register = written(runs.target());
+                Register register = written(runs.target);
                 if (register == Register.R13 || !row.registers().containsKey(register)) {
                     continue;
                 }
-                say(at, one.getKey(), "runs on " + register + ", and this row sets it",
-                        runs.until() != Integer.MAX_VALUE);
+                runs.collides(at);
             }
         }
 
         /** What this timer runs at this row, or null where it is idle. */
         private @Nullable Running runs(Timer timer, int at) {
             Running runs = running.get(timer);
-            return runs != null && at < runs.until() ? runs : null;
+            return runs != null && at < runs.until ? runs : null;
         }
 
         /** Whether a reading of this timer at this row rests on the
          *  reckoning of a source that plays once. */
         private boolean reckoned(Timer timer, int at) {
             Running runs = running.get(timer);
-            return runs != null && runs.until() != Integer.MAX_VALUE && at >= runs.until();
+            return runs != null && runs.until != Integer.MAX_VALUE && at >= runs.until;
         }
 
         /** The row a start's source ends on, or no row where it
@@ -307,8 +486,7 @@ public final class Check {
 
         private void say(int at, Timer timer, String what, boolean reckoned) {
             said.add("row " + at + ": Timer " + timer + " " + what
-                    + (reckoned ? ", which rests on how long a source that plays once runs,"
-                            + " reckoned from its rate" : ""));
+                    + (reckoned ? RECKONED : ""));
         }
     }
 

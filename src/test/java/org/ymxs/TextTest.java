@@ -34,9 +34,9 @@ final class TextTest {
 
     /** What the tunes under {@code doc/tunes} come to, read back so that
      *  a tune added or a form changed fails here. */
-    private static final int STARTS = 177;
+    private static final int STARTS = 179;
     private static final int RETUNES = 76;
-    private static final int STOPS = 165;
+    private static final int STOPS = 166;
 
     private static List<Path> tunes() throws IOException {
         try (Stream<Path> at = Files.list(Path.of("doc/tunes"))) {
@@ -79,7 +79,7 @@ final class TextTest {
                 }
             }
         }
-        assertEquals(3280, rows, "the rows of the tunes under doc/tunes");
+        assertEquals(3288, rows, "the rows of the tunes under doc/tunes");
         assertEquals(STARTS, starts, "their starts");
         assertEquals(RETUNES, retunes, "their retunes");
         assertEquals(STOPS, stops, "their stops");

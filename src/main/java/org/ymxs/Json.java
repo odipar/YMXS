@@ -248,12 +248,8 @@ public final class Json {
                 }
                 sized(column, count, name(register));
                 for (int at = 0; at < count; at++) {
-                    if (!column.get(at).isIntegralNumber()) {
-                        throw new IllegalArgumentException(name(register) + " is "
-                                + column.get(at) + " at row " + at + ", and a whole number"
-                                + " is asked");
-                    }
-                    int value = column.get(at).intValue();
+                    int value = whole(column.get(at), name(register) + " at row " + at
+                            + " is " + column.get(at));
                     if (value != NONE) {
                         registers.get(at).put(register, value);
                     }
@@ -280,8 +276,23 @@ public final class Json {
         for (int at = 0; at < count; at++) {
             built.add(new Row(registers.get(at), effects.get(at)));
         }
-        return new Tune(text(tree, "title"), text(tree, "composer"), text(tree, "writer"),
-                number(tree, "rate"), new Table<>(built, repeat(tree)));
+        Tune tune = new Tune(text(tree, "title"), text(tree, "composer"),
+                text(tree, "writer"), number(tree, "rate"),
+                new Table<>(built, repeat(tree)));
+        List<String> wrong = Check.declared(sources, tune);
+        if (!wrong.isEmpty()) {
+            throw new IllegalArgumentException(String.join("\n", wrong));
+        }
+        return tune;
+    }
+
+    /** A value of a column, which fits an int: a number past it is no
+     *  value of this form, as one that is not whole is no value of it. */
+    private static int whole(JsonNode value, String named) {
+        if (!value.isIntegralNumber() || !value.canConvertToInt()) {
+            throw new IllegalArgumentException(named + ", and a whole number is asked");
+        }
+        return value.intValue();
     }
 
     /** A column is one value a row, so its length is the tune's. */
@@ -348,11 +359,8 @@ public final class Json {
                     + "\" column");
         }
         sized(column, rows, "Timer " + timer + "'s " + named);
-        if (!column.get(at).isIntegralNumber()) {
-            throw new IllegalArgumentException("Timer " + timer + "'s " + named + " is "
-                    + column.get(at) + " at row " + at + ", and a whole number is asked");
-        }
-        return column.get(at).intValue();
+        return whole(column.get(at), "Timer " + timer + "'s " + named + " at row " + at
+                + " is " + column.get(at));
     }
 
     // -------------------------------------------------------------- both

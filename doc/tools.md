@@ -72,19 +72,28 @@ ymxs-check: every rule of SPEC.md 6 is satisfied
 
 ## Errors and warnings
 
-`ymxs-check` separates the two.
+Every tool separates the two, and every tool that reads a tune reports
+both: a fault a writer left in is named where the tune is used rather than
+only where it is checked.
 
 An **error** is a tune no player plays: text outside this form, or a
 structure outside the two chips. Standard output stays empty and the exit
-is 1.
+is 1, so a pipe stops rather than passing broken data on.
 
 A **warning** is a tune that plays, but not as written: it breaks a rule
 of [SPEC.md 6](SPEC.md). The tune passes through and the exit is 0, since
-a player plays it and only the writer can judge the result.
+a player plays it and only the writer can judge the result. A warning
+stands whether or not `-silent` was passed: that flag quiets what a tool
+reports of its work, and a warning is what the tune gets wrong.
 
 ```
 ymxs-check: warning: row 1: Timer A runs on R8, and this row sets it
+ymxs-json-to-csv: warning: rows 7 to 206: Timer A runs on R8 from row 7, and 200 of them set it
 ```
+
+`ymxs-check` is the tool that reads a tune and writes it back unchanged,
+for a caller that wants the reading and no conversion. It reports how many
+warnings it found.
 
 ## Several tunes
 

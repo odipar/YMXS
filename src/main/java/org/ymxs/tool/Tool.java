@@ -6,6 +6,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.ymxs.Check;
+import org.ymxs.YMXS.Multi;
 
 /**
  * What every tool here shares: it reads one input on standard input,
@@ -99,6 +101,30 @@ public final class Tool {
     /** Whether the tool reports progress. */
     public boolean reports() {
         return reports;
+    }
+
+    /**
+     * The warnings of SPEC.md 6 for every tune of {@code multi}, one line
+     * each on standard error, and how many there were.
+     *
+     * <p>Every tool that reads a tune reports these, so a fault a writer
+     * left in is named where the tune is used rather than only where it
+     * is checked. A warning is a tune that plays, but not as written, so
+     * it stands whether or not {@code -silent} was passed: that flag
+     * quiets what a tool reports of its work, and this is what the tune
+     * gets wrong.
+     */
+    public int warnings(Multi multi) {
+        int count = 0;
+        for (int at = 0; at < multi.tunes().size(); at++) {
+            for (String one : Check.writing(multi.tunes().get(at))) {
+                System.err.println(named + ": warning: "
+                        + (multi.tunes().size() == 1 ? "" : "tune " + (at + 1) + ": ")
+                        + one);
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

@@ -26,6 +26,49 @@ rather than the format.
 
 ## Published
 
+### 0.3.1, 2026-09-12
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.1>, built from the commit
+tagged `v0.3.1`.
+
+Every tool reads a tune the way `ymxs-check` does. The structure's version
+is 3, as 0.3.0 set it, so a file of this release reads under that one and
+the other way round.
+
+- **Every tool that reads a tune reports the warnings of SPEC.md 6**, not
+  `ymxs-check` alone: a fault a writer left in is named where the tune is
+  used rather than only where it is checked. A warning stands whether or
+  not `-silent` was passed, since that flag quiets what a tool reports of
+  its work.
+- **The rows of one run of rule 1 are one line.** A row that sets a
+  register an effect runs on reported a line a row, so a run of two
+  hundred rows reported two hundred warnings. It names the first row, the
+  last and the count.
+- **Rule 2 is read.** Where a second timer starts on a register another
+  runs on, the row it starts at is named. The order is the writer's to
+  fix, and the check does not judge it.
+- **Rule 1 reaches the wrap.** An effect running when the last row has
+  played runs on through the row the tune repeats to, and that row stops
+  it or starts a second effect there.
+- **A new rule 6: a row does not `Stop` a timer this tune has not
+  started.** The row a tune repeats to is the exception, since it stops
+  every effect the tune runs so that the wrap resumes from a known
+  setting.
+- **A rate no 68000 services is an error.** A 68000 at 8 MHz spends 44
+  cycles entering an interrupt and 20 leaving it, so at more than 125,000
+  ticks a second it spends every cycle it has on those two. Prescaler 4
+  with a count of 1 is 614,400.
+- **A source no row starts, and two sources under one name, are errors of
+  the form.** A form numbers its sources and names them, where the
+  structure reaches one through the row that starts it, so a source a tune
+  does not run was dropped where the form was read.
+- A JSON number past what an int reads is no value of this form. It read
+  as a truncated value in the Java tree and as itself in the Go tree, and
+  both report it now, in one wording.
+
+The new rules are silent across the 543 tunes of the corpus and the four
+`.ymx` files: what a writer of this repository writes keeps them.
+
 ### 0.3.0, 2026-09-11
 
 <https://github.com/odipar/YMXS/releases/tag/v0.3.0>, built from the commit

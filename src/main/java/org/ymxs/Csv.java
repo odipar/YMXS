@@ -309,9 +309,14 @@ public final class Csv {
         for (int at = 0; at < count; at++) {
             rows.add(new Row(registers.get(at), effects.get(at)));
         }
-        return new Tune(told.of(one, "title"), told.of(one, "composer"),
+        Tune tune = new Tune(told.of(one, "title"), told.of(one, "composer"),
                 told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
                 new Table<>(rows, maybe(told.of(one, "repeat"))));
+        List<String> wrong = Check.declared(sources, tune);
+        if (!wrong.isEmpty()) {
+            throw new IllegalArgumentException(String.join("\n", wrong));
+        }
+        return tune;
     }
 
     /** The timer a table of that name is for. */

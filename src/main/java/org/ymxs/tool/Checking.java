@@ -3,7 +3,6 @@ package org.ymxs.tool;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.ymxs.Check;
 import org.ymxs.Text;
 import org.ymxs.Tunes;
 import org.ymxs.YMXS.Multi;
@@ -48,14 +47,7 @@ public final class Checking {
         }
         tool.report(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
                 + rows + " rows, " + sources + (sources == 1 ? " source" : " sources"));
-        int warnings = 0;
-        for (int at = 0; at < multi.tunes().size(); at++) {
-            for (String one : Check.writing(multi.tunes().get(at))) {
-                System.err.println("ymxs-check: warning: "
-                        + (multi.tunes().size() == 1 ? "" : "tune " + (at + 1) + ": ") + one);
-                warnings++;
-            }
-        }
+        int warnings = tool.warnings(multi);
         tool.report(warnings == 0 ? "every rule of SPEC.md 6 is satisfied"
                 : warnings + (warnings == 1 ? " warning" : " warnings"));
     }

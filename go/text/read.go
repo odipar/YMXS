@@ -2,8 +2,10 @@ package text
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/odipar/ymxs/go/check"
@@ -175,8 +177,12 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	if repeats {
 		table = ymxs.Repeating(built, repeat)
 	}
-	return ymxs.Tune{Title: title, Composer: composer, Writer: writer, Rate: rate,
-		Table: table}, nil
+	tune := ymxs.Tune{Title: title, Composer: composer, Writer: writer, Rate: rate,
+		Table: table}
+	if wrong := check.Declared(sources, tune); len(wrong) != 0 {
+		return ymxs.Tune{}, errors.New(strings.Join(wrong, "\n"))
+	}
+	return tune, nil
 }
 
 func sourcesOf(at map[string]any) ([]ymxs.Source, error) {
@@ -315,7 +321,9 @@ func whole(value any, named string) (int, error) {
 		return 0, fmt.Errorf("%s is %s, and a whole number is asked", named, kind(value))
 	}
 	at, err := said.Int64()
-	if err != nil {
+	// A number past an int is no value of this form, as one that is not
+	// whole is no value of it.
+	if err != nil || at < math.MinInt32 || at > math.MaxInt32 {
 		return 0, fmt.Errorf("%s is %s, and a whole number is asked", named, said)
 	}
 	return int(at), nil

@@ -30,6 +30,7 @@ public final class ToJson {
         } catch (IllegalArgumentException no) {
             throw tool.wrong(Tool.WRONG, String.valueOf(no.getMessage()));
         }
+        tool.warnings(multi);
         tool.write(json);
         int rows = 0;
         for (Tune tune : multi.tunes()) {

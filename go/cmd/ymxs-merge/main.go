@@ -31,7 +31,9 @@ func main() {
 	if len(tunes) == 0 {
 		t.Wrong(tool.Wrong, "no tune to merge: a multi is one tune at least")
 	}
-	t.Write(text.Write(ymxs.Multi{Tunes: tunes}))
+	multi := ymxs.Multi{Tunes: tunes}
+	t.Warnings(multi)
+	t.Write(text.Write(multi))
 	files := "files with "
 	if len(read) == 1 {
 		files = "file with "

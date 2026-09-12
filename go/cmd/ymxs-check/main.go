@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/odipar/ymxs/go/check"
 	"github.com/odipar/ymxs/go/text"
 	"github.com/odipar/ymxs/go/tool"
 	"github.com/odipar/ymxs/go/ymxs"
@@ -40,17 +39,7 @@ func main() {
 	t.Report(fmt.Sprintf("%d %s %d rows, %d %s", len(multi.Tunes),
 		plural(len(multi.Tunes), "tune,", "tunes,"), rows, sources,
 		plural(sources, "source", "sources")))
-	warnings := 0
-	for at, tune := range multi.Tunes {
-		for _, one := range check.Writing(tune) {
-			named := ""
-			if len(multi.Tunes) != 1 {
-				named = fmt.Sprintf("tune %d: ", at+1)
-			}
-			fmt.Fprintln(os.Stderr, "ymxs-check: warning: "+named+one)
-			warnings++
-		}
-	}
+	warnings := t.Warnings(multi)
 	if warnings == 0 {
 		t.Report("every rule of SPEC.md 6 is satisfied")
 	} else {

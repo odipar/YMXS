@@ -190,6 +190,13 @@ register is a count and every count is a value of it, so this records the
 register and not the ticks. A row that sets no effect on a timer has no
 count, which is a row absent from the effects rather than a count of 0.
 
+**A rate a 68000 services.** A 68000 at 8 MHz spends 44 cycles entering an
+interrupt and 20 leaving it, so at more than 125,000 ticks a second it
+spends every cycle it has on those two, with none for a handler and none
+for the frame. A rate above that is an error. A rate below it may still be
+more than a machine plays, with three other timers and a frame to run
+besides, which a player measures of itself.
+
 A count written while the timer runs loads when the running count reaches
 zero, which moves the pitch without a break. A prescaler written
 while it runs neither stops nor reloads the running count, and the new
@@ -283,7 +290,9 @@ and performs no test.
    another on the same register, the row leaves it alone, since the
    register is the second effect's from that row. An effect on R13 leaves
    the row free, and the frame's write to R13 restarts the envelope
-   alongside the restarts from the ticks.
+   alongside the restarts from the ticks. The rule reaches the wrap: an
+   effect running when the last row has played runs on through the row the
+   tune repeats to, so that row stops it or starts a second effect there.
 2. **Where two timers write one register, the writer fixes the order.** A
    player writes each tick's value.
 3. **A `Start` sets `placeReset`**, unless the source it starts has the
@@ -298,6 +307,10 @@ and performs no test.
 5. **A row does not `Retune` an effect that has never started.** A rate
    written to a timer with no source on it starts that timer with no
    source to run.
+6. **A row does not `Stop` a timer this tune has not started.** The row a
+   tune repeats to is the exception: it stops every effect the tune runs,
+   started on this pass or not, so that the wrap resumes from a known
+   setting.
 
 Four rules that bound a writer of an earlier draft are gone, since the
 structure settles them where a row is constructed: an effect a row starts
@@ -305,9 +318,13 @@ is one the tune runs, a source and a target a row uses are ones this
 document defines, a row that starts an effect for the first time names its
 target, and a row that stops an effect has no rate in it.
 
-Three of the five above are read off a tune's rows, and a check reports
-the row that breaks one. Rule 2 leaves the order to the writer and is not
-checked. Rule 4 admits either value, and is not checked either.
+Five of the six above are read off a tune's rows, and a check reports the
+row that breaks one. Rule 4 admits either value, and is not checked. Rule
+2 is the writer's to settle, and a check names the row where the second
+timer starts rather than judging the order.
+
+The rows of one run of rule 1 are reported as one line: a run of a hundred
+rows is one fault and not a hundred.
 
 A source that plays once has a start in the rows and no end, so its
 duration is reckoned from its rate, and a check marks a reading that rests

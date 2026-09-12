@@ -21,6 +21,7 @@ func main() {
 		t.Wrong(tool.Wrong, err.Error())
 	}
 	written := csv.Write(multi)
+	t.Warnings(multi)
 	t.Write(written)
 	rows := 0
 	for _, tune := range multi.Tunes {

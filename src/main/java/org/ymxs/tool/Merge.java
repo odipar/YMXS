@@ -41,7 +41,9 @@ public final class Merge {
         if (tunes.isEmpty()) {
             throw tool.wrong(Tool.WRONG, "no tune to merge: a multi is one tune at least");
         }
-        tool.write(Text.write(new Multi(tunes)));
+        Multi multi = new Multi(tunes);
+        tool.warnings(multi);
+        tool.write(Text.write(multi));
         tool.report(read.size() + (read.size() == 1 ? " file with " : " files with ")
                 + tunes.size() + (tunes.size() == 1 ? " tune" : " tunes"));
     }

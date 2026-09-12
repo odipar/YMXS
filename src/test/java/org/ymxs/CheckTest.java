@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -187,6 +190,117 @@ final class CheckTest {
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)));
         assertEquals(List.of(), Check.writing(tune));
+    }
+
+    @Test
+    void aRateNo68000ServicesIsAnError() {
+        // 2,457,600 over 4 x 1 is 614,400 ticks a second
+        Tune tune = of(new Row(Map.of(), Map.of(Timer.A,
+                new Start(Tunes.setting(Register.R8), SQUARE, Prescaler.BY_4, 1,
+                        true, true))));
+        assertEquals(List.of("row 0: Timer A: a rate of 614400 ticks a second: a 68000 at"
+                + " 8 MHz enters an interrupt and leaves it in 64 cycles, so 125000 a"
+                + " second is every cycle it has"), Check.of(tune));
+        assertEquals(125000, Chip.MOST_TICKS, "the ticks a second the cycles come to");
+    }
+
+    @Test
+    void theSlowestRateAnEffectRunsAtIsNoError() {
+        Tune tune = of(new Row(Map.of(), Map.of(Timer.A,
+                new Start(Tunes.setting(Register.R8), SQUARE, Prescaler.BY_200, 0,
+                        true, true))));
+        assertEquals(List.of(), Check.of(tune),
+                "prescaler 200 with a count of 0 is 48 ticks a second");
+    }
+
+    @Test
+    void theRowsOfOneRunAreReportedAsOneLine() {
+        Row[] rows = new Row[12];
+        rows[0] = starts(SQUARE, true);
+        for (int at = 1; at < rows.length; at++) {
+            rows[at] = Tunes.row(Map.of(Register.R8, 12));
+        }
+        assertEquals(List.of("rows 1 to 11: Timer A runs on R8 from row 0, and 11 of them"
+                + " set it"), Check.writing(of(rows)));
+    }
+
+    @Test
+    void aSecondTimerOnOneRegisterIsSaidWhereItStarts() {
+        Row second = new Row(Map.of(), Map.of(Timer.B, new Start(Tunes.setting(Register.R8),
+                OTHER, Prescaler.BY_4, 100, true, true)));
+        assertEquals("row 1: Timer B starts on R8, where Timer A runs: rule 2 leaves the"
+                + " order of two timers writing one register to the writer",
+                Check.writing(of(starts(SQUARE, true), second)).get(0));
+    }
+
+    @Test
+    void anEffectRunningAtTheWrapIsSaid() {
+        assertEquals(List.of("the tune repeats to row 1, and Timer A runs on R8 when its"
+                + " last row has played: the wrap resumes with the timer running from the"
+                + " pass before"),
+                Check.writing(new Tune("", "", "", 50,
+                        Tunes.repeating(List.of(starts(SQUARE, true), Tunes.EMPTY), 1))));
+        assertEquals(List.of(), Check.writing(of(starts(SQUARE, true))),
+                "the row the tune repeats to starts it again");
+    }
+
+    @Test
+    void aStopOfATimerThisTuneHasNotStartedIsSaid() {
+        Row stop = new Row(Map.of(), Map.of(Timer.A, Tunes.STOP));
+        assertEquals(List.of("row 1: Timer A stops an effect this timer has not started"),
+                Check.writing(of(Tunes.EMPTY, stop)));
+        assertEquals(List.of(), Check.writing(of(stop, Tunes.EMPTY)),
+                "the row the tune repeats to stops every effect, started or not");
+        assertEquals(List.of(), Check.writing(of(Tunes.EMPTY,
+                new Row(Map.of(), Map.of(Timer.A, new Start(Tunes.setting(Register.R8),
+                        DRUM, Prescaler.BY_4, 100, true, true))), Tunes.EMPTY, stop)),
+                "a source that has run out by the reckoning is stopped where rule 4 stands");
+    }
+
+    @Test
+    void aSourceNoRowStartsIsSaidOfTheFormThatDeclaredIt() {
+        Tune tune = of(starts(SQUARE, true));
+        assertEquals(List.of(), Check.declared(List.of(SQUARE), tune));
+        assertEquals(List.of("source 2, other, is started by no row, and a source a tune"
+                + " does not run is dropped where this form is read"),
+                Check.declared(List.of(SQUARE, OTHER), tune));
+    }
+
+    @Test
+    void twoSourcesUnderOneNameAreSaidOfTheFormThatDeclaredThem() {
+        Source twin = Tunes.repeating("square", List.of(12, 0), 0);
+        assertEquals(List.of("sources 1 and 2 are both named square, and their rows"
+                + " differ"),
+                Check.declared(List.of(SQUARE, twin), of(starts(SQUARE, true),
+                        new Row(Map.of(), Map.of(Timer.B, new Start(
+                                Tunes.setting(Register.R9), twin, Prescaler.BY_4, 100,
+                                true, true))))));
+    }
+
+    /** The tunes of doc/tunes, which a writer of this repository wrote, and
+     *  the one written to break the rules. A rule that fired on the rest
+     *  would be one no writer can keep. */
+    @Test
+    void everyTuneOfTheDocumentsKeepsTheRulesButTheOneThatDoesNot() throws IOException {
+        int read = 0;
+        for (Path at : java.nio.file.Files.list(Path.of("doc", "tunes")).sorted().toList()) {
+            if (!at.toString().endsWith(".json")) {
+                continue;
+            }
+            read++;
+            YMXS.Multi multi = Text.read(java.nio.file.Files.readString(at));
+            List<String> said = new ArrayList<>();
+            for (Tune tune : multi.tunes()) {
+                said.addAll(Check.writing(tune));
+            }
+            if (at.getFileName().toString().equals("warnings.json")) {
+                assertEquals(6, said.size(), at + " breaks four rules: " + said);
+                continue;
+            }
+            assertEquals(List.of(), said, at + " keeps every rule");
+        }
+        final int all = read;
+        assertTrue(all >= 6, () -> "only " + all + " tunes read; the check is asleep");
     }
 
     @Test

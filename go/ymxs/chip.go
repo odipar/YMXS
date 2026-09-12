@@ -25,6 +25,20 @@ func Ticks(count int) int {
 	return count
 }
 
+// CpuClock is a 68000 on an Atari ST, in cycles a second.
+const CpuClock = 8_000_000
+
+// TickCycles is the cycles a 68000 spends entering an interrupt and
+// leaving it: 44 and 20 from the manual, with no cycle of a handler
+// between them.
+const TickCycles = 64
+
+// MostTicks is the ticks a second past which a 68000 spends every cycle it
+// has entering interrupts and leaving them, with none for a handler and
+// none for the frame. A tune below this may still be more than a machine
+// plays, which a player measures of itself.
+const MostTicks = CpuClock / TickCycles
+
 // Most is the largest value that fits the register. The smallest is 0.
 //
 // A voice's tone period and the envelope period each run over two

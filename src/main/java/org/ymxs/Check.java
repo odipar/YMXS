@@ -153,8 +153,12 @@ public final class Check {
      * <p>A form numbers its sources and names them, where the structure
      * reaches a source through the row that starts it ({@link
      * Tunes#sources}). So a form may declare one no row starts, which is
-     * dropped where the form is read, and two under one name, which a
-     * reader of the form cannot tell apart.
+     * dropped where the form is read.
+     *
+     * <p>A name is what a reader of the form reads and no more: an effect
+     * names its source by the number of the table it stands in, in JSON
+     * and in CSV alike, so two sources under one name are told apart by
+     * those numbers and are no fault.
      */
     public static List<String> declared(List<Source> declared, Tune tune) {
         List<String> said = new ArrayList<>();
@@ -164,16 +168,6 @@ public final class Check {
                 said.add("source " + (at + 1) + ", " + Tunes.name(declared.get(at))
                         + ", is started by no row, and a source a tune does not run is"
                         + " dropped where this form is read");
-            }
-        }
-        for (int at = 0; at < declared.size(); at++) {
-            for (int and = at + 1; and < declared.size(); and++) {
-                if (Tunes.name(declared.get(at)).equals(Tunes.name(declared.get(and)))
-                        && !declared.get(at).equals(declared.get(and))) {
-                    said.add("sources " + (at + 1) + " and " + (and + 1)
-                            + " are both named " + Tunes.name(declared.get(at))
-                            + ", and their rows differ");
-                }
             }
         }
         return said;

@@ -143,8 +143,12 @@ func rate(prescaler ymxs.Prescaler, at int) []string {
 //
 // A form numbers its sources and names them, where the structure reaches a
 // source through the row that starts it (ymxs.Sources). So a form may
-// declare one no row starts, which is dropped where the form is read, and
-// two under one name, which a reader of the form cannot tell apart.
+// declare one no row starts, which is dropped where the form is read.
+//
+// A name is what a reader of the form reads and no more: an effect names
+// its source by the number of the table it stands in, in JSON and in CSV
+// alike, so two sources under one name are told apart by those numbers
+// and are no fault.
 func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
 	var said []string
 	run := ymxs.Sources(tune)
@@ -160,15 +164,6 @@ func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
 			said = append(said, fmt.Sprintf("source %d, %s, is started by no row, and a"+
 				" source a tune does not run is dropped where this form is read",
 				at+1, ymxs.SourceName(one)))
-		}
-	}
-	for at, one := range declared {
-		for and := at + 1; and < len(declared); and++ {
-			if ymxs.SourceName(one) == ymxs.SourceName(declared[and]) &&
-				!ymxs.SourceEqual(one, declared[and]) {
-				said = append(said, fmt.Sprintf("sources %d and %d are both named %s, and"+
-					" their rows differ", at+1, and+1, ymxs.SourceName(one)))
-			}
 		}
 	}
 	return said

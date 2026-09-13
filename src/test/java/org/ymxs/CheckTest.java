@@ -267,19 +267,15 @@ final class CheckTest {
     }
 
     @Test
-    void twoSourcesUnderOneNameAreSaidOfTheFormThatDeclaredThem() {
+    void twoSourcesUnderOneNameAreNoFault() {
         Source twin = Tunes.repeating("square", List.of(12, 0), 0);
-        assertEquals(List.of("sources 1 and 2 are both named square, and their rows"
-                + " differ"),
-                Check.declared(List.of(SQUARE, twin), of(starts(SQUARE, true),
-                        new Row(Map.of(), Map.of(Timer.B, new Start(
-                                Tunes.setting(Register.R9), twin, Prescaler.BY_4, 100,
-                                true, true))))));
+        Tune tune = of(starts(SQUARE, true),
+                new Row(Map.of(), Map.of(Timer.B, new Start(Tunes.setting(Register.R9),
+                        twin, Chip.prescaler(4), 100, true, true))));
+        assertEquals(List.of(), Check.declared(List.of(SQUARE, twin), tune),
+                "an effect names its source by a number, so a name tells nothing apart");
     }
 
-    /** The tunes of doc/tunes, which a writer of this repository wrote, and
-     *  the one written to break the rules. A rule that fired on the rest
-     *  would be one no writer can keep. */
     @Test
     void everyTuneOfTheDocumentsKeepsTheRulesButTheOneThatDoesNot() throws IOException {
         int read = 0;

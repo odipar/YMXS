@@ -26,6 +26,29 @@ rather than the format.
 
 ## Published
 
+### 0.3.2, 2026-09-13
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.2>, built from the commit
+tagged `v0.3.2`.
+
+A rule 0.3.1 added is gone: a tune it rejected is read here. The
+structure's version is 3, as 0.3.0 set it, so a file of this release reads
+under 0.3.0 and 0.3.1 and the other way round.
+
+- **Two sources under one name are no fault.** 0.3.1 made them an error of
+  the form, on the reasoning that a reader of the form could not tell them
+  apart. An effect names its source by the number of the table it stands
+  in, in JSON and in CSV alike, and neither tree looks a source up by
+  name: every use of a name writes it out or puts it in a message.
+  A tune with two sources named `square`, one of `[12, 0]` and one of
+  `[6, 0]`, both started by a row, reads in both trees and comes back
+  through `ymxs-json-to-csv | ymxs-csv-to-json` with both names and both
+  sets of values.
+- **A source no row starts is still an error.** The structure reaches a
+  source through the row that starts it, so a form that declares one no
+  row starts loses it where the form is read, and that is data lost in
+  silence.
+
 ### 0.3.1, 2026-09-12
 
 <https://github.com/odipar/YMXS/releases/tag/v0.3.1>, built from the commit

@@ -74,22 +74,6 @@ public interface YMXS {
 }
 ```
 
-```
-  the tune's table                                    a source's table
-  one row a frame, at the tune's rate                 one row a tick, at the timer's rate
-
-  +-----------+                                       +-----------+
-  | row 0     |--- registers ---> R0 .. R13           | row 0     | <- placeReset
-  | row 1     |                                       | row 1     |
-  | row 2     |--- effects -----> Timer A -- a tick ->| row 2     |
-  | ...       |    Start, Retune,   ticks at the rate | ...       |
-  | row R-1   |    Stop             its count fixes   | last row  |
-  +-----------+                          |            +-----------+
-   repeat to row RR,                     v             repeat to a row, or stop
-   or play once                     target setRn <---- the row the tick read
-                                    writes it
-```
-
 **A row is one frame's change.** A row lists the registers it sets and
 the operation it performs on the effect of each timer, and every part
 absent from a row is left as it was: a register absent from `registers`
@@ -260,15 +244,6 @@ next, through a retune and through a start. So two ticks of a square wave
 are one period apart across a start, and the second writes the new
 source's level.
 
-```
-  a square of two rows, L then 0, and a start of the same source at the tick marked
-
-  place kept    L  0  L  0  L  0  L  | 0  L  0  L     the wave continues
-                                     ^
-  placeReset    L  0  L  0  L  0  L  | L  0  L  0     the next tick reads row 0:
-                                     ^                one half is a period long
-```
-
 A bend is a `Retune` with a changed count and both resets clear. A
 struck note is a `Start` with both resets set. A drum struck again at the
 rate already running is a `Start` with `placeReset` set and `timerReset`
@@ -367,14 +342,6 @@ test.
    row a tune repeats to stops every effect the tune runs, started on
    this pass or on the one before, so that the wrap resumes from a known
    setting.
-
-```
-  rows         0          1     2     3          4     5
-               Start A    .     .     Stop A     .     .
-               on R8                  R8 := 12
-  R8 written   |<- Timer A's ticks  ->|<- the rows: the stop row sets it back,
-  by           |  the rows leave it   |   after the last tick
-```
 
 **What a check reports.** Rules 1, 3, 5 and 6 are read off the rows, and
 a check reports the row that breaks one; the rows of one run of rule 1

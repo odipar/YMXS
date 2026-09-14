@@ -75,17 +75,19 @@ public interface YMXS {
 ```
 
 ```
-  the tune's table                                  a source's table
-  one row a frame, at the tune's rate               one row a tick, at the timer's rate
+  the tune's table                                    a source's table
+  one row a frame, at the tune's rate                 one row a tick, at the timer's rate
 
-  +----------------------+                          +----------+
-  | row 0                |   registers              | row 0    | <- placeReset
-  | row 1     registers -+-> R0 .. R13              | row 1    |
-  | row 2     effects   -+-> Timer A ---- ticks --> | ...      |
-  | ...                  |      |     Start: connect| last row |
-  | row R-1              |      +-> target setRn <--+----------+
-  +----------------------+        writes each row   repeat to a row, or stop
-   repeat to row RR, or play once
+  +-----------+                                       +-----------+
+  | row 0     |--- registers ---> R0 .. R13           | row 0     | <- placeReset
+  | row 1     |                                       | row 1     |
+  | row 2     |--- effects -----> Timer A -- a tick ->| row 2     |
+  | ...       |    Start, Retune,   ticks at the rate | ...       |
+  | row R-1   |    Stop             its count fixes   | last row  |
+  +-----------+                          |            +-----------+
+   repeat to row RR,                     v             repeat to a row, or stop
+   or play once                     target setRn <---- the row the tick read
+                                    writes it
 ```
 
 **A row is one frame's change.** A row lists the registers it sets and
@@ -164,12 +166,12 @@ host's I/O port directions: a player writes them as the host left them,
 and a tune's value for R7 is six bits.
 
 ```
-  R7           bit  7   6 | 5   4   3 | 2   1   0
-                    host  | noise     | tone          a set bit silences
-                          | C   B   A | C   B   A
+  R7            bit   7   6 | 5   4   3 | 2   1   0
+                     host   | noise     | tone            a set bit silences
+                            | C   B   A | C   B   A
 
-  R8, R9, R10  bit  4 | 3   2   1   0
-                    env | level                       bit 4: the envelope's level
+  R8, R9, R10   bit   4  | 3   2   1   0
+                     env | level                          bit 4: the envelope's level
 ```
 
 **The envelope shape.** Every write to R13 restarts the envelope, the
@@ -261,12 +263,10 @@ source's level.
 ```
   a square of two rows, L then 0, and a start of the same source at the tick marked
 
-  place kept      L  0  L  0  L  0  L  0 | L  0  L  0    the wave continues
-                                         ^
-  placeReset      L  0  L  0  L  0  L  0 | L  0  L  0    the next tick reads row 0
-                                         ^
-  placeReset,     L  0  L  0  L  0  L    | L  0  L  0    row 0 twice: one half is
-  a tick earlier                         ^               a period long
+  place kept    L  0  L  0  L  0  L  | 0  L  0  L     the wave continues
+                                     ^
+  placeReset    L  0  L  0  L  0  L  | L  0  L  0     the next tick reads row 0:
+                                     ^                one half is a period long
 ```
 
 A bend is a `Retune` with a changed count and both resets clear. A
@@ -369,11 +369,11 @@ test.
    setting.
 
 ```
-  rows        0          1     2     3          4     5
-              Start A    .     .     Stop A     .     .
-              on R8                  R8 := 12
-  R8 written  |<-- by Timer A's ticks; the rows leave it alone -->|<-- by the rows
-  by                                 ^ the stop row sets it back, after the last tick
+  rows         0          1     2     3          4     5
+               Start A    .     .     Stop A     .     .
+               on R8                  R8 := 12
+  R8 written   |<- Timer A's ticks  ->|<- the rows: the stop row sets it back,
+  by           |  the rows leave it   |   after the last tick
 ```
 
 **What a check reports.** Rules 1, 3, 5 and 6 are read off the rows, and

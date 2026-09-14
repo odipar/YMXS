@@ -130,6 +130,15 @@ final class HouseStyleTest {
             // the two chips' own figures are the figures of the two chips
             " own ",
             " own.",
+            // the metaphor: a form is an encoding of the structure, and a
+            // tune is encoded rather than written down
+            "written down",
+            "write down",
+            "writes down",
+            "writing down",
+            "a tune down",
+            "the structure down",
+            "puts down",
             // a person's viewpoint in a sentence about a file
             "would rather");
 

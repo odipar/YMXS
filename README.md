@@ -11,7 +11,7 @@ lists those records and defines the rest: what each value reaches on the
 two chips, what a frame does with a row, what a tick does with a source's
 row, the rules that bind a writer, and what a reader reports.
 
-A form is the structure written down. This repository defines two, JSON
+A form is an encoding of the structure. This repository defines two, JSON
 ([json.md](doc/json.md)) and CSV ([csv.md](doc/csv.md)), and both write the
 same tune. A player's binary layout is a third, defined by that player.
 

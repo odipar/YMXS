@@ -1,6 +1,6 @@
 # CSV
 
-The structure written down as tables, for reading in a spreadsheet. The
+The structure encoded as tables, for reading in a spreadsheet. The
 two forms write the same tune, [JSON](json.md) by columns and this by
 rows, and a filled cell is identical in both.
 

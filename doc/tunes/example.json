@@ -1,0 +1,33 @@
+{
+  "format": "ymxs",
+  "version": 3,
+  "tunes": [
+    {
+      "title": "Four rows, one square",
+      "composer": "",
+      "writer": "by hand",
+      "rate": 50,
+      "rows": 4,
+      "repeat": 0,
+      "sources": [
+        {"name": "square 13", "repeat": 0, "values": [13,0]}
+      ],
+      "registers": {
+        "r0": [163,142,251,89],
+        "r1": [2,12,4,2],
+        "r2": [238,-1,-1,-1],
+        "r7": [56,49,-1,56],
+        "r8": [-1,-1,-1,12]
+      },
+      "timerA": {
+        "shape": [0,1,-1,2],
+        "target": [8,-1,-1,-1],
+        "source": [1,-1,-1,-1],
+        "prescaler": [50,50,-1,-1],
+        "count": [60,61,-1,-1],
+        "timerReset": [1,0,-1,-1],
+        "placeReset": [1,0,-1,-1]
+      }
+    }
+  ]
+}

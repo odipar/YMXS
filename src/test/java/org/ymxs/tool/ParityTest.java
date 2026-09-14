@@ -110,8 +110,8 @@ final class ParityTest {
 
     @Test
     void everyTuneOfTheDocumentsCrossesBothWaysTheSame() throws Exception {
-        for (String named : List.of("circus", "digidrum", "retrigger", "turrican-2",
-                "two-tunes", "warnings")) {
+        for (String named : List.of("circus", "digidrum", "example", "retrigger",
+                "turrican-2", "two-tunes", "warnings")) {
             byte[] json = file("doc/tunes/" + named + ".json");
             byte[] csv = both("ymxs-json-to-csv", json);
             both("ymxs-csv-to-json", csv);

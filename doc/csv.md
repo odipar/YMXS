@@ -1,6 +1,10 @@
 # CSV
 
-A tune as tables, for reading in a spreadsheet.
+The structure written down as tables, for reading in a spreadsheet. The
+two forms write the same tune, [JSON](json.md) by columns and this by
+rows, and a filled cell is identical in both.
+
+`doc/tunes/example.csv`, the tune json.md shows:
 
 ```
 ### multi
@@ -9,7 +13,7 @@ ymxs,3,1
 
 ### tune
 title,composer,writer,rate,rows,repeat
-Synthetic,Test,ym-to-ymxs,50,400,0
+"Four rows, one square",,by hand,50,4,0
 
 ### source
 name,repeat
@@ -20,93 +24,95 @@ row,value
 0,13
 1,0
 
-### source
-name,repeat
-recording 0,
-
-### value
-row,value
-0,8
-1,9
-
 ### registers
 row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
-0,64,1,48,2,32,3,0,56,,12,11,0,0,
-1,65,,49,,33,,1,,,,,3,,
+0,163,2,238,,,,,56,,,,,,
+1,142,12,,,,,,49,,,,,,
+2,251,4,,,,,,,,,,,,
+3,89,2,,,,,,56,12,,,,,
 
 ### timerA
 row,shape,target,source,prescaler,count,timerReset,placeReset
 0,0,8,1,50,60,1,1
 1,1,,,50,61,0,0
-59,2,,,,,,
+3,2,,,,,,
 ```
 
-## How it reads
+## How a file reads
 
 - A line beginning `###` opens a table and names it, and the name stands
   alone on that line.
-- The line after it names the columns, so a column name stands over the
-  cells it names and a reader counts the columns by reading down.
+- The line after it names the columns, so each name stands over the
+  cells it names.
 - Every line after that is one row of the table, in ordinary
   comma-separated values, until the next `###` line.
 - A blank line is skipped.
-- A cell is quoted where it has a comma or a quote, and two quotes
-  inside a quoted cell stand for one.
-- A column is found by name, so column order follows the file.
+- A cell is quoted where it has a comma or a quote in it, and two quotes
+  inside a quoted cell are one.
+- A column is found by its name, so the columns of a table may stand in
+  any order.
 
-**These are ordinary tables.** A row of a tune is a row here, with a
-column a register. [JSON](json.md) writes the same tune the other way
-round, a column at a time, and a filled cell is identical in both: the
-same numbers, and the same enumerations for a shape, a target and a timer.
+**A row of the tune is a row here.** The grid json.md draws is the same
+grid turned: a row a line, a register a column, and a filled cell the
+same value in both forms.
 
-**A row is one entry of the tune's table, and a frame is one call of the
-player.** The table advances one row a frame, so this file records rows
-and counts no frames ([SPEC.md](SPEC.md) 4).
+```
+  registers                          timerA
+  row  r0   r1   r7   r8             row  shape  count
+  0    163  2    56                  0    0      60
+  1    142  12   49                  1    1      61
+  2    251  4                        3    2
+  3    89   2    56   12
+```
 
 **Position determines what a table belongs to.** A tune opens with a
 `tune` table, and the tables after it belong to that tune until the next
-`tune` table. A source opens with a `source` table, and the values after
-it belong to that source. A table therefore needs no column for its tune
-or its source, and the tables of one tune stand together.
+`tune` table. A source opens with a `source` table, and the `value` table
+after it belongs to that source. A table therefore needs no column for
+its tune or its source.
 
 ## The tables
 
 | table | its rows |
 |---|---|
-| `multi` | one row: what the file is, its version, and the number of tunes |
-| `tune` | one row, and it opens a tune |
-| `source` | one row, and it opens a source, in first-start order |
-| `value` | one row a value of the source it comes after |
-| `registers` | one row a row of the tune that sets a register |
-| `timerA` to `timerD` | one row an effect on that timer |
+| `multi` | one: `format`, `version` and the number of tunes |
+| `tune` | one: `title`, `composer`, `writer`, `rate`, `rows` and `repeat`; it opens a tune |
+| `source` | one: `name` and `repeat`; it opens a source, the sources in first-start order |
+| `value` | one a value of the source before it: `row` and `value` |
+| `registers` | one a row of the tune that sets a register: `row`, then `r0` to `r13` |
+| `timerA` to `timerD` | one a row of the tune that acts on that timer: `row`, then the seven columns of [json.md](json.md) |
 
-**An empty cell in `registers`** is a register that row does not set.
-Only a row that sets a register is a line of the table: the `row` column
-is the row number, and `rows` in the `tune` table is the count.
+**An empty cell is what -1 is in JSON.** In `registers` it is a register
+the row leaves alone; in a timer's table, a part absent from the shape,
+`target` and `source` of a retune and every part of a stop; in `repeat`,
+a table that plays once. The `row` column is the row number, and a row
+that sets no register or acts on no timer is absent from the table, so
+`rows` in the `tune` table is the count.
 
-**Each source a tune runs opens a `source` table and a `value` table.**
+**Each source a tune runs opens a `source` table and a `value` table**,
+in first-start order, so the `source` cells of the timer tables number
+the `source` tables from 1.
 
-**Each timer a row uses opens a table**, `timerA` through `timerD`. The
-cells are the values [JSON](json.md) defines: `shape` 0 a start, 1 a
-retune, 2 a stop; `target` 0 to 13 for `setR0` to `setR13`; `source` 1
-upward into the tune's sources; `timerReset` and `placeReset` 1 and 0.
-
-**An empty cell there** is a part absent from that shape, written as -1 in
-JSON: `target` and `source` for a retune, all six for a stop.
-
-**`repeat`** is the row a tune or a source repeats to, and an empty cell
-marks one that plays once.
+**Each timer some row acts on opens a table**, `timerA` to `timerD`,
+with the cells json.md defines: `shape` 0 a start, 1 a retune, 2 a stop;
+`target` 0 to 13; `source` 1 upward; `prescaler` the divisor; `count` 0
+to 255; `timerReset` and `placeReset` 1 and 0.
 
 ## What is an error
 
-A cell containing a line feed. Quoting covers a comma and a quote; a line
-feed would read as the end of a row, so a title containing one is rejected
-rather than written and misread.
+| the text | why |
+|---|---|
+| a cell with a line feed in it | quoting covers a comma and a quote, and a line feed reads as the end of a row |
+| a `###` line with a comma in it | the form this replaced, which put the name and the columns on one line |
+| a `###` line with no line after it | a table whose name is its last line |
+| a first table other than `multi` | the file is another form |
+| a `format` other than `ymxs`, or a `version` other than 3 | another form, or another version |
+| a `###` name outside the tables above | such a table is absent from this form |
+| a `value` table with no `source` table before it, or a timer table before the tune's `source` tables | position determines what a table belongs to |
+| a cell outside its column's values | the cell fits no field |
 
-A `###` line with a comma in it, and a `###` line with no line after it.
-The first is a file of the form this replaced, where the name and the
-columns stood on one line; the second is a table whose name is its last
-line.
+The remaining errors are those of the structure, as in
+[json.md](json.md).
 
 ## Between the two forms
 
@@ -115,6 +121,7 @@ bin/ymxs-json-to-csv < tune.json > tune.csv
 bin/ymxs-csv-to-json < tune.csv > tune.json
 ```
 
-`doc/tunes/circus.csv` is one tune in this form and
-`doc/tunes/circus.json` the same tune in JSON. A test reads the two into
-the same structure.
+A tune crosses from either form to the other and back to the text it
+was. `doc/tunes/example.json` and `doc/tunes/example.csv` are one tune,
+and `circus.json` and `circus.csv` another; the tests read each pair into
+one structure.

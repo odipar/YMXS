@@ -8,7 +8,7 @@ import (
 )
 
 // The tunes of doc/tunes, which are the documents' own examples.
-var tunes = []string{"circus", "digidrum", "retrigger", "turrican-2", "two-tunes"}
+var tunes = []string{"circus", "digidrum", "example", "retrigger", "turrican-2", "two-tunes"}
 
 func read(t *testing.T, named string) string {
 	t.Helper()

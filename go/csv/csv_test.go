@@ -9,7 +9,7 @@ import (
 	"github.com/odipar/ymxs/go/text"
 )
 
-var tunes = []string{"circus", "digidrum", "retrigger", "turrican-2", "two-tunes"}
+var tunes = []string{"circus", "digidrum", "example", "retrigger", "turrican-2", "two-tunes"}
 
 // The two forms write the same tune, so a tune that crosses to the tables
 // and back is the JSON it was.

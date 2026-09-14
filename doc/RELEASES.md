@@ -20,7 +20,7 @@ the script's one argument.
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
 version of it is a tag of that directory: `go/v0.1.0` beside `v0.1.0`.
 
-A player pins a version of this format: the structure's version is 1 and
+A player pins a version of this format: the structure's version is 3 and
 stands in every file this writes, and a release's number names the tools
 rather than the format.
 

@@ -7,7 +7,7 @@ import org.ymxs.YMXS.Multi;
 
 /**
  * A {@link Multi} written as JSON, and read back (doc/json.md). It is one
- * way of writing the structure down rather than the structure itself, and
+ * encoding of the structure rather than the structure itself, and
  * so stays outside {@link YMXS}.
  *
  * <p>{@link Json} maps the structure to a JSON tree and back;

@@ -7,7 +7,7 @@
 // structure in tunes.go, and the rules a structure must satisfy in the
 // check package.
 //
-// A form writes a tune down. doc/json.md defines one; a player's binary
+// A form encodes a tune. doc/json.md defines one; a player's binary
 // layout is another. No part of this is arranged for a form, and every
 // limit here follows from the two chips.
 package ymxs

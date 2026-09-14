@@ -4,7 +4,7 @@
  * the rest, which is what a player or an emulator does with it on an Atari
  * ST's YM2149 and MC68901.
  *
- * <p>A form writes a tune down. doc/json.md defines one; a player's binary
+ * <p>A form encodes a tune. doc/json.md defines one; a player's binary
  * layout is another.
  *
  * <p>{@link org.ymxs.YMXS} wraps the whole of it, nested:

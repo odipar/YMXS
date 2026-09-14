@@ -19,7 +19,7 @@ func read(t *testing.T, named string) string {
 	return string(said)
 }
 
-// A tune written down and read back is the text it was: the mapping loses
+// A tune written as text and read back is the text it was: the mapping loses
 // no part of a tune, and the layout is one text.
 func TestTheTextATuneWasWrittenAsReadsBackToThatText(t *testing.T) {
 	for _, named := range tunes {

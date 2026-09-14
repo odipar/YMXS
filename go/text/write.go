@@ -1,5 +1,5 @@
 // Package text writes a multi as JSON and reads it back (doc/json.md). It
-// is one way of writing the structure down rather than the structure
+// is one encoding of the structure rather than the structure
 // itself, and so stays outside the ymxs package.
 //
 // A tune is written column by column. A register's column is one value a
@@ -304,7 +304,7 @@ func (o *entries) before(named string) {
 	o.w.b.WriteString(": ")
 }
 
-// field writes one field whose value write puts down.
+// field writes one field whose value write emits.
 func (o *entries) field(named string, write func()) {
 	o.before(named)
 	write()

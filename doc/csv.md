@@ -52,19 +52,6 @@ row,shape,target,source,prescaler,count,timerReset,placeReset
 - A column is found by its name, so the columns of a table may stand in
   any order.
 
-**A row of the tune is a row here.** The grid json.md draws is the same
-grid turned: a row a line, a register a column, and a filled cell the
-same value in both forms.
-
-```
-  registers                          timerA
-  row  r0   r1   r7   r8             row  shape  count
-  0    163  2    56                  0    0      60
-  1    142  12   49                  1    1      61
-  2    251  4                        3    2
-  3    89   2    56   12
-```
-
 **Position determines what a table belongs to.** A tune opens with a
 `tune` table, and the tables after it belong to that tune until the next
 `tune` table. A source opens with a `source` table, and the `value` table

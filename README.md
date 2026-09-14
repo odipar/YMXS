@@ -26,9 +26,8 @@ that way is the reader's decision, and this section is here so that the
 decision is informed.
 
 What it is built on is older than it. The YM5 and YM6 register-dump
-formats are Arnaud Carré's, the depacker that opens a distributed `.ym`
-is a port of his ST-Sound library's, and the 68000's interrupt cost that
-bounds a timer's rate is from Motorola's manual.
+formats are Arnaud Carré's, and the depacker that opens a distributed
+`.ym` is a port of his ST-Sound library's.
 
 ## Implementing a player or a reader
 

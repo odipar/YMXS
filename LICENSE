@@ -34,9 +34,6 @@ Attribution
   is a port of StSoundLibrary/LZH/LzhLib.cpp from ST-Sound by Arnaud
   Carré, itself based on LZH code by Haruhiko Okumura (1991) and Kerwin F.
   Medina (1996). It carries both notices below.
-* The 68000's cost of entering an interrupt and leaving it, 44 and 20
-  cycles, which bounds the rate a timer may run at, is from Motorola's
-  manual.
 
 Used by the build and the tests, not distributed
 ------------------------------------------------

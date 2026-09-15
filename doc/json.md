@@ -45,17 +45,7 @@ spreadsheet, and a filled cell is identical in both forms.
 
 **A tune is written column by column, and every column is as long as
 the tune.** A row is one index across every column, so a file lists
-`rows` once and a row number appears in no column:
-
-```
-                     row 0   row 1   row 2   row 3
-  registers  r0    [   163,    142,    251,     89 ]
-             r1    [     2,     12,      4,      2 ]
-             r7    [    56,     49,     -1,     56 ]
-             r8    [    -1,     -1,     -1,     12 ]
-  timerA     shape [     0,      1,     -1,      2 ]    0 a start, 1 a retune, 2 a stop
-             count [    60,     61,     -1,     -1 ]
-```
+`rows` once and a row number appears in no column.
 
 **-1 marks a value the row leaves alone.** A register's column is -1
 where the row leaves that register as it was, and a timer's columns are

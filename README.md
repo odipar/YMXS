@@ -19,6 +19,20 @@ encodes every tune, CSV ([csv.md](doc/csv.md)), which encodes every tune
 whose texts are free of line feeds and carriage returns (csv.md 5.4), and a
 player's binary layout, defined by that player.
 
+## Read this first
+
+**AI wrote most of YMXS.** Claude (Anthropic's Claude Code) wrote the
+structure, the two trees of tools, the tests and most of what is
+written here, under Robbert van Dalen's direction: he requested, read
+and merged every change. [LICENSE](LICENSE) is the terms and the
+Attribution section below records who did what. Whether to use software
+written that way is the reader's decision, and this section is here so
+that the decision is informed.
+
+What it is built on is older than it. The YM5 and YM6 register-dump
+formats are Arnaud Carré's, and the depacker that opens a distributed
+`.ym` is a port of the LZH code of his ST-Sound library.
+
 ## Implementing a player or a reader
 
 Read in this order: SPEC.md 1 to 3, the structure and the figures of

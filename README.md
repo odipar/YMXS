@@ -15,74 +15,86 @@ formats are Arnaud Carré's, and the depacker that opens a distributed
 
 ## What YMXS is
 
-The tune data structure for the Atari ST's YM2149 and MC68901, and what a
-player does with it: a tune is a table of rows, one row a frame; a row
-sets registers and performs operations on the effects of the four
-timers; an effect is a source connected to a target on one timer, at a
-rate. [YMXR](https://github.com/odipar/YMXR) is a player of it, in a
-separate repository.
+YMXS defines tune data and playback for the Atari ST's YM2149 sound
+chip and MC68901 (MFP) timers. [YMXR](https://github.com/odipar/YMXR)
+is a player in a separate repository.
 
-[SPEC.md](doc/SPEC.md) 1 lists the structure as Java records, which
-[`YMXS.java`](src/main/java/org/ymxs/YMXS.java) is as source, a test
-requiring the two equal; SPEC.md defines the rest: what each value
-reaches on the two chips (2, 3), what a frame does (4) and a tick (5),
-the rules a writer satisfies (6), what a recorder reports (7), and what
-a later version defines (8).
+## Reading and playback
 
-A form is an encoding of the structure: JSON ([json.md](doc/json.md)), which
-encodes every tune, CSV ([csv.md](doc/csv.md)), which encodes every tune
-whose texts are free of line feeds and carriage returns (csv.md 5.4), and a
-player's binary layout, defined by that player.
+A reader loads a file into the tune data structure. The host calls
+the player at the tune's frame rate; the MFP timers raise ticks at
+each effect's rate. Both procedures write YM registers.
+
+```mermaid
+flowchart TD
+    file[JSON or CSV] --> reader[Reader]
+    reader --> data[(Tune and sources)]
+    host[Host] -->|frame at tune rate| frame[Player: read tune row]
+    data -.-> frame
+    frame --> operations[Start / Retune / Stop]
+    operations --> registers[Write row registers]
+    registers --> ym[YM2149]
+    operations -->|configure| mfp[MFP timers]
+    mfp -->|tick at effect rate| tick[Player: read source row]
+    data -.-> tick
+    tick --> target[Write through target]
+    target --> ym
+```
+
+A frame performs timer operations before register writes. A tick
+advances its timer's source position, the *place*, or stops the timer
+when the source ends. Each table repeats from its repeat row or plays
+once. [SPEC.md](doc/SPEC.md) sections 4 and 5 define the procedures;
+section 8.6 leaves the timing of ticks within a frame to a later version.
 
 ## Implementing a player or a reader
 
-Read in this order: SPEC.md 1 to 3, the structure and the figures of
-the two chips; 4 and 5, the two procedures; 6, the rules a writer
-satisfies and a player assumes; 7, the record by which two recorders
-are compared line for line; then json.md and csv.md, the forms, and
-[tools.md](doc/tools.md), the five tools: one reads a YM dump into JSON,
-one checks a tune, two convert between the forms, one merges multis.
-[`doc/tunes/example.json`](doc/tunes/example.json) is one tune of four
-rows and one effect, shown as JSON in json.md, as CSV in csv.md, and as
-a recorder's record in SPEC.md 7.
+Start with [SPEC.md](doc/SPEC.md): data structure and chip values
+(1 to 3), playback (4 and 5), writer rules (6), recorder output (7),
+and later versions (8). Tests compare its Java declarations with
+[`YMXS.java`](src/main/java/org/ymxs/YMXS.java).
+
+[JSON](doc/json.md) encodes every tune. [CSV](doc/csv.md) encodes tunes
+whose texts are free of line feeds and carriage returns. A player's
+binary layout is defined by that player.
+
+[`example.json`](doc/tunes/example.json) appears in both form documents
+and as recorder output in SPEC.md 7. [tools.md](doc/tools.md) covers
+conversion, checking and merging; [ym.md](doc/ym.md) defines YM import.
 
 ## What is here
 
-| | |
+| source | purpose |
 |---|---|
 | [`YMXS.java`](src/main/java/org/ymxs/YMXS.java) | the structure, listed in [SPEC.md](doc/SPEC.md) 1 |
 | [`Chip`](src/main/java/org/ymxs/Chip.java) | the figures of the two chips |
 | [`Tunes`](src/main/java/org/ymxs/Tunes.java) | the functions over a structure: its sources, its timers, its effects in order |
 | [`Check`](src/main/java/org/ymxs/Check.java) | the errors of a structure, and the warnings of SPEC.md 6 |
-| [`Json`](src/main/java/org/ymxs/Json.java) [`Text`](src/main/java/org/ymxs/Text.java) | JSON, defined in [json.md](doc/json.md) |
+| [`Json`](src/main/java/org/ymxs/Json.java) | JSON objects |
+| [`Text`](src/main/java/org/ymxs/Text.java) | JSON text |
 | [`Csv`](src/main/java/org/ymxs/Csv.java) | CSV, defined in [csv.md](doc/csv.md) |
 | [`tool/`](src/main/java/org/ymxs/tool) [`bin/`](bin) | the five tools, defined in [tools.md](doc/tools.md) |
 | [`ym/`](src/main/java/org/ymxs/ym) | a YM register dump read into the structure, defined in [ym.md](doc/ym.md) |
 | [`doc/tunes/`](doc/tunes) | seven files of tunes as JSON, two as CSV as well; the tests read every one back |
 | [`go/`](go) | the same five tools in Go, the executables of a release |
 
-The records have their accessors alone; a function outside the structure
-reads it by pattern matching over every shape, so a shape added to `YMXS`
-stops those functions compiling until they read it.
+The records have accessors alone. Functions use exhaustive pattern
+matching, so adding a shape requires updating those functions to compile.
 
 ## Building
 
-Java 23 and Maven. `mvn test` reads every tune under `doc/tunes` back in
-both forms, the listing of SPEC.md 1 against the records, a dump built in
-the test and an archive with another inside, and the documents against
-the house style, and, where the tools are built (tools.md 11.2) and Go
-is on the path, runs the tools in a pipe and the Go tools against the
-Java ones byte for byte.
+Use Java 23 and Maven. `mvn test` checks the example tunes, specification
+declarations, YM import and house style. With the Java tools built
+(tools.md 11.2), it also tests pipes; with Go on the path, it compares
+the Go and Java tools byte for byte.
 
 ```bash
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 ```
 
-The same five tools are written in Go under [`go/`](go);
-`release/publish.sh` builds them for Windows, macOS and Linux on x64 and
-arm64, one executable a tool, each running by itself. The Go tree is a
-separate module, from which another module reads the structure and the two
-forms.
+The Go module under [`go/`](go) provides the structure, both forms and
+the same tools. `release/publish.sh` builds standalone executables for
+Windows, macOS and Linux on x64 and arm64.
 
 ```bash
 cd go && go test ./... && go build ./cmd/...

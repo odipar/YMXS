@@ -1,10 +1,9 @@
 # The tools
 
-The five tools: what each reads and writes, its flags, its exit codes,
-and the lines it writes on standard error. Section 11 defines the two
-trees the tools are written in and where they differ; section 12 a
-release. The terms of [SPEC.md](SPEC.md) apply; JSON is the form of
-[json.md](json.md) and CSV that of [csv.md](csv.md).
+Input, output, flags, exit codes and diagnostics for the five tools.
+Section 11 covers the Java and Go implementations and their differences;
+section 12 covers releases. Terms follow [SPEC.md](SPEC.md), with forms
+defined in [json.md](json.md) and [csv.md](csv.md).
 
 ---
 
@@ -49,9 +48,8 @@ is in UTF-16 code units (11.5 for the Go tree).
 | `ymxs-csv-to-json` | CSV | JSON | `-silent` |
 | `ymxs-merge` | several multis as JSON, one after another | JSON, one multi | `-silent` |
 
-**2.1** Each tool is written twice, under one name, in the two trees of
-section 11: in Java as the script `bin/<tool>`, running the class
-below; in Go as the executable built from the command directory below.
+**2.1** Each tool has a Java script, `bin/<tool>`, that runs the class
+below, and a Go executable built from the command directory (section 11).
 
 | tool | Java class | Go command |
 |---|---|---|
@@ -65,10 +63,9 @@ below; in Go as the executable built from the command directory below.
 
 ## 3. An invocation
 
-**3.1 The arguments.** Every argument is a flag. `-silent` is a flag of
-every tool and is removed from the arguments wherever it stands. Every
-other argument is a flag of the tool (9.2 for `ym-to-ymxs`) or makes
-the call wrong.
+**3.1 The arguments.** Every argument is a flag. All tools accept and
+remove `-silent` at any position. Each remaining argument must be a
+flag of that tool (9.2 for `ym-to-ymxs`); otherwise the call is wrong.
 
 **3.2 A wrong call.** An invocation of `ymxs-check`, `ymxs-json-to-csv`,
 `ymxs-csv-to-json` or `ymxs-merge` with an argument other than `-silent`
@@ -134,11 +131,10 @@ SPEC.md 1.11 present is one line of one error, in the order of SPEC.md
 1.12, every line of a tune prefixed `tune N: `, N the tune number from
 1.
 
-**4.4 An unstarted source.** A source a JSON tune lists in `sources`, or a
-CSV tune opens with a `source` block, that every row of the tune leaves
-unstarted is an error of the form, the last line of json.md 8.1 and of
-csv.md 5.1, found where the tune is read and before the structure is
-checked, one line a source in the order listed.
+**4.4 An unstarted source.** A source listed in JSON `sources` or a CSV
+`source` block must be started by a tune row. Otherwise, reading the tune
+produces an error of the form before the structure check: one line per
+source in list order, using the last line of json.md 8.1 or csv.md 5.1.
 
 ---
 

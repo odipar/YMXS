@@ -1,15 +1,13 @@
 # The YMXS format
 
-Version 3 of the tune data structure, and what a player does with it on
-the YM2149 and the MC68901 of an Atari ST: the structure (1), what each
-value reaches on the two chips (2, 3), the procedure of a frame (4) and
-of a tick (5), the rules a writer satisfies and what a check reports (6),
-the record a recorder produces (7), and what a later version defines (8).
+Version 3 defines tune data and playback on the Atari ST's YM2149 and
+MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
+rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file of a form has the version, 3, beside the structure; a reader
-reads it first, and another version is an error of the form.
+A file includes version 3 beside the structure. A reader reads the
+version first; another version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
 section 6 as rule 1, a condition of one as rule 1(a). `Note:` begins an
@@ -99,9 +97,9 @@ public interface YMXS {
 }
 ```
 
-**1.2 A multi.** A list of tunes, numbered from 1 in list order, one at
-least (1.11). A host selects a tune by number. A multi with a condition of
-1.11 in any tune is outside what a player plays.
+**1.2 A multi.** A nonempty list of tunes, numbered from 1 in list order.
+The host selects a tune by number. An error of the structure (1.11) in
+any tune excludes the multi from playback.
 
 **1.3 A tune.** A title, a composer, a writer, a rate and a table of rows.
 The three texts are for display alone. The rate is the frames a second at
@@ -119,11 +117,10 @@ one a tick (5).
 is n + 1 for n below R - 1; for n = R - 1, the repeat row where present,
 and where absent the table has ended.
 
-**1.6 A row.** `registers`, the registers the row sets with the value each
-is set to, and `effects`, the operation it performs on each timer it acts
-on. A register absent from `registers` keeps its value; a timer absent from
-`effects` runs on as it is. A row sets each register at most once and
-performs at most one operation on each timer.
+**1.6 A row.** `registers` maps each register to the value the row sets;
+`effects` maps each timer to its operation. An absent register keeps its
+value; an absent timer continues unchanged. A row sets each register at
+most once and performs at most one operation on each timer.
 
 **1.7 An effect and the three operations.** The effect of a timer is
 the source connected to a target on it, at the rate of its prescaler and
@@ -183,15 +180,25 @@ in a later version alone (8.2, 8.3).
 
 **1.12 The order of the report.**
 
-1. The line of the multi.
-2. For each tune in number order, each line prefixed `tune N: `, N the tune
-   number, where the check reads a multi, and unprefixed where it reads one
-   tune:
-1. the line of the rate;
-2. the line for an empty table, then the line for the repeat row, each where
-      present;
-3. for each row in order, each line prefixed `row N: `, N the row
-      number: the lines of the registers, R0 to R13; then for each timer the row performs a `Start` or a `Retune` on, A to D, each line prefixed `Timer X: `, X its letter: the line of the count; the line of the rate, omitted where the count is outside 0 to 255; for a `Start`, the line for an empty table and the line for the repeat row of the source, each where present, then the lines of its values below 0 in row order, then the line for the values a row, and, where that line is absent, the lines of its values above the most in row order.
+Report each condition present, in this order:
+
+1. The multi.
+2. Each tune in number order, prefixed `tune N: ` when checking a multi
+   and unprefixed when checking one tune:
+   1. The rate.
+   2. An empty table, then the repeat row.
+   3. Each row in order, prefixed `row N: `:
+      1. Registers, R0 to R13.
+      2. Each timer with a `Start` or `Retune`, A to D, prefixed
+         `Timer X: `:
+         1. The count.
+         2. The rate, omitted for a count outside 0 to 255.
+         3. For a `Start`: an empty source table, its repeat row, values
+            below 0 in row order, then the number of values a row. If
+            that last condition is absent, values above the register's
+            most in row order.
+
+N is the tune or row number; X is the timer's letter. Prefixes accumulate.
 
 ---
 
@@ -378,13 +385,14 @@ A `Stop`: stop the timer. It is idle, its source disconnected, and it raises
 its next tick after a later `Start` or `Retune`; the place is unchanged
 (3.4.3).
 
-A `Start`: 1. Where `timerReset` is set, stop the timer. 2. Connect the
-source to the target on this timer; from this step a tick of this timer
-reads this source and calls this target (5). 3. Write the prescaler and
-the count: where the timer is stopped, by step 1 or before the row, this
-write starts it and it begins a whole period at the count; where it
-runs, its period continues (3.3.5). 4. Where `placeReset` is set, set
-the place to 0.
+A `Start`, in order:
+
+1. If `timerReset` is set, stop the timer.
+2. Connect the source to the target on this timer. From this step, its
+   ticks read this source and call this target (5).
+3. Write the prescaler and count. A stopped timer starts a whole period
+   at the count; a running timer continues its period (3.3.5).
+4. If `placeReset` is set, set the place to 0.
 
 A `Retune`: steps 1, 3 and 4 of a `Start`. On an idle timer step 3 starts
 the timer with its source disconnected (rule 5), and what the player
@@ -393,12 +401,17 @@ performs at its ticks is left to a later version (5.4).
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
 
-**4.4 The registers.** The registers the row sets are written in five steps,
-in any order within a step: R0 to R5; R6, R11 and R12; R8, R9 and R10; R7,
-bits 5 to 0 from the row and bits 7 and 6 as they were (2.4); R13, which
-restarts the envelope (2.5). A register the row leaves alone keeps its
-value. The player writes a register an effect runs on as any other, since a
-tune satisfying rule 1 leaves such a register alone.
+**4.4 The registers.** Write the registers the row sets in this order,
+in any order within a step:
+
+1. R0 to R5.
+2. R6, R11 and R12.
+3. R8, R9 and R10.
+4. R7: bits 5 to 0 from the row, bits 7 and 6 unchanged (2.4).
+5. R13, restarting the envelope even if its value is unchanged (2.5).
+
+An absent register keeps its value. The player also writes registers
+with running effects (rule 1).
 
 **4.5 The wrap.** Where a tune repeats, the row after its last row is its
 repeat row (1.5), performed as any row. A timer running when the last row is

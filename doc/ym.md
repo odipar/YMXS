@@ -1,10 +1,9 @@
 # Reading a YM dump
 
-The reading of a YM5! or YM6! register dump into a tune of the
-structure, as `ym-to-ymxs` ([tools.md](tools.md) 9) performs it: the
-layout of a dump, its errors, and the mapping from its frames to the
-rows, sources and effects of the tune. The terms of [SPEC.md](SPEC.md)
-apply. Note: the figures of SPEC.md were measured on dumps read this way.
+`ym-to-ymxs` ([tools.md](tools.md) 9) converts a YM5! or YM6! register
+dump into a tune. This document defines the dump layout, errors and
+mapping from frames to rows, sources and effects. Terms follow
+[SPEC.md](SPEC.md). Note: its figures were measured on dumps read this way.
 
 ---
 

@@ -1,16 +1,14 @@
 # JSON
 
-The JSON form: an encoding of version 3 of the structure of
-[SPEC.md](SPEC.md) 1. [csv.md](csv.md) 7 maps each value of this form
-to its cell in the CSV form. Every clause is normative except a
-sentence beginning `Note:` and section 10.
+JSON encodes version 3 of the structure in [SPEC.md](SPEC.md) 1.
+[csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
+normative except sentences beginning `Note:` and section 10.
 
 ---
 
 ## 1. Terms
 
-**1.1** The *structure* is that of SPEC.md 1, whose terms this document
-uses with its meanings.
+**1.1** The *structure* and its terms are defined in SPEC.md 1.
 
 **1.2** A *reader* reads a file of this form into the structure; an
 *emitter* emits a file from the structure. A *writer* is the role of
@@ -53,9 +51,8 @@ object has that member and *absent* otherwise.
 | `version` | the whole number 3 | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
-**2.2** A reader reads the keys this document names; another key is skipped.
-An emitter emits those keys alone, each once, in the order its section lists
-them.
+**2.2** A reader reads the listed keys and skips unknown keys. An emitter
+emits only the listed keys, each once, in the order of its section.
 
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
@@ -80,18 +77,17 @@ them.
 | `registers` | an object (section 5) | the registers the rows set, a column a register |
 | `timerA`, `timerB`, `timerC`, `timerD` | an object each (section 6) | the operations the rows perform on the effect of that timer, a column a part |
 
-**3.2** `title`, `composer`, `writer`, `rate`, `rows` and `sources` are
-present in every tune. An absent `repeat` reads as `null`, an absent
-`registers` as an empty object, an absent timer object as a timer every row
-leaves alone; a `registers` or `timerT` of `null` is present and other than
-an object (8.1). An emitter emits `registers` in every tune and a timer's
-object where a row acts on it.
+**3.2** Every tune requires `title`, `composer`, `writer`, `rate`, `rows`
+and `sources`. An absent `repeat` reads as `null`; absent `registers`
+read as an empty object; an absent timer object leaves that timer
+unchanged on every row. `null` for `registers` or `timerT` is an error
+(8.1). An emitter emits `registers` in every tune and a timer object
+for each timer a row acts on.
 
 **3.3** The empty text is a value of `title`, `composer` and `writer`.
 
-**3.4** An emitter emits the sources in first-start order (SPEC.md 1.9).
-A reader reads them in file order, source n at index n - 1; a file with
-another order reads, and an emitter emits it in first-start order.
+**3.4** A reader reads sources in file order, source n at index n - 1.
+An emitter emits them in first-start order (SPEC.md 1.9).
 
 **3.5** Two sources are one source where equal as SPEC.md 1.9 defines.
 

@@ -1,10 +1,9 @@
 # CSV
 
-The CSV form: an encoding of version 3 of the structure of
-[SPEC.md](SPEC.md) 1, as blocks of lines of comma-separated values, for
-reading in a spreadsheet. Section 7 maps each value of the JSON form
-([json.md](json.md)) to its cell in this one. Every clause is normative
-except a sentence beginning `Note:` and section 8.
+CSV encodes version 3 of the structure in [SPEC.md](SPEC.md) 1 as
+blocks of comma-separated values for reading in a spreadsheet. Section
+7 maps [JSON](json.md) values to cells. Every clause is normative
+except sentences beginning `Note:` and section 8.
 
 ---
 
@@ -49,14 +48,11 @@ values in its `value` blocks.
 
 ## 2. Lines and cells
 
-**2.1** A reader reads the file line by line and skips a blank line: the
-blocks are the other lines.
+**2.1** A reader reads line by line, skipping blank lines.
 
-**2.2** A heading line opens a block; the first line after it other than a
-blank line is the column line, and every later line, blank lines and heading
-lines excepted, is a row line, in order, up to the next heading line or the
-end of the text. The first line of the file other than a blank line is a
-heading line.
+**2.2** After skipping blank lines, the file begins with a heading line.
+Each heading opens a block: the next line is its column line, followed
+by row lines up to the next heading or the end of the text.
 
 **2.3** A line is split into cells at each `,` outside a quoted cell. A cell
 beginning with a character other than `"` is the characters up to the next
@@ -69,13 +65,11 @@ the line, each `""` before it one `"`, with the characters after the closing
 `""` one `"` and each `,` a character of it. A line whose every `,` is
 inside a quoted cell is one cell.
 
-**2.4** A cell of a row line belongs to the column whose name is at the same
-index in the column line. A reader finds a column by name, the first of two
-with one name. A row line with fewer cells than the column line has an empty
-cell in each column beyond its last; a cell beyond the last column name is
-skipped; a column absent from a block reads as an empty cell in every row
-line; a column whose name is outside section 3's list for the block is
-skipped.
+**2.4** A row cell belongs to the column at the same index in the column
+line. A reader finds columns by name, using the first occurrence of a
+duplicate name. Missing cells and absent columns read as empty cells.
+The reader skips cells beyond the last column name and columns outside
+the block's list in section 3.
 
 **2.5** An emitter emits a cell as its characters where every character is
 other than `,` and `"`, the first character is other than `#`, and the first
@@ -97,13 +91,11 @@ in first-start order (SPEC.md 1.9) a `source` block then a `value`
 block, a `registers` block, and a `timerA`, `timerB`, `timerC` and
 `timerD` block for each timer some row acts on, in that order.
 
-**3.2** Position determines which tune and which source a block belongs to,
-and a block's tune and source follow from its position alone: the blocks of
-a tune are those after its `tune` block up to the next `tune` block or the
-end of the file, and a `value` block belongs to the last `source` block
-before it within the tune. The blocks of a tune are in any order, except
-that a `value` block follows a `source` block of its tune. Note: a reader
-reads the timer blocks after the other blocks of the tune (4.1 step 6).
+**3.2** A tune's blocks follow its `tune` block up to the next `tune`
+block or the end of the file. Within a tune, blocks may appear in any
+order, except that a `value` block requires a preceding `source` block
+and belongs to the last such source. Note: a reader reads timer blocks
+after the tune's other blocks (4.1 step 6).
 
 **3.3** The `multi` block has one row line:
 

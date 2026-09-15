@@ -72,7 +72,7 @@ and the two forms.
 ```bash
 cd go && go test ./... && go build ./cmd/...
 release/publish.sh
-go get github.com/odipar/ymxs/go@v0.3.2
+go get github.com/odipar/ymxs/go@v0.3.3
 ```
 
 ## Where the figures come from

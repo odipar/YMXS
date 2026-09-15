@@ -18,13 +18,59 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.1.0` beside `v0.1.0`.
+version of it is a tag of that directory: `go/v0.3.3` beside `v0.3.3`.
 
 A player pins a version of this format: the structure's version is 3 and
 stands in every file this writes, and a release's number names the tools
 rather than the format.
 
 ## Published
+
+### 0.3.3, 2026-09-15
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.3>, built from the commit
+tagged `v0.3.3`.
+
+The documents changed, and the lines the tools write for an error of a
+file. The structure's version is 3, as 0.3.0 set it, so every file of
+this release reads under 0.3.2 and the other way round, and the JSON and
+CSV the tools write are the bytes 0.3.2 wrote.
+
+- **The documents are a specification.** SPEC.md is numbered, citable
+  clauses: conventions and roles; the structure, with its Java block
+  read as a reader of another language needs it; every error of the
+  structure with its text and the order of a report; the rate, the
+  count and the two resets with the MC68901's control codes; a frame
+  and a tick as ordered steps with their initial conditions, end and
+  wrap; the six rules with their conditions; the check as a procedure
+  with its model and its reckoning, and every warning text; the record
+  a recorder produces, with its three operation entries, held to an
+  example by a test; and what a later version defines. json.md and
+  csv.md define every key and cell with its range, reading as steps,
+  every error with its line, and the layout an emitter emits. tools.md
+  defines each tool's flags, exit codes and lines, the pipe, and where
+  the Java and Go trees differ. ym.md defines a dump's layout, its
+  errors and the mapping frame by frame.
+- **One example tune in every form.** `doc/tunes/example.json` and
+  `example.csv` are new, four rows and one effect: a start, a retune
+  and a stop. json.md shows the file, csv.md the same tune as CSV, and
+  SPEC.md 7 the record a recorder produces of it.
+- **The lines for an error of a file changed.** Where a value is of the
+  wrong kind, both trees write `KEY is X, and this form requires a
+  whole number` (an array, an object, a text, a column, a row number
+  or null) in place of `..., and a whole number is asked`. json.md 8.1
+  and csv.md 5.1 list every line.
+- **The Go reader agrees with the Java reader in two more places.** A
+  `registers` or timer object whose value is `null` is an error in both
+  trees; it read as absent in Go. A source's `values` are read before
+  its `name` in both, so a source with neither reports `values` first.
+- **The license describes this repository.** LICENSE was YMX's file,
+  naming a compressor, 68000 players and a C# tree this repository does
+  not have. It now lists what is here, on the same terms, with the
+  notices of the LHA depacker kept as they were.
+- **Two constructs are struck from the house style:** a metaphor for
+  encoded, and a human act for satisfy. AGENTS.md logs both and the
+  test strikes them.
 
 ### 0.3.2, 2026-09-13
 

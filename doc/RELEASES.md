@@ -26,6 +26,28 @@ rather than the format.
 
 ## Published
 
+### 0.3.4, 2026-09-15
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.4>, built from the commit
+tagged `v0.3.4`.
+
+The documents alone. The structure, the tools and the two forms are
+0.3.3's, so every file of this release reads under 0.3.3 and the other way
+round, and the JSON and CSV the tools write are the bytes 0.3.3 wrote.
+
+- **YMX is the family this repository belongs to.** README.md names it: a
+  design document defining how YMXS, YMXR, DTX and ST4 fit together, where
+  YMX was a format and a player until 0.10.1.
+- **Read this first**, at the top of README.md, in the words the three
+  repositories share: who wrote what, and that the decision to use software
+  written that way is the reader's.
+- **The prose is shorter and playback is explained where a reader meets
+  it**: a frame at the tune's rate and a tick at each effect's, the order
+  of the two, and which documents to read for a player or a reader.
+- **A negation reads as what is there.** The rule is in AGENTS.md and its
+  patterns in `HouseStyleTest`, and the documents define what is there
+  rather than what is absent.
+
 ### 0.3.3, 2026-09-15
 
 <https://github.com/odipar/YMXS/releases/tag/v0.3.3>, built from the commit

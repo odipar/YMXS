@@ -14,10 +14,10 @@ reaches on the two chips (2, 3), what a frame does (4) and a tick (5),
 the rules a writer satisfies (6), what a recorder reports (7), and what
 a later version defines (8).
 
-A form is an encoding of the structure: JSON ([json.md](doc/json.md)),
-which encodes every tune, CSV ([csv.md](doc/csv.md)), which encodes
-every tune whose texts have no line feed or carriage return (csv.md
-5.4), and a player's binary layout, defined by that player.
+A form is an encoding of the structure: JSON ([json.md](doc/json.md)), which
+encodes every tune, CSV ([csv.md](doc/csv.md)), which encodes every tune
+whose texts are free of line feeds and carriage returns (csv.md 5.4), and a
+player's binary layout, defined by that player.
 
 ## Implementing a player or a reader
 
@@ -46,9 +46,9 @@ a recorder's record in SPEC.md 7.
 | [`doc/tunes/`](doc/tunes) | seven files of tunes as JSON, two as CSV as well; the tests read every one back |
 | [`go/`](go) | the same five tools in Go, the executables of a release |
 
-The records have their accessors and no other method; a function outside
-the structure reads it by pattern matching over every shape, so a shape
-added to `YMXS` stops those functions compiling until they read it.
+The records have their accessors alone; a function outside the structure
+reads it by pattern matching over every shape, so a shape added to `YMXS`
+stops those functions compiling until they read it.
 
 ## Building
 
@@ -65,9 +65,9 @@ bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 
 The same five tools are written in Go under [`go/`](go);
 `release/publish.sh` builds them for Windows, macOS and Linux on x64 and
-arm64, one executable a tool, running with no Java installed. The Go
-tree is a separate module, from which another module reads the structure
-and the two forms.
+arm64, one executable a tool, each running by itself. The Go tree is a
+separate module, from which another module reads the structure and the two
+forms.
 
 ```bash
 cd go && go test ./... && go build ./cmd/...

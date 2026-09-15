@@ -14,24 +14,25 @@ uses with its meanings.
 
 **1.2** A *reader* reads a file of this form into the structure; an
 *emitter* emits a file from the structure. A *writer* is the role of
-SPEC.md; the key `writer` (3.1) is text of the structure. A *player*
-reads the structure and not this form.
+SPEC.md; the key `writer` (3.1) is text of the structure. A *player* reads
+the structure alone.
 
 **1.3** A *file* is UTF-8 text whose first JSON value (RFC 8259) is an
 object (section 2); a reader reads that value alone. Note: tools.md 8
 defines a tool that reads each of several values.
 
-**1.4** An *object* and an *array* are JSON's; a *text* is a JSON string;
-a *whole number* is a JSON number with no fraction or exponent part,
--2,147,483,648 to 2,147,483,647. `null` is the value of one key,
-`repeat` (3.1, 4.1).
+**1.4** An *object* and an *array* are JSON's; a *text* is a JSON string; a
+*whole number* is a JSON number written as an optional `-` and digits,
+-2,147,483,648 to 2,147,483,647. `null` is the value of one key, `repeat`
+(3.1, 4.1).
 
 **1.5** A *column* is an array of exactly R whole numbers, R the row
 count of its tune (3.1); index i, from 0, is row i.
 
 **1.6** -1 in a register column marks a row that leaves the register
-unchanged (5.3); in a timer column, a part the row's operation does not
-have (6.2). Note: -1 fits neither, so it is distinct from every value.
+unchanged (5.3); in a timer column, a part absent from the row's operation
+(6.2). Note: -1 is outside the range of every register and every part, so it
+is distinct from every value.
 
 **1.7** Rows are numbered from 0 in row order; tunes from 1 in `tunes`
 order; sources from 1 in `sources` order; the rows of a source from 0
@@ -52,12 +53,12 @@ object has that member and *absent* otherwise.
 | `version` | the whole number 3 | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
-**2.2** A reader reads the keys this document names; another key is not
-read and is no error. An emitter emits those keys and no other, each
-once, in the order its section lists them.
+**2.2** A reader reads the keys this document names; another key is skipped.
+An emitter emits those keys alone, each once, in the order its section lists
+them.
 
-**2.3** An empty `tunes` array is a multi of no tunes, an error of the
-structure (8.3).
+**2.3** An empty `tunes` array is an empty multi, an error of the structure
+(8.3).
 
 **2.4** A reader reads version 3 alone (SPEC.md 8).
 
@@ -81,10 +82,10 @@ structure (8.3).
 
 **3.2** `title`, `composer`, `writer`, `rate`, `rows` and `sources` are
 present in every tune. An absent `repeat` reads as `null`, an absent
-`registers` as an object with no column, an absent timer object as a
-timer no row acts on; a `registers` or `timerT` of `null` is present and
-not an object (8.1). An emitter emits `registers` in every tune and a
-timer's object where a row acts on it.
+`registers` as an empty object, an absent timer object as a timer every row
+leaves alone; a `registers` or `timerT` of `null` is present and other than
+an object (8.1). An emitter emits `registers` in every tune and a timer's
+object where a row acts on it.
 
 **3.3** The empty text is a value of `title`, `composer` and `writer`.
 
@@ -108,17 +109,17 @@ another order reads, and an emitter emits it in first-start order.
 | `repeat` | a whole number from 0 to V minus 1, or `null` | the row the source repeats to; `null` marks a source that plays once |
 | `values` | an array of V whole numbers, V at least 1 | the rows of the source; row j is the element at index j |
 
-**4.2** `name` and `values` are present in every source; an absent
-`repeat` reads as `null`; an element of `values` that is not a whole
-number is an error (8.1).
+**4.2** `name` and `values` are present in every source; an absent `repeat`
+reads as `null`; an element of `values` other than a whole number is an
+error (8.1).
 
 **4.3** Every value is 0 to the most of the register of every target the
 rows start the source on (SPEC.md 3.2.2; ranges in 5.1); outside that is
 an error of the structure (8.3).
 
-**4.4** Every source in `sources` is started by a row; one no row starts
-is an error (8.1). Note: the structure reaches a source through the row
-that starts it, so such a source is lost where the file is read.
+**4.4** Every source in `sources` is started by a row; an unstarted source
+is an error (8.1). Note: the structure reaches a source through the row that
+starts it, so such a source is lost where the file is read.
 
 **4.5** An emitter emits each source of the tune once (3.5).
 
@@ -140,13 +141,13 @@ register's range:
 | `r11`, `r12` | R11, R12: the low byte and the high byte of the envelope period | 0 to 255 |
 | `r13` | R13: the envelope shape | 0 to 15 |
 
-**5.2** An emitter emits the column of each register some row sets and
-no other; a reader reads an absent column as -1 at every row.
+**5.2** An emitter emits the column of each register some row sets, those
+alone; a reader reads an absent column as -1 at every row.
 
-**5.3** Index i of `rn` is -1 where row i leaves Rn unchanged, otherwise
-the value row i sets. A reader reads -1 as no value and every other
-whole number as a value, so one below -1 or above the range is an error
-of the structure (8.3).
+**5.3** Index i of `rn` is -1 where row i leaves Rn unchanged, otherwise the
+value row i sets. A reader reads -1 as absence and every other whole number
+as a value, so one below -1 or above the range is an error of the structure
+(8.3).
 
 ---
 
@@ -178,9 +179,9 @@ that are -1 there:
 | 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target` |
 | 2 | a stop | none | the other six |
 
-**6.3** At each row a reader reads `shape`, then the columns 6.2 lists
-in that order, verifying each as read (6.6), and no other column. An
-emitter emits -1 in every column 6.2 lists as -1.
+**6.3** At each row a reader reads `shape`, then the columns 6.2 lists in
+that order, verifying each as read (6.6), those columns alone. An emitter
+emits -1 in every column 6.2 lists as -1.
 
 **6.4** A column absent where the shape of some row selects it is an
 error (8.1). Note: a timer object whose every `shape` is -1 or 2 needs
@@ -200,8 +201,8 @@ exceeds 125,000 ticks a second, are errors of the structure (8.3).
 ## 7. Reading
 
 **7.1** In order; the reader stops at the first error of the form (8.1),
-reports every error of the structure at once (8.3), and ends with the
-multi where no step reports an error.
+reports every error of the structure at once (8.3), and ends with the multi
+where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
@@ -235,15 +236,15 @@ multi where no step reports an error.
 
 ## 8. Errors
 
-**8.1** An error of the form is a text no reader reads into the
-structure, reported as one line, except the last condition below,
-reported once for each source no row starts, in `sources` order, one
-line each. KEY is the key; N, L, S and R numbers, R as read, 0 or below
-included; T a timer letter; COL a column name; I a row number; J a row
-number within a source; NAME a source's name; X the value read as JSON
-text, or `null` where the key is absent, except `an array` or `an
-object` in the `registers is X` and `timerT is X` lines, and the text
-without quotation marks in the `a tree of X` line.
+**8.1** An error of the form is a condition of the text that ends the
+reading (7.1), reported as one line, except the last condition below,
+reported once for each unstarted source, in `sources` order, one line each.
+KEY is the key; N, L, S and R numbers, R as read, 0 or below included; T a
+timer letter; COL a column name; I a row number; J a row number within a
+source; NAME a source's name; X the value read as JSON text, or `null` where
+the key is absent, except `an array` or `an object` in the `registers is X`
+and `timerT is X` lines, and the text with its quotation marks removed in
+the `a tree of X` line.
 
 | condition | the line |
 |---|---|
@@ -272,32 +273,31 @@ without quotation marks in the `a tree of X` line.
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a source of `sources` that no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
 
-**8.2** A value that is not an object where one is required reads as an
-object with no key, so the line is that of the first key read from it:
-`format is null, and this form requires a text` for the file, `rows is
-null, and this form requires a whole number` for a tune, `values is
-null, and this form requires an array` for a source. An empty text reads
-as a file with no key. A `registers` or a `timerT` that is not an object
-has its line in 8.1.
+**8.2** A value other than an object where one is required reads as an empty
+object, so the line is that of the first key read from it: `format is null,
+and this form requires a text` for the file, `rows is null, and this form
+requires a whole number` for a tune, `values is null, and this form requires
+an array` for a source. An empty text reads as an empty file object. A
+`registers` or a `timerT` other than an object has its line in 8.1.
 
-**8.3** An error of the structure is a condition of SPEC.md 1.11. A
-reader reports every one present after step 12 of 7.1, one line each,
-the lines of SPEC.md 1.11 in the order of 1.12, every line of a tune
-prefixed `tune N: ` as 1.12 defines for a multi, a source's lines at
-every row that starts it. `the multi has no tune` is, in this form, an
-empty `tunes` array (2.3).
+**8.3** An error of the structure is a condition of SPEC.md 1.11. A reader
+reports every one present after step 12 of 7.1, one line each, the lines of
+SPEC.md 1.11 in the order of 1.12, every line of a tune prefixed `tune N: `
+as 1.12 defines for a multi, a source's lines at every row that starts it.
+The first condition of SPEC.md 1.11 is, in this form, an empty `tunes` array
+(2.3).
 
-**8.4** A breach of a rule of SPEC.md 6 is a warning (SPEC.md 6.5),
-reported by a check and not by a reader; tools.md 5 defines the tools
-that run the check after reading.
+**8.4** A breach of a rule of SPEC.md 6 is a warning (SPEC.md 6.5), reported
+by a check, and a reader reads such a tune as any other; tools.md 5 defines
+the tools that run the check after reading.
 
 ---
 
 ## 9. Layout
 
-**9.1** A reader reads any white space between the tokens of the JSON
-value and the members of an object in any order, the last of two members
-of one name; the layout is not significant to it.
+**9.1** A reader reads any white space between the tokens of the JSON value
+and the members of an object in any order, the last of two members of one
+name: it reads any layout.
 
 **9.2** An emitter emits this layout. The *depth* of a value is 1 for
 the file's object and d + 1 inside an object or array at depth d; an
@@ -314,10 +314,10 @@ the file's object and d + 1 inside an object or array at depth d; an
 | a column | 5 | 20 values a line (9.6) |
 | `values` | 6 | 20 values a line (9.6) |
 
-**9.3** An object at depth 1 to 4 with a key: `{`, a line feed, each
-member on a line as the indent of d, the key in quotation marks, `: `
-and the value, `,` after every member but the last, then a line feed,
-the indent of d - 1 and `}`; with no key, `{}`.
+**9.3** An object at depth 1 to 4 with a key: `{`, a line feed, each member
+on a line as the indent of d, the key in quotation marks, `: ` and the
+value, `,` after every member but the last, then a line feed, the indent of
+d - 1 and `}`; empty, `{}`.
 
 **9.4** An object at depth 5: one line, `{`, the members as
 `"key": value` separated by `, `, and `}`, as
@@ -325,19 +325,19 @@ the indent of d - 1 and `}`; with no key, `{}`.
 
 **9.5** An array at depth 2 to 4 with an element: `[`, a line feed, each
 element on a line as the indent of d and the element, `,` after every
-element but the last, then a line feed, the indent of d - 1 and `]`;
-with no element, `[]`.
+element but the last, then a line feed, the indent of d - 1 and `]`; empty,
+`[]`.
 
-**9.6** An array at depth 5 or 6: `[`, the values separated by `,` with
-no space, `]`; after every twentieth value the `,` is followed by a line
-feed and the indent of d; with no element, `[]`.
+**9.6** An array at depth 5 or 6: `[`, the values separated by `,` alone,
+`]`; after every twentieth value the `,` is followed by a line feed and the
+indent of d; empty, `[]`.
 
-**9.7** A number is decimal, `-` before one below 0, no other sign.
-`null` is the `repeat` of a table that plays once. A text is in
-quotation marks with `"` as `\"`, `\` as `\\`, U+0008 as `\b`, U+000C as
-`\f`, U+000A as `\n`, U+000D as `\r`, U+0009 as `\t`, every other
-U+0000 to U+001F as `\u00XX`, XX two upper-case hexadecimal digits, and
-every other character as it is.
+**9.7** A number is decimal, `-` before one below 0 and the one sign. `null`
+is the `repeat` of a table that plays once. A text is in quotation marks
+with `"` as `\"`, `\` as `\\`, U+0008 as `\b`, U+000C as `\f`, U+000A as
+`\n`, U+000D as `\r`, U+0009 as `\t`, every other U+0000 to U+001F as
+`\u00XX`, XX two upper-case hexadecimal digits, and every other character as
+it is.
 
 **9.8** The file ends with one line feed, U+000A, after the closing
 `}`.

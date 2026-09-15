@@ -24,10 +24,10 @@ four registers and the two I/O ports (section 4), *on* or *off* in a
 frame; a slot that is on has a kind, a voice, a target, a data value, a
 prescaler and a count.
 
-**1.4** A *sample* is one of the D digidrum samples, S bytes of one
-level each. **1.5** A *level* is 0 to 15. **1.6** The *repeat row* RR is
-the row the tune repeats to (8.2); for a tune that plays once RR is F,
-so no row is the repeat row.
+**1.4** A *sample* is one of the D digidrum samples, S bytes of one level
+each. **1.5** A *level* is 0 to 15. **1.6** The *repeat row* RR is the row
+the tune repeats to (8.2); for a tune that plays once RR is F, past the last
+row.
 
 ---
 
@@ -50,45 +50,43 @@ so no row is the repeat row.
 
 **2.2 The samples** follow the extra data: for each of the D samples in
 order, 4 bytes S then S bytes. With attribute bit 2 set, a byte is one
-level, its low four bits; otherwise its high four bits are the level and
-its low four are not read.
+level, its low four bits; otherwise its high four bits are the level and its
+low four are skipped.
 
 **2.3 The strings** follow the samples: the name, the author and the
 comment, each bytes ended by a zero byte, decoded as ISO 8859-1. The
 comment's text is dropped; its zero byte is required as the others' are.
 
-**2.4 The frames** follow the strings, 16 times F bytes: with attribute
-bit 0 set, sixteen vectors of F bytes, vector r being register r of
-frames 0 to F - 1; otherwise F records of sixteen bytes, byte r of
-record f being register r of frame f. Bytes after the frames are not
-read.
+**2.4 The frames** follow the strings, 16 times F bytes: with attribute bit
+0 set, sixteen vectors of F bytes, vector r being register r of frames 0 to
+F - 1; otherwise F records of sixteen bytes, byte r of record f being
+register r of frame f. Bytes after the frames are skipped.
 
-**2.5 An archive.** An input of 22 bytes or more whose byte 0 is not 0,
-bytes 2 to 4 `-lh` and byte 6 `-` is an LHA archive, and the dump is its
+**2.5 An archive.** An input of 22 bytes or more whose byte 0 is other than
+0, bytes 2 to 4 `-lh` and byte 6 `-` is an LHA archive, and the dump is its
 first member. The header is level 0: byte 0 the header size, byte 1 the
-checksum, the sum of bytes 2 to the header size plus 1 modulo 256, bytes
-2 to 6 the method, 7 to 10 the packed size and 11 to 14 the unpacked
-size, both least significant byte first, byte 20 zero; the member's data
-begins at the header size plus 2. Method `-lh0-` is a stored member, the
-unpacked size in bytes copied from the data. Method `-lh5-` is LHA's
-`-lh5-` coding, which this document does not define: a dictionary of
-8,192 bytes, a longest match of 256 bytes and a shortest of 3, and
-Huffman-coded blocks, each opening with a 16-bit code count and three
-code-length tables of 19, 510 and 14 symbols; the header's unpacked size
-is the byte count decoded. Bytes after the first member are not read.
-For a stored member the unpacked size is not checked against the bytes
-after the header; where it exceeds them, the reading is not defined
-(tools.md 11.5).
+checksum, the sum of bytes 2 to the header size plus 1 modulo 256, bytes 2
+to 6 the method, 7 to 10 the packed size and 11 to 14 the unpacked size,
+both least significant byte first, byte 20 zero; the member's data begins at
+the header size plus 2. Method `-lh0-` is a stored member, the unpacked size
+in bytes copied from the data. Method `-lh5-` is LHA's `-lh5-` coding,
+defined by LHA: a dictionary of 8,192 bytes, a longest match of 256 bytes
+and a shortest of 3, and Huffman-coded blocks, each opening with a 16-bit
+code count and three code-length tables of 19, 510 and 14 symbols; the
+header's unpacked size is the byte count decoded. Bytes after the first
+member are skipped. For a stored member the unpacked size is trusted; where
+it exceeds the bytes after the header, the reading is left to the
+implementation (tools.md 11.5).
 
 ---
 
 ## 3. What is an error of a dump
 
-An error ends `ym-to-ymxs` with exit 1 and no output, reported by the
+An error ends `ym-to-ymxs` with exit 1 and an empty output, reported by the
 line below (tools.md 4.1). The errors are found in this order, the first
-found reported: an archive that does not unpack (2.5); the fields of 2.1
-in offset order, the samples (2.2) and the strings (2.3), each where the
-input ends inside it; F and H, after the strings; the frames (2.4).
+found reported: an archive that fails to unpack (2.5); the fields of 2.1 in
+offset order, the samples (2.2) and the strings (2.3), each where the input
+ends inside it; F and H, after the strings; the frames (2.4).
 
 | line | where |
 |---|---|
@@ -103,12 +101,12 @@ input ends inside it; F and H, after the strings; the frames (2.4).
 | `the frames declares B bytes and L are left` | B, 16 times F, is above the L bytes left |
 | `this is an archive with a dump inside, and it does not unpack: <reason>` | the input is an archive (2.5), and the reason is one of 3.1 |
 
-**3.1 The reasons an archive does not unpack:** `LHA header extends
-beyond the file`, the header size plus 2 above the input's length; `LHA
-header level N; YM archives use level 0`, byte 20 being N; `LHA header
-checksum mismatch`; `LHA member is truncated`, the packed size below 0
-or above the bytes after the header; `LHA member claims a negative
-size`; `unsupported LHA method <method>`, neither `-lh0-` nor `-lh5-`.
+**3.1 The reasons an archive fails to unpack:** `LHA header extends beyond
+the file`, the header size plus 2 above the input's length; `LHA header
+level N; YM archives use level 0`, byte 20 being N; `LHA header checksum
+mismatch`; `LHA member is truncated`, the packed size below 0 or above the
+bytes after the header; `LHA member claims a negative size`; `unsupported
+LHA method <method>`, other than `-lh0-` and `-lh5-`.
 
 ---
 
@@ -155,22 +153,21 @@ sources of the tune are those its rows start, in first-start order
 | a buzzer | `buzzer N` | N | row 0 |
 | a recording | `recording N` | the levels of sample N in order (2.2), then 13 | plays once |
 
-Note: the closing 13 of a recording leaves the volume register at
-mid-scale, so the row that sets the register back does not click.
+Note: the closing 13 of a recording leaves the volume register at mid-scale,
+so the step to the value the row sets it back to is small.
 
 **5.2 A slot that is dropped.** A sinus slot, and a recording slot whose
-data value is D or above, start no source: the slot is off for the
-frame, and the figure of dropped slots (section 9) rises by one.
+data value is D or above, are skipped: the slot is off for the frame, and
+the figure of dropped slots (section 9) rises by one.
 
 ---
 
 ## 6. The registers of a row
 
-**6.1** The value of register r, 0 to 13, in frame f is the frame's byte
-for r with the bits outside the register cleared: eight bits for R0, R2,
-R4, R11 and R12, four for R1, R3, R5 and R13, five for R6, R8, R9 and
-R10, six for R7. A byte of 255 for R13 marks a frame that does not write
-R13.
+**6.1** The value of register r, 0 to 13, in frame f is the frame's byte for
+r with the bits outside the register cleared: eight bits for R0, R2, R4, R11
+and R12, four for R1, R3, R5 and R13, five for R6, R8, R9 and R10, six for
+R7. A byte of 255 for R13 marks a frame that leaves R13 alone.
 
 **6.2** Where a recording runs on voice v after the effects of frame f
 are resolved (7.5), bits v and v + 3 of the frame's value of R7 are set:
@@ -181,14 +178,13 @@ the tone and the noise of voice v.
 recording runs on a slot after the effects of frame f are resolved and
 the register is that slot's target.
 
-**6.4** For each register r, R0 to R12, the reading keeps the *value
-last set*: none before frame 0 and none at the repeat row before its
-registers are read. In frame f: where r is owned, the value last set
-becomes none and the row leaves r alone; otherwise, where the frame's
-value differs from the value last set, the row sets r to it, and it is
-the value last set. Note: row 0 and the repeat row set every register
-that is not owned, and the first row in which a register is no longer
-owned sets it.
+**6.4** For each register r, R0 to R12, the reading keeps the *value last
+set*: absent before frame 0 and absent at the repeat row before its
+registers are read. In frame f: where r is owned, the value last set becomes
+absent and the row leaves r alone; otherwise, where the frame's value
+differs from the value last set, the row sets r to it, and it is the value
+last set. Note: row 0 and the repeat row set every unowned register, and the
+first row in which a register is unowned again sets it.
 
 **6.5** The row sets R13 to the frame's value in every frame that writes
 R13 (6.1).
@@ -197,62 +193,62 @@ R13 (6.1).
 
 ## 7. The effects of a row
 
-The reading keeps, for each slot i, six values, each with its value
-before frame 0 in brackets: the slot *running* on its timer (off); the
-source it runs (none); the prescaler and count last written (4 and 0);
-the end frame of a recording (none); the kind and target of the last
-start (none); whether the slot was running when the repeat row was
-reached (no). For each frame f from 0 to F - 1:
+The reading keeps, for each slot i, six values, each with its value before
+frame 0 in brackets: the slot *running* on its timer (off); the source it
+runs (absent); the prescaler and count last written (4 and 0); the end frame
+of a recording (absent); the kind and target of the last start (absent);
+whether the slot was running when the repeat row was reached (false). For
+each frame f from 0 to F - 1:
 
 **7.1 At the repeat row.** Where f is RR: the value last set of every
-register becomes none (6.4), the kind and target of the last start of
-each slot become none, and the reading records, for each slot, whether
-it is running.
+register becomes absent (6.4), the kind and target of the last start of each
+slot become absent, and the reading records, for each slot, whether it is
+running.
 
 **7.2 The slots** of frame f are read (section 4); for a recording slot
 that is on, its source is resolved first (section 5), a dropped one
 making the slot off.
 
-**7.3 A square wave is preempted.** For slot 0 then slot 1, where i is
-that slot, on and not a recording, and o the other slot as it is at that
-point (for i = 0, slot 1 as read in 7.2; for i = 1, slot 0 as these
-steps left it):
+**7.3 A square wave is preempted.** For slot 0 then slot 1, where i is that
+slot, on and other than a recording, and o the other slot as it is at that
+point (for i = 0, slot 1 as read in 7.2; for i = 1, slot 0 as these steps
+left it):
 
-1. o *starts a recording* on the voice where o is on, a recording, and
-   on the voice of i.
-2. o *replaces* where o is on and does not start a recording on the
-   voice.
+1. o *starts a recording* on the voice where o is on, a recording, and on
+   the voice of i.
+2. o *replaces* where o is on and step 1 is false.
 3. a recording *runs* on the voice where the slot running on o is a
-   recording on the voice of i, f is before its end frame, f is not RR,
-   and o does not replace.
+   recording on the voice of i, f is before its end frame, f is other than
+   RR, and step 2 is false.
 4. Where i is a square wave and o starts a recording on the voice or a
-   recording runs on it, i is off for this frame and the figure of
-   preempted frames (section 9) rises by one; otherwise the source of i
-   is resolved, a dropped one making the slot off.
+   recording runs on it, i is off for this frame and the figure of preempted
+   frames (section 9) rises by one; otherwise the source of i is resolved, a
+   dropped one making the slot off.
 
 **7.4 The operation** on the timer of each slot i, slot 0 then slot 1:
 
-1. Where i is off, f is RR, the slot running is a recording and f is
-   before its end frame: the figure of recordings cut at the repeat row
-   (section 9) rises by one.
+1. Where i is off, f is RR, the slot running is a recording and f is before
+   its end frame: the figure of recordings cut at the repeat row (section 9)
+   rises by one.
 2. Where i is off, the slot running is a recording, f is before its end
-   frame and f is not RR: no operation, and the recording runs on.
-3. Where i is off, step 2 does not apply, and the slot running is on or
-   f is RR: a `Stop`, and the slot running becomes off.
+   frame and f is other than RR: the row leaves the timer alone, and the
+   recording runs on.
+3. Where i is off, step 2 is false, and the slot running is on or f is RR: a
+   `Stop`, and the slot running becomes off.
 4. Where i is on, it *starts* where f is RR, or i is a recording, or its
-   kind, its target or its source differs from the slot running's. A
-   start is a `Start` of the target, source, prescaler and count of i,
+   kind, its target or its source differs from the slot running's. A start
+   is a `Start` of the target, source, prescaler and count of i,
    `timerReset` set where f is RR, the slot running is off, or the slot
-   running is a recording and f is at or after its end frame;
-   `placeReset` clear where f is not RR, i is a square wave, the kind of
-   the last start is a square wave and its target is the target of i,
-   and set otherwise. The slot running becomes i, the source running its
-   source, the kind and target of the last start those of i; for a
-   recording, its end frame is f plus the frames of its source at its
-   prescaler, its count and H (SPEC.md 6.4).
-5. Where i is on and does not start, and its prescaler or count differs
-   from the one last written: a `Retune` of its prescaler and count with
-   both resets clear.
+   running is a recording and f is at or after its end frame; `placeReset`
+   clear where f is other than RR, i is a square wave, the kind of the last
+   start is a square wave and its target is the target of i, and set
+   otherwise. The slot running becomes i, the source running its source, the
+   kind and target of the last start those of i; for a recording, its end
+   frame is f plus the frames of its source at its prescaler, its count and
+   H (SPEC.md 6.4).
+5. Where i is on, step 4 is false, and its prescaler or count differs from
+   the one last written: a `Retune` of its prescaler and count with both
+   resets clear.
 6. Where i is on, its prescaler and count are the ones last written.
 
 **7.5 Ownership.** After 7.4 for slot i: where the slot running is a
@@ -260,9 +256,9 @@ square wave or a recording, its target's register is owned in frame f
 (6.3); where a recording, R7 has the bits of 6.2 set.
 
 **7.6 After the last frame**, where RR is below F: for each slot whose
-operation at row RR is a `Stop`, where the slot was not running when the
-repeat row was reached and is not running after the last frame, the
-`Stop` is removed from row RR.
+operation at row RR is a `Stop`, where the slot was stopped when the repeat
+row was reached and is stopped after the last frame, the `Stop` is removed
+from row RR.
 
 ---
 
@@ -275,7 +271,7 @@ writer `ym-to-ymxs`, the rate H; F rows, row f the registers of section
 **8.2** With `-r` the tune plays once; with `-rROW` it repeats to row
 ROW, unbounded (tools.md 9.3).
 
-**8.3** With neither flag the tune repeats to row L, the loop frame,
+**8.3** With both flags absent the tune repeats to row L, the loop frame,
 where L is 0 to F - 1, and to row 0 otherwise.
 
 ---
@@ -291,10 +287,10 @@ where each is above 0:
 | frames a recording kept a square wave off its voice | for each frame and slot preempted (7.3) |
 | recordings cut at the row the tune repeats to | for each slot whose recording runs into the repeat row (7.4, step 1) |
 
-The end frame of a recording is reckoned (7.4 step 4): the dump marks
-the start of a recording and no end, and a recording whose reckoned end
-is past the repeat row is stopped at that row (7.4 step 3), the rows of
-its source after that point unplayed.
+The end frame of a recording is reckoned (7.4 step 4): the dump marks the
+start of a recording alone, and a recording whose reckoned end is past the
+repeat row is stopped at that row (7.4 step 3), the rows of its source after
+that point unplayed.
 
 ---
 

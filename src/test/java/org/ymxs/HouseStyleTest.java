@@ -82,6 +82,20 @@ final class HouseStyleTest {
             // a writer does not keep to a rule: it satisfies it
             "keep to",
             "keeps to",
+            // a "no X" where the operation has a name: a reader skips a
+            // blank line, the player leaves a register as it is, a step
+            // is left to a later version
+            "belongs to no",
+            "performs no ",
+            "writes no ",
+            "reaches no ",
+            "and no other",
+            "for none",
+            "on no chip",
+            "with no error",
+            "is not defined",
+            "not defined by",
+            "no other step",
             // the sweep: a trailing clause generalising the sentence
             "whatever",
             "whichever way",

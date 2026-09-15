@@ -30,8 +30,8 @@ a write, and ends the invocation; after an error of the input, standard
 output is empty.
 
 **1.6** A *warning* is a finding of the check of section 5 in a tune the
-tool read, a rule of SPEC.md 6 the tune breaks; the invocation continues
-and the output is that of a tune with no warning.
+tool read, a rule of SPEC.md 6 the tune breaks; the invocation continues and
+the output is that of a tune free of warnings.
 
 **1.7** The *text* of an input is its bytes decoded as UTF-8, and the
 bytes of an output are its text encoded as UTF-8. A *character count*
@@ -77,8 +77,8 @@ defines a wrong call of `ym-to-ymxs`:
 
     <tool>: <tool> reads its input on standard input and writes it on standard output. Its one flag is -silent.
 
-**3.3 `-silent`.** With `-silent` a tool writes no progress line; an
-error and a warning are written as without it.
+**3.3 `-silent`.** With `-silent` a tool omits its progress lines; an error
+and a warning are written as before.
 
 **3.4 Reading.** A tool reads standard input to its end before writing
 to standard output or standard error, a wrong call excepted; where the
@@ -103,11 +103,10 @@ which lines it writes before that write and which after.
 
 ## 4. The errors
 
-**4.1 The report.** A tool that finds an error writes its name, `: `,
-the text of the error and a line feed, and exits with the code of 3.6.
-An error of the structure (4.3) or of a source no row starts (4.4) is
-one text of one or more lines, each ending in a line feed, the name
-before the first alone:
+**4.1 The report.** A tool that finds an error writes its name, `: `, the
+text of the error and a line feed, and exits with the code of 3.6. An error
+of the structure (4.3) or of an unstarted source (4.4) is one text of one or
+more lines, each ending in a line feed, the name before the first alone:
 
     ymxs-check: tune 1: the tune has 4 rows and repeats to row 4
     tune 1: row 0: Timer A: the source has 2 rows and repeats to row 2
@@ -116,19 +115,18 @@ before the first alone:
 json.md 8.1, each by its line there; a tool that reads CSV those of
 csv.md 5.1. The reading ends at the first error found.
 
-**4.2.1 JSON.** The reading performs the steps of json.md 7.1 in order,
-so the first error found is the first in that order: the root's
-`format`, `version` and `tunes`; for each tune, its `rows`, `sources`,
-`registers`, `timerA` to `timerD`, then `title`, `composer`, `writer`,
-`rate` and `repeat`, then the sources no row starts (4.4); after the
-last tune, the structure (4.3).
-
-**4.2.2 CSV.** The reading performs the steps of csv.md 4.1 in order:
-the text split into blocks; the `multi` block; for each `tune` block,
-every block after it whose name does not begin `timer`, in file order,
-then the timer blocks in file order, then the tune's `rate` and
-`repeat`, then the sources no row starts (4.4); after the last tune, the
+**4.2.1 JSON.** The reading performs the steps of json.md 7.1 in order, so
+the first error found is the first in that order: the root's `format`,
+`version` and `tunes`; for each tune, its `rows`, `sources`, `registers`,
+`timerA` to `timerD`, then `title`, `composer`, `writer`, `rate` and
+`repeat`, then the unstarted sources (4.4); after the last tune, the
 structure (4.3).
+
+**4.2.2 CSV.** The reading performs the steps of csv.md 4.1 in order: the
+text split into blocks; the `multi` block; for each `tune` block, every
+block after it other than a timer block, in file order, then the timer
+blocks in file order, then the tune's `rate` and `repeat`, then the
+unstarted sources (4.4); after the last tune, the structure (4.3).
 
 **4.3 Errors of the structure.** After the form is read, the structure
 is checked as json.md 8.3 and csv.md 5.3 define: every condition of
@@ -136,9 +134,9 @@ SPEC.md 1.11 present is one line of one error, in the order of SPEC.md
 1.12, every line of a tune prefixed `tune N: `, N the tune number from
 1.
 
-**4.4 A source no row starts.** A source a JSON tune lists in `sources`,
-or a CSV tune opens with a `source` block, that no row of the tune
-starts is an error of the form, the last line of json.md 8.1 and of
+**4.4 An unstarted source.** A source a JSON tune lists in `sources`, or a
+CSV tune opens with a `source` block, that every row of the tune leaves
+unstarted is an error of the form, the last line of json.md 8.1 and of
 csv.md 5.1, found where the tune is read and before the structure is
 checked, one line a source in the order listed.
 
@@ -146,17 +144,16 @@ checked, one line a source in the order listed.
 
 ## 5. The warnings
 
-**5.1 The line.** `ymxs-check`, `ymxs-json-to-csv`, `ymxs-csv-to-json`
-and `ymxs-merge` run the check of 5.2 on every tune of the multi read,
-in tune order, and write one line a finding on standard error, with
-`-silent` as without it (3.3); where the multi has more than one tune,
-`tune N: ` stands between `warning: ` and the finding. `ym-to-ymxs` runs
-no check (9.5).
+**5.1 The line.** `ymxs-check`, `ymxs-json-to-csv`, `ymxs-csv-to-json` and
+`ymxs-merge` run the check of 5.2 on every tune of the multi read, in tune
+order, and write one line a finding on standard error, with `-silent` as
+before (3.3); where the multi has more than one tune, `tune N: ` stands
+between `warning: ` and the finding. `ym-to-ymxs` omits the check (9.5).
 
     <tool>: warning: <finding>
 
-**5.2 The check** is that of SPEC.md 6.3, performed on a structure with
-no error of 4.3; a finding is one line of SPEC.md 6.5, the lines in the
+**5.2 The check** is that of SPEC.md 6.3, performed on a structure free of
+the errors of 4.3; a finding is one line of SPEC.md 6.5, the lines in the
 order of SPEC.md 6.3.
 
 **5.3** `doc/tunes/warnings.json` is the tune of SPEC.md 6.6, and its
@@ -174,8 +171,8 @@ ymxs-check: warning: row 6: Timer C stops an effect this timer has not started
 **6.1** The input is JSON, read as json.md defines and checked (4.3).
 
 **6.2** The output is the text read (1.7), encoded as UTF-8; the reading
-ends at the end of the first JSON value, and the text after it is not
-read and is written with the rest.
+ends at the end of the first JSON value, and the text after it is skipped
+and written with the rest.
 
 **6.3** After the output, on standard error in this order: the progress
 line of 6.4, the warning lines of section 5, the count line of 6.5.
@@ -185,9 +182,9 @@ tunes, R the sum of their row counts, S the sum of the counts of the
 sources their rows start; `tune` for N of 1 and `tunes` otherwise,
 `rows` for every R, `source` for S of 1 and `sources` otherwise.
 
-**6.5** The count line is a second progress line: `every rule of SPEC.md
-6 is satisfied` where the check found no warning, `1 warning` for one,
-`W warnings` for W above 1.
+**6.5** The count line is a second progress line: `every rule of SPEC.md 6
+is satisfied` where the check found zero warnings, `1 warning` for one, `W
+warnings` for W above 1.
 
 ```
 ymxs-check: 2 tunes, 2098 rows, 4 sources
@@ -230,20 +227,20 @@ empty (the Go tree: a panic, exit 2, 11.5):
 
 ## 8. ymxs-merge
 
-**8.1** The input is a sequence of JSON values, with white space between
-them or none, each a multi as json.md defines it, read and checked as
-`ymxs-check` reads one, with one difference: where a value is not JSON,
-the Java tree's `this is not JSON: ` line (json.md 8.1) has a second
-line, beginning ` at [Source: ` and ending `; line: L, column: C]`, L
-and C where the parser stopped, which `ymxs-check` omits (11.5). The
-reading ends at the first error found.
+**8.1** The input is a sequence of JSON values, with optional white space
+between them, each a multi as json.md defines it, read and checked as
+`ymxs-check` reads one, with one difference: where a value fails to parse as
+JSON, the Java tree's `this is not JSON: ` line (json.md 8.1) has a second
+line, beginning ` at [Source: ` and ending `; line: L, column: C]`, L and C
+where the parser stopped, which `ymxs-check` omits (11.5). The reading ends
+at the first error found.
 
 **8.2** The output is one multi as JSON, its tunes the tunes of the
 input multis in input order, each as read.
 
-**8.3** For an input in which no value was read, the tool writes `no
+**8.3** For an input in which zero values were read, the tool writes `no
 tune to merge: a multi is one tune at least` and exits with 1. An input
-value whose multi has no tune is an error of the structure (4.3).
+value whose multi is empty is an error of the structure (4.3).
 
 **8.4** On standard error, in this order: the warning lines of section 5
 for the merged multi, with `tune N: ` where the input had more than one
@@ -256,57 +253,58 @@ otherwise.
 ymxs-merge: 2 files with 2 tunes
 ```
 
-**8.5** Text after a value that is not JSON ends the invocation in the
-Java tree with an uncaught exception, exit 1, and no error line (11.5).
+**8.5** Text after a value that fails to parse as JSON ends the invocation
+in the Java tree with an uncaught exception, exit 1, and its stack trace as
+the lines (1.3, 11.5).
 
 ---
 
 ## 9. ym-to-ymxs
 
 **9.1** The input is a YM5! or YM6! register dump, in an LHA archive or
-not, and the output is JSON of a multi of one tune. [ym.md](ym.md)
-defines the reading and the errors of a dump.
+bare, and the output is JSON of a multi of one tune. [ym.md](ym.md) defines
+the reading and the errors of a dump.
 
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
 plays once. `-rROW`, ROW a decimal integer with an optional `-` or `+`,
 writes a tune that repeats to row ROW, the last ROW where several stand;
-with both `-r` and `-rROW`, in either order, the tune repeats to ROW
-(the Go tree: plays once, 11.5). With neither, the tune repeats to the
-row of ym.md 8.3. A call is wrong, exit 2, before standard input is
-read, where an argument begins `-r` and the rest is not a decimal
-integer that fits 32 bits, or where an argument is none of the three
-flags, X the argument:
+with both `-r` and `-rROW`, in either order, the tune repeats to ROW (the Go
+tree: plays once, 11.5). With both flags absent, the tune repeats to the row
+of ym.md 8.3. A call is wrong, exit 2, before standard input is read, where
+an argument begins `-r` and the rest is other than a decimal integer that
+fits 32 bits, or where an argument is outside the three flags, X the
+argument:
 
     ym-to-ymxs: X is not a row number
     ym-to-ymxs: ym-to-ymxs reads a dump on standard input and writes JSON on standard output. Its flags are -rROW, -r and -silent, and "X" is none of them.
 
 **9.3 The range of ROW.** Every decimal integer that fits 32 bits is
-accepted. ROW at or above the row count is written as the tune's
-`repeat`, exit 0, and a tool reading the output reports the line of
-SPEC.md 1.11 for the repeat row. ROW below 0 ends the invocation in the
-Java tree with an uncaught exception and exit 1, in the Go tree with a
-panic and exit 2, in both without an error line.
+accepted. ROW at or above the row count is written as the tune's `repeat`,
+exit 0, and a tool reading the output reports the line of SPEC.md 1.11 for
+the repeat row. ROW below 0 ends the invocation in the Java tree with an
+uncaught exception and exit 1, in the Go tree with a panic and exit 2, in
+both with a stack trace in place of an error line.
 
 **9.4 The progress line**, written after the output:
 
     <format> "<name>" by "<author>", <R> rows at <H> Hz, <S> sources, timers [<timers>]
 
-`<format>` is `YM5!` or `YM6!`; `<name>` and `<author>` the dump's name
-and author as they stand; R the row count, H the rate, S the number of
-sources the rows start, `<timers>` the timers some row starts a source
-on, A to D, separated by `, `, `[]` for none; `rows` and `sources` for
-every R and S. Three parts follow, each where its figure is above 0, in
-this order: `, N slots this does not read`, `, N frames a recording kept
-a square wave off its voice`, `, N recordings cut at the row the tune
-repeats to` (ym.md 9).
+`<format>` is `YM5!` or `YM6!`; `<name>` and `<author>` the dump's name and
+author as they stand; R the row count, H the rate, S the number of sources
+the rows start, `<timers>` the timers some row starts a source on, A to D,
+separated by `, `, `[]` where empty; `rows` and `sources` for every R and S.
+Three parts follow, each where its figure is above 0, in this order: `, N
+slots this does not read`, `, N frames a recording kept a square wave off
+its voice`, `, N recordings cut at the row the tune repeats to` (ym.md 9).
 
 ```
 ym-to-ymxs: YM5! "Circus Attractions #2" by "Mad Max", 4 rows at 50 Hz, 0 sources, timers []
 ```
 
-**9.5** The tool writes the tune without the check of 4.3 or of section
-5; a dump whose slot rate is above 125,000 ticks a second (SPEC.md
-3.3.4) is written, and `ymxs-check` reports the error on reading it.
+**9.5** The tool writes the tune before any check, the check of 4.3 and of
+section 5 being the reading tools'; a dump whose slot rate is above 125,000
+ticks a second (SPEC.md 3.3.4) is written, and `ymxs-check` reports the
+error on reading it.
 
 ---
 
@@ -318,13 +316,13 @@ ym-to-ymxs: YM5! "Circus Attractions #2" by "Mad Max", 4 rows at 50 Hz, 0 source
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 ```
 
-**10.2** A tool that ends with an error of the input writes no byte, so
-the next tool reads an empty input and reports its error: `ymxs-check`
-and `ymxs-json-to-csv` `format is null, and this form requires a text`
-(the Go tree `this is not JSON: EOF`, 11.5), `ymxs-csv-to-json` `the
-first table is not "### multi"`, `ymxs-merge` `no tune to merge: a
-multi is one tune at least`, `ym-to-ymxs` `a header field declares 4
-bytes and 0 are left`. The exit code of a pipe is the shell's.
+**10.2** A tool that ends with an error of the input leaves standard output
+empty, so the next tool reads an empty input and reports its error:
+`ymxs-check` and `ymxs-json-to-csv` `format is null, and this form requires
+a text` (the Go tree `this is not JSON: EOF`, 11.5), `ymxs-csv-to-json` `the
+first table is not "### multi"`, `ymxs-merge` `no tune to merge: a multi is
+one tune at least`, `ym-to-ymxs` `a header field declares 4 bytes and 0 are
+left`. The exit code of a pipe is the shell's.
 
 **10.3** Several JSON files concatenated are one input of `ymxs-merge`
 (8.1):
@@ -361,7 +359,7 @@ exits with 2. Then it runs the class with `java -ea` on the classpath of
 `target/classes` and `target/classpath.txt`.
 
 **11.3 A Go tool** is one executable, built from `go/` by `go build
-./cmd/...`, with no wrapper.
+./cmd/...`, and runs by itself.
 
 **11.4 Parity.** `ParityTest` runs the two trees on one input and
 requires the same exit code, the same bytes on standard output and the
@@ -410,8 +408,8 @@ trees differ, read off invocations of both.
 **12.1** `release/publish.sh` builds the five tools from the Go tree for
 `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and
 `linux-arm64`, one zip a platform in `dist/release`, named
-`ymxs-tools-<platform>-v<version>.zip`, each of the five executables,
-the Windows ones with `.exe`, running with no Java and no Go installed.
+`ymxs-tools-<platform>-v<version>.zip`, each of the five executables, the
+Windows ones with `.exe`, each running by itself.
 
 **12.2** The version is the script's one argument, or the first
 `<version>` of `pom.xml`.

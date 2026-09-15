@@ -79,6 +79,9 @@ final class HouseStyleTest {
             // a consumer does not understand a stream, it implements it
             "understand",
             "refuse",
+            // a writer does not keep to a rule: it satisfies it
+            "keep to",
+            "keeps to",
             // the sweep: a trailing clause generalising the sentence
             "whatever",
             "whichever way",

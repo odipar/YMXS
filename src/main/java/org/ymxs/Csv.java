@@ -379,8 +379,8 @@ public final class Csv {
         try {
             return Integer.parseInt(said.strip());
         } catch (NumberFormatException wrong) {
-            throw new IllegalArgumentException(what + " is \"" + said + "\", and a whole"
-                    + " number is asked");
+            throw new IllegalArgumentException(what + " is \"" + said
+                    + "\", and this form requires a whole number");
         }
     }
 

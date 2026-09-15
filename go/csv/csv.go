@@ -483,7 +483,7 @@ func rowAt(rows int, said, what string) (int, error) {
 func whole(said, what string) (int, error) {
 	at, err := strconv.Atoi(strings.TrimSpace(said))
 	if err != nil {
-		return 0, fmt.Errorf("%s is %q, and a whole number is asked", what, said)
+		return 0, fmt.Errorf("%s is %q, and this form requires a whole number", what, said)
 	}
 	return at, nil
 }

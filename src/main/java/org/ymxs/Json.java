@@ -238,8 +238,8 @@ public final class Json {
         JsonNode sets = tree.get("registers");
         if (sets != null) {
             if (!sets.isObject()) {
-                throw new IllegalArgumentException("registers is " + kind(sets) + ", and a"
-                        + " column a register is asked");
+                throw new IllegalArgumentException("registers is " + kind(sets)
+                        + ", and this form requires a column a register");
             }
             for (Register register : Register.values()) {
                 JsonNode column = sets.get(name(register));
@@ -263,7 +263,8 @@ public final class Json {
             }
             if (!columns.isObject()) {
                 throw new IllegalArgumentException("timer" + timer.name() + " is "
-                        + kind(columns) + ", and a column a part of an effect is asked");
+                        + kind(columns) + ", and this form requires a column a part of an"
+                        + " effect");
             }
             for (int at = 0; at < count; at++) {
                 Effect effect = effect(columns, at, sources, timer, count);
@@ -290,7 +291,8 @@ public final class Json {
      *  value of this form, as one that is not whole is no value of it. */
     private static int whole(JsonNode value, String named) {
         if (!value.isIntegralNumber() || !value.canConvertToInt()) {
-            throw new IllegalArgumentException(named + ", and a whole number is asked");
+            throw new IllegalArgumentException(named
+                    + ", and this form requires a whole number");
         }
         return value.intValue();
     }
@@ -298,8 +300,8 @@ public final class Json {
     /** A column is one value a row, so its length is the tune's. */
     private static void sized(JsonNode column, int rows, String named) {
         if (!column.isArray()) {
-            throw new IllegalArgumentException(named + " is " + column + ", and a column is"
-                    + " asked");
+            throw new IllegalArgumentException(named + " is " + column
+                    + ", and this form requires a column");
         }
         if (column.size() != rows) {
             throw new IllegalArgumentException(named + " is " + column.size()
@@ -413,8 +415,8 @@ public final class Json {
             return OptionalInt.empty();
         }
         if (!value.isIntegralNumber()) {
-            throw new IllegalArgumentException("repeat is " + value + ", and a row number or"
-                    + " null is asked");
+            throw new IllegalArgumentException("repeat is " + value
+                    + ", and this form requires a row number or null");
         }
         return OptionalInt.of(value.intValue());
     }
@@ -422,7 +424,8 @@ public final class Json {
     private static String text(JsonNode tree, String key) {
         JsonNode value = tree.get(key);
         if (value == null || !value.isTextual()) {
-            throw new IllegalArgumentException(key + " is " + value + ", and a text is asked");
+            throw new IllegalArgumentException(key + " is " + value
+                    + ", and this form requires a text");
         }
         return value.textValue();
     }
@@ -430,8 +433,8 @@ public final class Json {
     private static int number(JsonNode tree, String key) {
         JsonNode value = tree.get(key);
         if (value == null || !value.isIntegralNumber()) {
-            throw new IllegalArgumentException(key + " is " + value + ", and a whole number"
-                    + " is asked");
+            throw new IllegalArgumentException(key + " is " + value
+                    + ", and this form requires a whole number");
         }
         return value.intValue();
     }
@@ -439,8 +442,8 @@ public final class Json {
     private static boolean flag(JsonNode tree, String key) {
         JsonNode value = tree.get(key);
         if (value == null || !value.isBoolean()) {
-            throw new IllegalArgumentException(key + " is " + value + ", and true or false"
-                    + " is asked");
+            throw new IllegalArgumentException(key + " is " + value
+                    + ", and this form requires true or false");
         }
         return value.booleanValue();
     }
@@ -448,8 +451,8 @@ public final class Json {
     private static JsonNode array(JsonNode tree, String key) {
         JsonNode value = tree.get(key);
         if (value == null || !value.isArray()) {
-            throw new IllegalArgumentException(key + " is " + value + ", and an array is"
-                    + " asked");
+            throw new IllegalArgumentException(key + " is " + value
+                    + ", and this form requires an array");
         }
         return value;
     }

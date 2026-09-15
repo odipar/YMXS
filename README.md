@@ -3,12 +3,11 @@
 ## Read this first
 
 **AI wrote most of YMXS.** Claude (Anthropic's Claude Code) wrote the
-structure, the two trees of tools, the tests and most of what is
-written here, under Robbert van Dalen's direction: he requested, read
-and merged every change. [LICENSE](LICENSE) is the terms and the
-Attribution section below records who did what. Whether to use software
-written that way is the reader's decision, and this section is here so
-that the decision is informed.
+structure, the two trees of tools, the tests and most of what is written
+here, under Robbert van Dalen's direction: he requested, read and merged
+every change. [LICENSE](LICENSE) is the terms, and its attribution records
+who did what. Whether to use software written that way is the reader's
+decision, and this section is here so that the decision is informed.
 
 What it is built on is older than it. The YM5 and YM6 register-dump
 formats are Arnaud Carré's, and the depacker that opens a distributed

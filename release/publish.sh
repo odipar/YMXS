@@ -28,7 +28,7 @@ case $OUT in /*) ;; *) OUT=$REPO/$OUT ;; esac
 TARGETS=${TARGETS:-"win-x64 win-arm64 osx-x64 osx-arm64 linux-x64 linux-arm64"}
 TOOLS="ym-to-ymxs ymxs-check ymxs-csv-to-json ymxs-json-to-csv ymxs-merge"
 
-# The version names the zips. The pom is where it is written down, and this
+# The version names the zips. The pom is where it is recorded, and this
 # reads the text rather than running anything.
 VERSION=${1:-$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' pom.xml | head -1)}
 if [ -z "$VERSION" ]; then

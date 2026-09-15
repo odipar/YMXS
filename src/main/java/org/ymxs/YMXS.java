@@ -16,7 +16,7 @@ import java.util.OptionalInt;
  * pattern matching, so a shape added to a sealed interface stops them
  * compiling until they read it.
  *
- * <p>A form writes a tune down. doc/json.md defines one; a player's binary
+ * <p>A form encodes a tune. doc/json.md defines one; a player's binary
  * layout is another. No part of this is arranged for a form, and every
  * limit here follows from the two chips.
  */

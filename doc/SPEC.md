@@ -11,7 +11,7 @@ does with a source's row (5), the rules that bind a writer (6), and what
 a reader reports (7). A player is a separate program and pins a version
 of this format; [json.md](json.md) writes the version in every file.
 
-A form is the structure written down. [json.md](json.md) and
+A form is an encoding of the structure. [json.md](json.md) and
 [csv.md](csv.md) each define one, and a player's binary layout is a
 third, defined by that player.
 

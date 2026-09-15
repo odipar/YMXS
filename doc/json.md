@@ -1,6 +1,6 @@
 # JSON
 
-The structure written down as JSON. The structure is the records
+The structure encoded as JSON. The structure is the records
 [SPEC.md](SPEC.md) 1 lists; this document defines a serialisation of
 them. [CSV](csv.md) writes the same tune as tables, for reading in a
 spreadsheet, and a filled cell is identical in both forms.

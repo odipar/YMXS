@@ -15,12 +15,12 @@ formats are Arnaud Carré's, and the depacker that opens a distributed
 
 ## What YMXS is
 
-The tune data structure for the Atari ST's YM2149 and MC68901, and what a
-player does with it: a tune is a table of rows, one row a frame; a row
-sets registers and performs operations on the effects of the four
-timers; an effect is a source connected to a target on one timer, at a
-rate. [YMXR](https://github.com/odipar/YMXR) is a player of it, in a
-separate repository.
+YMXS defines tune data and playback for the Atari ST's YM2149 sound
+chip and MC68901 Multi-Function Peripheral (MFP). Each frame reads a
+tune row, which sets YM registers and starts, retunes or stops effects
+on the MFP timers. Each timer tick reads a source row and writes its
+value to a YM register. [YMXR](https://github.com/odipar/YMXR) is a
+player in a separate repository.
 
 [SPEC.md](doc/SPEC.md) 1 lists the structure as Java records, which
 [`YMXS.java`](src/main/java/org/ymxs/YMXS.java) is as source, a test

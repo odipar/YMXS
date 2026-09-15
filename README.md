@@ -1,5 +1,21 @@
 # YMXS
 
+## Read this first
+
+**AI wrote most of YMXS.** Claude (Anthropic's Claude Code) wrote the
+structure, the two trees of tools, the tests and most of what is
+written here, under Robbert van Dalen's direction: he requested, read
+and merged every change. [LICENSE](LICENSE) is the terms and the
+Attribution section below records who did what. Whether to use software
+written that way is the reader's decision, and this section is here so
+that the decision is informed.
+
+What it is built on is older than it. The YM5 and YM6 register-dump
+formats are Arnaud Carré's, and the depacker that opens a distributed
+`.ym` is a port of the LZH code of his ST-Sound library.
+
+## What YMXS is
+
 The tune data structure for the Atari ST's YM2149 and MC68901, and what a
 player does with it: a tune is a table of rows, one row a frame; a row
 sets registers and performs operations on the effects of the four
@@ -18,20 +34,6 @@ A form is an encoding of the structure: JSON ([json.md](doc/json.md)), which
 encodes every tune, CSV ([csv.md](doc/csv.md)), which encodes every tune
 whose texts are free of line feeds and carriage returns (csv.md 5.4), and a
 player's binary layout, defined by that player.
-
-## Read this first
-
-**AI wrote most of YMXS.** Claude (Anthropic's Claude Code) wrote the
-structure, the two trees of tools, the tests and most of what is
-written here, under Robbert van Dalen's direction: he requested, read
-and merged every change. [LICENSE](LICENSE) is the terms and the
-Attribution section below records who did what. Whether to use software
-written that way is the reader's decision, and this section is here so
-that the decision is informed.
-
-What it is built on is older than it. The YM5 and YM6 register-dump
-formats are Arnaud Carré's, and the depacker that opens a distributed
-`.ym` is a port of the LZH code of his ST-Sound library.
 
 ## Implementing a player or a reader
 

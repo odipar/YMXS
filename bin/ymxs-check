@@ -1,3 +1,3 @@
 #!/bin/sh
-# What a tune gets wrong, and what a writer keeps to that it does not. doc/tools.md.
+# The errors of a tune, and the rules of SPEC.md 6 it breaks. doc/tools.md.
 exec "$(dirname -- "$0")/run" org.ymxs.tool.Checking "$@"

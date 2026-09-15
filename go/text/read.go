@@ -51,7 +51,7 @@ func Read(said string) (ymxs.Multi, error) {
 func multiOf(tree any) (ymxs.Multi, error) {
 	at, ok := tree.(map[string]any)
 	if !ok {
-		return ymxs.Multi{}, fmt.Errorf("this is %s, and an object is asked", kind(tree))
+		return ymxs.Multi{}, fmt.Errorf("this is %s, and this form requires an object", kind(tree))
 	}
 	format, err := text(at, "format")
 	if err != nil {
@@ -86,7 +86,7 @@ func multiOf(tree any) (ymxs.Multi, error) {
 func tuneOf(tree any) (ymxs.Tune, error) {
 	at, ok := tree.(map[string]any)
 	if !ok {
-		return ymxs.Tune{}, fmt.Errorf("a tune is %s, and an object is asked", kind(tree))
+		return ymxs.Tune{}, fmt.Errorf("a tune is %s, and this form requires an object", kind(tree))
 	}
 	rows, err := number(at, "rows")
 	if err != nil {
@@ -102,11 +102,11 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 		registers[i] = map[ymxs.Register]int{}
 		effects[i] = map[ymxs.Timer]ymxs.Effect{}
 	}
-	if written, set := at["registers"]; set && written != nil {
+	if written, set := at["registers"]; set {
 		sets, ok := written.(map[string]any)
 		if !ok {
-			return ymxs.Tune{}, fmt.Errorf("registers is %s, and a column a register is"+
-				" asked", kind(written))
+			return ymxs.Tune{}, fmt.Errorf("registers is %s, and this form requires a"+
+				" column a register", kind(written))
 		}
 		for _, register := range ymxs.Registers {
 			column, set := sets[Name(register)]
@@ -131,13 +131,13 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	}
 	for _, timer := range ymxs.Timers {
 		written, set := at["timer"+timer.String()]
-		if !set || written == nil {
+		if !set {
 			continue
 		}
 		columns, ok := written.(map[string]any)
 		if !ok {
-			return ymxs.Tune{}, fmt.Errorf("timer%s is %s, and a column a part of an"+
-				" effect is asked", timer, kind(written))
+			return ymxs.Tune{}, fmt.Errorf("timer%s is %s, and this form requires a"+
+				" column a part of an effect", timer, kind(written))
 		}
 		for row := 0; row < rows; row++ {
 			effect, on, err := effectOf(columns, row, sources, timer, rows)
@@ -194,13 +194,13 @@ func sourcesOf(at map[string]any) ([]ymxs.Source, error) {
 	for _, one := range written {
 		source, ok := one.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("a source is %s, and an object is asked", kind(one))
+			return nil, fmt.Errorf("a source is %s, and this form requires an object", kind(one))
 		}
-		name, err := text(source, "name")
+		written, err := array(source, "values")
 		if err != nil {
 			return nil, err
 		}
-		written, err := array(source, "values")
+		name, err := text(source, "name")
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +306,7 @@ func column(columns map[string]any, named string, at int, timer ymxs.Timer,
 func sized(written any, rows int, named string) ([]any, error) {
 	values, ok := written.([]any)
 	if !ok {
-		return nil, fmt.Errorf("%s is %s, and a column is asked", named, kind(written))
+		return nil, fmt.Errorf("%s is %s, and this form requires a column", named, kind(written))
 	}
 	if len(values) != rows {
 		return nil, fmt.Errorf("%s is %d values long, and the tune has %d rows",
@@ -318,13 +318,14 @@ func sized(written any, rows int, named string) ([]any, error) {
 func whole(value any, named string) (int, error) {
 	said, ok := value.(json.Number)
 	if !ok {
-		return 0, fmt.Errorf("%s is %s, and a whole number is asked", named, kind(value))
+		return 0, fmt.Errorf("%s is %s, and this form requires a whole number", named,
+			kind(value))
 	}
 	at, err := said.Int64()
 	// A number past an int is no value of this form, as one that is not
 	// whole is no value of it.
 	if err != nil || at < math.MinInt32 || at > math.MaxInt32 {
-		return 0, fmt.Errorf("%s is %s, and a whole number is asked", named, said)
+		return 0, fmt.Errorf("%s is %s, and this form requires a whole number", named, said)
 	}
 	return int(at), nil
 }
@@ -332,11 +333,11 @@ func whole(value any, named string) (int, error) {
 func text(tree map[string]any, key string) (string, error) {
 	value, set := tree[key]
 	if !set {
-		return "", fmt.Errorf("%s is null, and a text is asked", key)
+		return "", fmt.Errorf("%s is null, and this form requires a text", key)
 	}
 	said, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("%s is %s, and a text is asked", key, kind(value))
+		return "", fmt.Errorf("%s is %s, and this form requires a text", key, kind(value))
 	}
 	return said, nil
 }
@@ -344,7 +345,7 @@ func text(tree map[string]any, key string) (string, error) {
 func number(tree map[string]any, key string) (int, error) {
 	value, set := tree[key]
 	if !set {
-		return 0, fmt.Errorf("%s is null, and a whole number is asked", key)
+		return 0, fmt.Errorf("%s is null, and this form requires a whole number", key)
 	}
 	return whole(value, key)
 }
@@ -352,11 +353,11 @@ func number(tree map[string]any, key string) (int, error) {
 func array(tree map[string]any, key string) ([]any, error) {
 	value, set := tree[key]
 	if !set {
-		return nil, fmt.Errorf("%s is null, and an array is asked", key)
+		return nil, fmt.Errorf("%s is null, and this form requires an array", key)
 	}
 	values, ok := value.([]any)
 	if !ok {
-		return nil, fmt.Errorf("%s is %s, and an array is asked", key, kind(value))
+		return nil, fmt.Errorf("%s is %s, and this form requires an array", key, kind(value))
 	}
 	return values, nil
 }
@@ -369,7 +370,7 @@ func repeatOf(tree map[string]any) (int, bool, error) {
 	}
 	at, err := whole(value, "repeat")
 	if err != nil {
-		return 0, false, fmt.Errorf("repeat is %s, and a row number or null is asked",
+		return 0, false, fmt.Errorf("repeat is %s, and this form requires a row number or null",
 			kind(value))
 	}
 	return at, true, nil

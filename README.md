@@ -19,6 +19,10 @@ YMXS defines tune data and playback for the Atari ST's YM2149 sound
 chip and MC68901 (MFP) timers. [YMXR](https://github.com/odipar/YMXR)
 is a player in a separate repository.
 
+[YMX](https://github.com/odipar/YMX) is the family this repository
+belongs to: a design document defining how YMXS, YMXR, DTX and ST4 fit
+together.
+
 ## Reading and playback
 
 A reader loads a file into the tune data structure. The host calls

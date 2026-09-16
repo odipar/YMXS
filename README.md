@@ -73,7 +73,7 @@ conversion, checking and merging; [ym.md](doc/ym.md) defines YM import.
 | [`YMXS.java`](src/main/java/org/ymxs/YMXS.java) | the structure, listed in [SPEC.md](doc/SPEC.md) 1 |
 | [`Chip`](src/main/java/org/ymxs/Chip.java) | the figures of the two chips |
 | [`Tunes`](src/main/java/org/ymxs/Tunes.java) | the functions over a structure: its sources, its timers, its effects in order |
-| [`Check`](src/main/java/org/ymxs/Check.java) | the errors of a structure, and the warnings of SPEC.md 6 |
+| [`Check`](src/main/java/org/ymxs/Check.java) | the errors of a structure, and the warnings of [SPEC.md](doc/SPEC.md) 6 |
 | [`Json`](src/main/java/org/ymxs/Json.java) | JSON objects |
 | [`Text`](src/main/java/org/ymxs/Text.java) | JSON text |
 | [`Csv`](src/main/java/org/ymxs/Csv.java) | CSV, defined in [csv.md](doc/csv.md) |
@@ -89,16 +89,16 @@ matching, so adding a shape requires updating those functions to compile.
 
 Use Java 23 and Maven. `mvn test` checks the example tunes, specification
 declarations, YM import and house style. With the Java tools built
-(tools.md 11.2), it also tests pipes; with Go on the path, it compares
-the Go and Java tools byte for byte.
+([tools.md](doc/tools.md) 11.2), it also tests pipes; with Go on the
+path, it compares the Go and Java tools byte for byte.
 
 ```bash
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 ```
 
 The Go module under [`go/`](go) provides the structure, both forms and
-the same tools. `release/publish.sh` builds standalone executables for
-Windows, macOS and Linux on x64 and arm64.
+the same tools. [`release/publish.sh`](release/publish.sh) builds
+standalone executables for Windows, macOS and Linux on x64 and arm64.
 
 ```bash
 cd go && go test ./... && go build ./cmd/...
@@ -108,14 +108,14 @@ go get github.com/odipar/ymxs/go@v0.3.3
 
 ## Where the figures come from
 
-Every limit of a value follows from the two chips and the 68000 (SPEC.md
-2 and 3). The choices of the structure rest on measurements of register
+Every limit of a value follows from the two chips and the 68000
+([SPEC.md](doc/SPEC.md) 2 and 3). The choices of the structure rest on measurements of register
 dumps, read as [ym.md](doc/ym.md) defines; the dumps are outside this
 repository.
 
 ## License
 
-The format may be implemented freely; `doc/SPEC.md` is the
+The format may be implemented freely; [SPEC.md](doc/SPEC.md) is the
 specification, and an independent reader, player or writer of it owes
 only the acknowledgement of condition 2 of [LICENSE](LICENSE):
 documentation that indicates YMXS was used. The structure, the tools and

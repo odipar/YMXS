@@ -24,9 +24,12 @@ frame; a slot that is on has a kind, a voice, a target, a data value, a
 prescaler and a count.
 
 **1.4** A *sample* is one of the D digidrum samples, S bytes of one level
-each. **1.5** A *level* is 0 to 15. **1.6** The *repeat row* RR is the row
-the tune repeats to (8.2); for a tune that plays once RR is F, past the last
-row.
+each.
+
+**1.5** A *level* is 0 to 15.
+
+**1.6** The *repeat row* RR is the row the tune repeats to (8.2); for a
+tune that plays once RR is F, past the last row.
 
 ---
 

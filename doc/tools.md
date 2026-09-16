@@ -364,7 +364,7 @@ same text on standard error:
 | input | tools |
 |---|---|
 | `src/test/resources/packed.ym` | `ym-to-ymxs` with no flag, with `-r`, and with `-r2` |
-| each of the seven files of `doc/tunes` | `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; `ymxs-check` |
+| each JSON file of `doc/tunes` | `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; `ymxs-check` |
 | `doc/tunes/circus.json` and `doc/tunes/digidrum.json` concatenated | `ymxs-merge` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
 
@@ -426,4 +426,4 @@ the JSON.
 
 **12.5** [RELEASES.md](RELEASES.md) lists the releases. The Go tree is
 the module `github.com/odipar/ymxs/go`, a version of it a tag of that
-directory, `go/v0.3.3` beside `v0.3.3`.
+directory, `go/v0.3.4` beside `v0.3.4`.

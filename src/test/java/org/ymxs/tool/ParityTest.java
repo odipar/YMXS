@@ -108,11 +108,21 @@ final class ParityTest {
         both("ym-to-ymxs", dump, "-r2");
     }
 
+    /** Every JSON tune of the documents, found rather than listed: a
+     *  list is a place a tune added later is not. */
+    private static List<Path> tunes() throws IOException {
+        try (java.util.stream.Stream<Path> at = Files.list(Path.of("doc/tunes"))) {
+            return at.filter(one -> one.toString().endsWith(".json")).sorted().toList();
+        }
+    }
+
     @Test
     void everyTuneOfTheDocumentsCrossesBothWaysTheSame() throws Exception {
-        for (String named : List.of("circus", "digidrum", "example", "retrigger",
-                "turrican-2", "two-tunes", "warnings")) {
-            byte[] json = file("doc/tunes/" + named + ".json");
+        List<Path> tunes = tunes();
+        assertTrue(tunes.size() >= 7, () -> "doc/tunes has " + tunes.size()
+                + " tunes as JSON; the check is asleep");
+        for (Path named : tunes) {
+            byte[] json = file(named.toString());
             byte[] csv = both("ymxs-json-to-csv", json);
             both("ymxs-csv-to-json", csv);
             both("ymxs-check", json);

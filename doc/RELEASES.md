@@ -18,13 +18,41 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.3.4` beside `v0.3.4`.
+version of it is a tag of that directory: `go/v0.3.5` beside `v0.3.5`.
 
 A player pins a version of this format: the structure's version is 3 and
 stands in every file this writes, and a release's number names the tools
 rather than the format.
 
 ## Published
+
+### 0.3.5, 2026-09-16
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.5>, built from the commit
+tagged `v0.3.5`.
+
+The documents, and the checks that read their figures back. The structure,
+the tools and the two forms are 0.3.4's, so every file of this release reads
+under 0.3.4 and the other way round, and the JSON and CSV the tools write
+are the bytes 0.3.4 wrote.
+
+- **Four checks read a document against the thing it describes.** Every line
+  tools.md quotes of a run is a line a run writes, figures and all; the tune
+  json.md 10.1 and csv.md 8.1 quote is the file beside it, byte for byte;
+  the release the documents name is the one `pom.xml` names; and every
+  clause one document cites in another is one that document defines. Each
+  failed on the text as it stood.
+- **The release the documents named was the one before this.** README.md
+  fetched `github.com/odipar/ymxs/go@v0.3.3` of a module the pom had at
+  0.3.4, and tools.md 12.5 and this document showed that tag beside it.
+- **A list of tunes became a search.** tools.md 11.4 read "each of the seven
+  files of `doc/tunes`" for a list `ParityTest` wrote out by name, so a tune
+  added later crossed neither way; the test finds them now.
+- **The check of SPEC.md 6.6 is read line by line.** `CheckTest` counted six
+  warnings of `doc/tunes/warnings.json`; it reads the six lines the clause
+  quotes.
+- **ym.md 1.4, 1.5 and 1.6 stand in a paragraph each**, as every clause
+  beside them, and README.md opens its second paragraph without a cleft.
 
 ### 0.3.4, 2026-09-15
 

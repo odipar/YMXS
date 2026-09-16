@@ -142,4 +142,83 @@ final class PipeTest {
         assertEquals(2, ran.exit(), ran.said());
         assertTrue(ran.said().contains("standard input"), ran.said());
     }
+
+    /** The multi of tools.md 4.1: four rows repeating to row 4, and a
+     *  source of two rows repeating to row 2. */
+    private static final String TWO_FAULTS = "{\"format\":\"ymxs\",\"version\":3,"
+            + "\"tunes\":[{\"title\":\"Four rows, one square\",\"composer\":\"\","
+            + "\"writer\":\"by hand\",\"rate\":50,\"rows\":4,\"repeat\":4,"
+            + "\"sources\":[{\"name\":\"square 13\",\"repeat\":2,\"values\":[13,0]}],"
+            + "\"registers\":{\"r0\":[163,142,251,89]},"
+            + "\"timerA\":{\"shape\":[0,-1,-1,-1],\"target\":[8,-1,-1,-1],"
+            + "\"source\":[1,-1,-1,-1],\"prescaler\":[50,-1,-1,-1],"
+            + "\"count\":[60,-1,-1,-1],\"timerReset\":[1,-1,-1,-1],"
+            + "\"placeReset\":[1,-1,-1,-1]}}]}";
+
+    /** The tool names a quoted line of the document begins with, and the
+     *  prefix of the second line of an error of several. */
+    private static final java.util.regex.Pattern OF_A_RUN =
+            java.util.regex.Pattern.compile("^(ym-to-ymxs|ymxs-check|ymxs-json-to-csv"
+                    + "|ymxs-csv-to-json|ymxs-merge|tune \\d+): ");
+
+    /** Every line the document quotes of a run: a line of a fenced block
+     *  or of one indented four spaces, written by a tool. A line with a
+     *  placeholder in it stands for many lines and is left out: the
+     *  document writes those as {@code <name>} and as X, the argument. */
+    private static List<String> quoted(String document) {
+        List<String> lines = new ArrayList<>();
+        boolean fenced = false;
+        for (String line : document.split("\n")) {
+            if (line.startsWith("```")) {
+                fenced = !fenced;
+                continue;
+            }
+            String said = fenced ? line : line.startsWith("    ")
+                    ? line.substring(4) : "";
+            if (said.isBlank() || said.contains("<") || said.contains("\"X\"")
+                    || said.contains(" X ") || !OF_A_RUN.matcher(said).find()) {
+                continue;
+            }
+            lines.add(said);
+        }
+        return lines;
+    }
+
+    /**
+     * Every line tools.md quotes of a run against the run that writes it.
+     * The figures in them - 2,098 rows and 4 sources, 732 characters in
+     * and 469 out, the two warnings of the tune of SPEC.md 6.6 - move
+     * with the tunes beside them, and no check read one back.
+     */
+    @Test
+    void everyLineTheDocumentQuotesIsALineARunWrites() throws Exception {
+        StringBuilder said = new StringBuilder();
+        for (String[] run : new String[][] {
+            {"doc/tunes/two-tunes.json", "ymxs-check"},
+            {"doc/tunes/warnings.json", "ymxs-check"},
+            {"doc/tunes/example.json", "ymxs-json-to-csv"},
+            {"doc/tunes/example.csv", "ymxs-csv-to-json"},
+        }) {
+            said.append(pipe(Files.readAllBytes(Path.of(run[0])), run[1]).said());
+        }
+        said.append(pipe(TWO_FAULTS.getBytes(StandardCharsets.UTF_8),
+                "ymxs-check").said());
+        said.append(pipe(packed(), "ym-to-ymxs").said());
+        String twice = Files.readString(Path.of("doc/tunes/example.json"));
+        said.append(pipe((twice + twice).getBytes(StandardCharsets.UTF_8),
+                "ymxs-merge").said());
+
+        List<String> lines = quoted(Files.readString(Path.of("doc/tools.md")));
+        assertTrue(lines.size() >= 8, () -> "the document quotes " + lines.size()
+                + " lines of a run; the check is asleep");
+        List<String> missing = new ArrayList<>();
+        for (String line : lines) {
+            if (!said.toString().contains(line)) {
+                missing.add(line);
+            }
+        }
+        assertTrue(missing.isEmpty(), () -> "tools.md quotes a line no run"
+                + " writes:\n" + String.join("\n", missing) + "\nthe runs wrote:\n"
+                + said);
+    }
 }

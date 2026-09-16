@@ -276,6 +276,29 @@ final class CheckTest {
                 "an effect names its source by a number, so a name tells nothing apart");
     }
 
+    /** The lines SPEC.md 6.6 quotes of the check of that tune, in the
+     *  order the clause reports them in. */
+    private static List<String> quotedBySpec() throws IOException {
+        List<String> lines = java.nio.file.Files.readAllLines(Path.of("doc/SPEC.md"));
+        int from = -1;
+        for (int at = 0; at < lines.size(); at++) {
+            if (lines.get(at).startsWith("**6.6 ")) {
+                from = at;
+            }
+        }
+        assertTrue(from >= 0, "SPEC.md has no clause 6.6");
+        List<String> said = new ArrayList<>();
+        for (int at = from; at < lines.size(); at++) {
+            String line = lines.get(at);
+            if (line.startsWith("    ") && !line.isBlank()) {
+                said.add(line.strip());
+            } else if (!said.isEmpty()) {
+                break;
+            }
+        }
+        return said;
+    }
+
     @Test
     void everyTuneOfTheDocumentsKeepsTheRulesButTheOneThatDoesNot() throws IOException {
         int read = 0;
@@ -290,7 +313,9 @@ final class CheckTest {
                 said.addAll(Check.writing(tune));
             }
             if (at.getFileName().toString().equals("warnings.json")) {
-                assertEquals(6, said.size(), at + " breaks four rules: " + said);
+                // four rules broken, six lines, and SPEC.md 6.6 quotes them
+                assertEquals(quotedBySpec(), said,
+                        at + " reports other lines than SPEC.md 6.6 quotes");
                 continue;
             }
             assertEquals(List.of(), said, at + " keeps every rule");

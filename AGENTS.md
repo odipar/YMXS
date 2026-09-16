@@ -155,6 +155,7 @@ been struck so far.
 | `frames`, for a tune's row count | `rows`; a frame is one call of the player, a row one entry of a table |
 | `rows`, for the columns a register | `registers`, which is what the record names them |
 | a count of 1 to 256, the ticks | a count of 0 to 255, the timer's data register |
+| `What it is built on is older than it` | `The pieces it is built on are older than it` - the cleft, reversed |
 
 ## A specification defines operations
 

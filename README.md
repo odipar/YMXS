@@ -9,9 +9,9 @@ every change. [LICENSE](LICENSE) is the terms, and its attribution records
 who did what. Whether to use software written that way is the reader's
 decision, and this section is here so that the decision is informed.
 
-What it is built on is older than it. The YM5 and YM6 register-dump
-formats are Arnaud Carré's, and the depacker that opens a distributed
-`.ym` is a port of the LZH code of his ST-Sound library.
+The pieces it is built on are older than it. The YM5 and YM6
+register-dump formats are Arnaud Carré's, and the depacker that opens a
+distributed `.ym` is a port of the LZH code of his ST-Sound library.
 
 ## What YMXS is
 
@@ -103,15 +103,15 @@ standalone executables for Windows, macOS and Linux on x64 and arm64.
 ```bash
 cd go && go test ./... && go build ./cmd/...
 release/publish.sh
-go get github.com/odipar/ymxs/go@v0.3.3
+go get github.com/odipar/ymxs/go@v0.3.4
 ```
 
 ## Where the figures come from
 
 Every limit of a value follows from the two chips and the 68000
-([SPEC.md](doc/SPEC.md) 2 and 3). The choices of the structure rest on measurements of register
-dumps, read as [ym.md](doc/ym.md) defines; the dumps are outside this
-repository.
+([SPEC.md](doc/SPEC.md) 2 and 3). The choices of the structure follow
+measurements of register dumps, read as [ym.md](doc/ym.md) defines; the
+dumps are outside this repository.
 
 ## License
 

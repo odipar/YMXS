@@ -261,7 +261,7 @@ func Read(said string) (ymxs.Multi, error) {
 			mine = append(mine, sections[at])
 			at++
 		}
-		tune, err := tuneOf(sections[from], mine, len(tunes)+1)
+		tune, err := tuneOf(sections[from], mine, len(tunes)+1, version)
 		if err != nil {
 			return ymxs.Multi{}, err
 		}
@@ -273,7 +273,7 @@ func Read(said string) (ymxs.Multi, error) {
 // tuneOf is one tune, from the table that opens it and the tables after
 // it. A source opens a source table, and the values after it belong to
 // that source.
-func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
+func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, error) {
 	if len(told.rows) != 1 {
 		return ymxs.Tune{}, fmt.Errorf("tune %d is opened by %d rows, and one row opens it",
 			number, len(told.rows))
@@ -309,7 +309,13 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 					number)
 			}
 			for _, line := range one.rows {
-				value, err := whole(one.of(line, "value"), "value")
+				// the cell is value where the source has one value a row,
+				// and value1 where it has more (csv.md 3.6)
+				cell, named := one.of(line, "value"), "value"
+				if cell == "" {
+					cell, named = one.of(line, "value1"), "value1"
+				}
+				value, err := whole(cell, named)
 				if err != nil {
 					return ymxs.Tune{}, err
 				}

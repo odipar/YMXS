@@ -85,9 +85,15 @@ public final class Csv {
             row(out, Tunes.name(source), repeat(Tunes.rows(source)));
             // 3.6: the cells are row and value, and value2 and value3
             // where the source has two or three values a row
-            List<Object> named = new ArrayList<>(List.of("value", "row", "value"));
-            for (int at = 2; at <= Tunes.columns(source); at++) {
-                named.add("value" + at);
+            // 3.6: the cell is value where the source has one value a
+            // row, and value1 to valueU where it has more
+            List<Object> named = new ArrayList<>(List.of("value", "row"));
+            if (Tunes.columns(source) == 1) {
+                named.add("value");
+            } else {
+                for (int at = 1; at <= Tunes.columns(source); at++) {
+                    named.add("value" + at);
+                }
             }
             table(out, named.toArray());
             List<List<Integer>> lines = Tunes.rows(source).rows();
@@ -313,7 +319,19 @@ public final class Csv {
                     List<List<Integer>> last = values.get(values.size() - 1);
                     for (List<String> line : block.rows()) {
                         List<Integer> row = new ArrayList<>();
-                        row.add(number(block.of(line, "value"), "value"));
+                        // the cell is value where the source has one value a
+                        // row, and value1 where it has more (3.6)
+                        String first = block.of(line, "value");
+                        String named = "value";
+                        if (first.isEmpty()) {
+                            first = block.of(line, "value1");
+                            named = "value1";
+                        }
+                        if (first.isEmpty()) {
+                            throw new IllegalArgumentException("tune " + number + " opens"
+                                    + " a value with neither a value cell nor a value1");
+                        }
+                        row.add(number(first, named));
                         for (int at = 2; at <= 3; at++) {
                             String cell = block.of(line, "value" + at);
                             if (!cell.isEmpty()) {

@@ -312,7 +312,7 @@ final class CsvTest {
                 a sweep,0
 
                 ### value
-                row,value,value2,value3
+                row,value1,value2,value3
                 0,46,1,15
                 1,32,1,13
 
@@ -330,7 +330,7 @@ final class CsvTest {
         assertEquals(List.of(List.of(46, 1, 15), List.of(32, 1, 13)),
                 Tunes.rows(source).rows(), "the rows read as the cells stand");
         String written = Csv.write(read);
-        assertTrue(written.contains("row,value,value2,value3"),
+        assertTrue(written.contains("row,value1,value2,value3"),
                 "the block names the cells it has: " + written);
         assertTrue(written.contains("0,46,1,15"), "and the row is its values: " + written);
         assertEquals(read, Csv.read(written), "the form crosses both ways");

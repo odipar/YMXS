@@ -133,8 +133,8 @@ file order, and V counts all of them:
 | column | cell | meaning |
 |---|---|---|
 | `row` | a whole number | the row number of the value within the source; an emitter emits it, and a reader does not read it |
-| `value` | a whole number, from 0 to the largest value that fits the first register of every target the tune's rows start the source on (json.md 4.3) | value 1 of that row of the source |
-| `value2`, `value3` | a whole number in the range of register 2 or 3 of those targets, where the source has that many values a row | values 2 and 3 of that row; a source of one value a row has neither cell, one of two has `value2`, and one of three has both |
+| `value` | a whole number, from 0 to the largest value that fits the register of every target the tune's rows start the source on (json.md 4.3) | the value of that row, where the source has one value a row; a source of several has `value1` to `valueU` in its place |
+| `value1` to `valueU` | a whole number in the range of register i of those targets, U the values a row of the source, 2 or 3 | value i of that row; a source of two values a row has `value1` and `value2`, and one of three has `value3` beside them |
 
 **3.7** A `registers` block has a column a register and a row line a row
 of the tune; an emitter emits one row line for each row that sets a

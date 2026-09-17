@@ -64,8 +64,9 @@ func multiOf(tree any) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != Version {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d", version, Version)
+	if version != Version && version != Before {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
+			Before, Version)
 	}
 	written, err := array(at, "tunes")
 	if err != nil {
@@ -73,7 +74,7 @@ func multiOf(tree any) (ymxs.Multi, error) {
 	}
 	var tunes []ymxs.Tune
 	for _, one := range written {
-		tune, err := tuneOf(one)
+		tune, err := tuneOf(one, version)
 		if err != nil {
 			return ymxs.Multi{}, err
 		}
@@ -83,7 +84,7 @@ func multiOf(tree any) (ymxs.Multi, error) {
 }
 
 // tuneOf is one tune out of a JSON tree.
-func tuneOf(tree any) (ymxs.Tune, error) {
+func tuneOf(tree any, version int) (ymxs.Tune, error) {
 	at, ok := tree.(map[string]any)
 	if !ok {
 		return ymxs.Tune{}, fmt.Errorf("a tune is %s, and this form requires an object", kind(tree))
@@ -92,7 +93,7 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
-	sources, err := sourcesOf(at)
+	sources, err := sourcesOf(at, version)
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
@@ -185,7 +186,7 @@ func tuneOf(tree any) (ymxs.Tune, error) {
 	return tune, nil
 }
 
-func sourcesOf(at map[string]any) ([]ymxs.Source, error) {
+func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 	written, err := array(at, "sources")
 	if err != nil {
 		return nil, err
@@ -204,22 +205,51 @@ func sourcesOf(at map[string]any) ([]ymxs.Source, error) {
 		if err != nil {
 			return nil, err
 		}
-		values := make([]int, len(written))
-		for at, value := range written {
-			values[at], err = whole(value, fmt.Sprintf("%s at row %d", name, at))
+		// json.md 4.1: a row is a number where the source has one value a
+		// row, and an array of two or three where it has more, one shape
+		// through the source
+		rows := make([][]int, len(written))
+		for at, row := range written {
+			named := fmt.Sprintf("%s at row %d", name, at)
+			if made, ok := row.([]any); ok {
+				if version < Version {
+					return nil, fmt.Errorf("source %s has a row of several values, and"+
+						" version %d has one value a row", name, version)
+				}
+				if len(made) < 2 || len(made) > 3 {
+					return nil, fmt.Errorf("a row of %d values in source %s, and a row"+
+						" is a number or two or three values", len(made), name)
+				}
+				rows[at] = make([]int, len(made))
+				for value, one := range made {
+					rows[at][value], err = whole(one, named)
+					if err != nil {
+						return nil, err
+					}
+				}
+				continue
+			}
+			value, err := whole(row, named)
 			if err != nil {
 				return nil, err
+			}
+			rows[at] = []int{value}
+		}
+		for _, row := range rows {
+			if len(row) != len(rows[0]) {
+				return nil, fmt.Errorf("source %s has rows of %d and of %d values, and a"+
+					" source has one shape", name, len(rows[0]), len(row))
 			}
 		}
 		repeat, repeats, err := repeatOf(source)
 		if err != nil {
 			return nil, err
 		}
-		if repeats {
-			out = append(out, ymxs.RepeatingSource(name, values, repeat))
-		} else {
-			out = append(out, ymxs.OnceSource(name, values))
+		made, err := ymxs.SourceOf(name, rows, repeat, repeats)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, made)
 	}
 	return out, nil
 }
@@ -263,9 +293,12 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 		if err != nil {
 			return nil, false, err
 		}
-		return ymxs.Start{Target: run, Source: sources[source-1], Prescaler: by,
-				Count: count, TimerReset: timerReset == 1, PlaceReset: placeReset == 1},
-			true, nil
+		made, err := ymxs.Starting(run, sources[source-1], ymxs.Timing{Prescaler: by,
+			Count: count, TimerReset: timerReset == 1, PlaceReset: placeReset == 1})
+		if err != nil {
+			return nil, false, err
+		}
+		return made, true, nil
 	case Retune:
 		prescaler := read("prescaler")
 		count := read("count")
@@ -278,8 +311,8 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 		if err != nil {
 			return nil, false, err
 		}
-		return ymxs.Retune{Prescaler: by, Count: count, TimerReset: timerReset == 1,
-			PlaceReset: placeReset == 1}, true, nil
+		return ymxs.Retune{Timing: ymxs.Timing{Prescaler: by, Count: count,
+			TimerReset: timerReset == 1, PlaceReset: placeReset == 1}}, true, nil
 	case Stop:
 		return ymxs.Stop{}, true, nil
 	}

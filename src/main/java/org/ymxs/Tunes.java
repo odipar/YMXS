@@ -7,21 +7,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.OneTarget;
+import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.SetBuzzer;
+import org.ymxs.YMXS.SetEnvelope;
+import org.ymxs.YMXS.SetNoise;
 import org.ymxs.YMXS.SetRegister;
+import org.ymxs.YMXS.SetTone;
+import org.ymxs.YMXS.SetVoice;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
+import org.ymxs.YMXS.StartPair;
+import org.ymxs.YMXS.StartTriple;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
+import org.ymxs.YMXS.ThreeTarget;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.TwoTarget;
+import org.ymxs.YMXS.Voice;
 
 /**
  * What is read off a structure, read rather than stored. Every function
@@ -119,8 +134,8 @@ public final class Tunes {
         List<Source> out = new ArrayList<>();
         for (Row row : rows(tune)) {
             for (Effect effect : effects(row).values()) {
-                if (effect instanceof Start start && !out.contains(start.source())) {
-                    out.add(start.source());
+                if (effect instanceof Start start && !out.contains(Tunes.source(start))) {
+                    out.add(Tunes.source(start));
                 }
             }
         }
@@ -190,8 +205,22 @@ public final class Tunes {
     // ----------------------------------------------------------- a target
 
     /** The target that writes {@code register}. */
-    public static Target setting(Register register) {
+    public static OneTarget setting(Register register) {
         return new SetRegister(register);
+    }
+
+    /** The registers this target writes, value i of a row to register i.
+     *  The list is the target's width (columns). */
+    public static List<Register> registers(Target target) {
+        return switch (target) {
+            case SetRegister set -> List.of(set.register());
+            case SetTone tone -> List.of(Chip.fine(tone.voice()), Chip.coarse(tone.voice()));
+            case SetNoise noise -> List.of(Register.R6, Chip.volume(noise.voice()));
+            case SetEnvelope ignored -> List.of(Register.R11, Register.R12);
+            case SetVoice voice -> List.of(Chip.fine(voice.voice()),
+                    Chip.coarse(voice.voice()), Chip.volume(voice.voice()));
+            case SetBuzzer ignored -> List.of(Register.R11, Register.R12, Register.R13);
+        };
     }
 
     /** The target numbered {@code number}.
@@ -199,7 +228,31 @@ public final class Tunes {
      * @throws IllegalArgumentException where this version defines none
      */
     public static Target target(int number) {
+        if (number >= 0 && number <= 13) {
+            return new SetRegister(Chip.register(number));
+        }
+        return switch (number) {
+            case 14, 15, 16 -> new SetTone(voice(number - 14));
+            case 17, 18, 19 -> new SetVoice(voice(number - 17));
+            case 20 -> new SetEnvelope();
+            case 21 -> new SetBuzzer();
+            case 22, 23, 24 -> new SetNoise(voice(number - 22));
+            default -> throw new IllegalArgumentException("no target " + number);
+        };
+    }
+
+    /** The target of one register numbered {@code number}, 0 to 13, which
+     *  a form of version 3 reads.
+     *
+     * @throws IllegalArgumentException where this version defines none of
+     *     one register
+     */
+    public static OneTarget oneTarget(int number) {
         return new SetRegister(Chip.register(number));
+    }
+
+    private static Voice voice(int at) {
+        return Voice.values()[at];
     }
 
     /** The number of this target, within the 0 to 127 the format
@@ -207,29 +260,37 @@ public final class Tunes {
     public static int number(Target target) {
         return switch (target) {
             case SetRegister set -> Chip.number(set.register());
+            case SetTone tone -> 14 + tone.voice().ordinal();
+            case SetVoice voice -> 17 + voice.voice().ordinal();
+            case SetEnvelope ignored -> 20;
+            case SetBuzzer ignored -> 21;
+            case SetNoise noise -> 22 + noise.voice().ordinal();
         };
     }
 
-    /** The name of this target: {@code setR0} to {@code setR13}. */
+    /** The name of this target: {@code setR0} to {@code setR13}, and
+     *  {@code setToneA} to {@code setNoiseC} for the targets of several
+     *  registers. */
     public static String name(Target target) {
         return switch (target) {
             case SetRegister set -> "set" + set.register();
+            case SetTone tone -> "setTone" + tone.voice();
+            case SetVoice voice -> "setVoice" + voice.voice();
+            case SetEnvelope ignored -> "setEnvelope";
+            case SetBuzzer ignored -> "setBuzzer";
+            case SetNoise noise -> "setNoise" + noise.voice();
         };
     }
 
     /** The values one row of a source has for this target. */
     public static int columns(Target target) {
-        return switch (target) {
-            case SetRegister ignored -> 1;
-        };
+        return registers(target).size();
     }
 
-    /** The largest value that fits one of those values. A source run by
-     *  this target stays within it. */
-    public static int most(Target target) {
-        return switch (target) {
-            case SetRegister set -> Chip.most(set.register());
-        };
+    /** The largest value that fits value i of a row, register by
+     *  register. A source run by this target stays within them. */
+    public static List<Integer> mosts(Target target) {
+        return registers(target).stream().map(Chip::most).toList();
     }
 
     // ----------------------------------------------------------- a source
@@ -239,46 +300,106 @@ public final class Tunes {
     public static String name(Source source) {
         return switch (source) {
             case Single single -> single.name();
+            case Pair pair -> pair.name();
+            case Triple triple -> triple.name();
         };
     }
 
-    /** The rows, and the row they repeat to. */
-    public static Table<Integer> table(Source source) {
+    /** The rows, a value a register of the target that runs it, and the
+     *  row they repeat to. A source of one value a row reads as a row of
+     *  one. */
+    public static Table<List<Integer>> rows(Source source) {
         return switch (source) {
-            case Single single -> single.table();
+            case Single single -> new Table<>(
+                    single.table().rows().stream().map(List::of).toList(),
+                    single.table().repeat());
+            case Pair pair -> new Table<>(pair.table().rows().stream()
+                    .map(row -> List.of(row.first(), row.second())).toList(),
+                    pair.table().repeat());
+            case Triple triple -> new Table<>(triple.table().rows().stream()
+                    .map(row -> List.of(row.first(), row.second(), row.third())).toList(),
+                    triple.table().repeat());
         };
     }
 
-    /** The values, one a row. */
+    /** The values of a source of one value a row.
+     *
+     * @throws IllegalArgumentException where the source has more a row
+     */
     public static List<Integer> values(Source source) {
-        return table(source).rows();
+        if (source instanceof Single single) {
+            return single.table().rows();
+        }
+        throw new IllegalArgumentException(name(source) + " has "
+                + columns(source) + " values a row");
     }
 
     /** The values in one row. */
     public static int columns(Source source) {
         return switch (source) {
             case Single ignored -> 1;
+            case Pair ignored -> 2;
+            case Triple ignored -> 3;
         };
     }
 
     /** A source of one value a row that repeats to {@code repeat}. */
-    public static Source repeating(String name, List<Integer> values, int repeat) {
+    public static Single repeating(String name, List<Integer> values, int repeat) {
         return new Single(name, repeating(values, repeat));
     }
 
     /** A source of one value a row that plays once and stops its timer. */
-    public static Source once(String name, List<Integer> values) {
+    public static Single once(String name, List<Integer> values) {
         return new Single(name, once(values));
     }
 
     // ----------------------------------------------------------- an effect
 
+    // ------------------------------------------------------------ a start
+
+    /** The target a start runs its source on. */
+    public static Target target(Start start) {
+        return switch (start) {
+            case StartOne one -> one.target();
+            case StartPair pair -> pair.target();
+            case StartTriple triple -> triple.target();
+        };
+    }
+
+    /** The source a start runs. */
+    public static Source source(Start start) {
+        return switch (start) {
+            case StartOne one -> one.source();
+            case StartPair pair -> pair.source();
+            case StartTriple triple -> triple.source();
+        };
+    }
+
+    /** The rate a start writes, and the resets it performs with it. */
+    public static Timing timing(Start start) {
+        return switch (start) {
+            case StartOne one -> one.timing();
+            case StartPair pair -> pair.timing();
+            case StartTriple triple -> triple.timing();
+        };
+    }
+
+    /** The prescaler a start writes. */
+    public static Prescaler prescaler(Start start) {
+        return timing(start).prescaler();
+    }
+
+    /** The count a start writes. */
+    public static int count(Start start) {
+        return timing(start).count();
+    }
+
     /** The timer's reset: the timer stops, loads the count and starts, so
      *  it begins a whole period at that count. */
     public static boolean timerReset(Effect effect) {
         return switch (effect) {
-            case Start start -> start.timerReset();
-            case Retune retune -> retune.timerReset();
+            case Start start -> timing(start).timerReset();
+            case Retune retune -> retune.timing().timerReset();
             case Stop ignored -> false;
         };
     }
@@ -286,20 +407,45 @@ public final class Tunes {
     /** The place's reset: the next tick reads the source's first row. */
     public static boolean placeReset(Effect effect) {
         return switch (effect) {
-            case Start start -> start.placeReset();
-            case Retune retune -> retune.placeReset();
+            case Start start -> timing(start).placeReset();
+            case Retune retune -> retune.timing().placeReset();
             case Stop ignored -> false;
         };
     }
 
+    /** The start of {@code source} on {@code target}, the record of the
+     *  width they share. A reader of a form builds a start this way,
+     *  where the two come off text; code that names the shapes builds the
+     *  record.
+     *
+     * @throws IllegalArgumentException where the source has other values
+     *     a row than the target reads
+     */
+    public static Start starting(Target target, Source source, Prescaler prescaler,
+            int count, boolean timerReset, boolean placeReset) {
+        if (target instanceof OneTarget one && source instanceof Single single) {
+            return new StartOne(one, single, new Timing(prescaler, count, timerReset, placeReset));
+        }
+        if (target instanceof TwoTarget two && source instanceof Pair pair) {
+            return new StartPair(two, pair, new Timing(prescaler, count, timerReset, placeReset));
+        }
+        if (target instanceof ThreeTarget three && source instanceof Triple triple) {
+            return new StartTriple(three, triple, new Timing(prescaler, count, timerReset, placeReset));
+        }
+        throw new IllegalArgumentException("a source of " + columns(source)
+                + " values a row on " + name(target) + ", which reads "
+                + columns(target));
+    }
+
     /** A struck note: the source from its first row, the timer from a
      *  whole period. */
-    public static Start struck(Target target, Source source, Prescaler prescaler, int count) {
-        return new Start(target, source, prescaler, count, true, true);
+    public static Start struck(OneTarget target, Single source, Prescaler prescaler,
+            int count) {
+        return new StartOne(target, source, new Timing(prescaler, count, true, true));
     }
 
     /** A bend: the count changes and both resets stay clear. */
     public static Retune bend(Prescaler prescaler, int count) {
-        return new Retune(prescaler, count, false, false);
+        return new Retune(new Timing(prescaler, count, false, false));
     }
 }

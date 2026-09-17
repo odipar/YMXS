@@ -211,10 +211,11 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 					unmoved := !keyframe && slot[i].Kind == Square &&
 						lastKind[i] == Square && lastRan[i] &&
 						lastTarget[i] == slot[i].Target
-					here[timerOf[i]] = ymxs.Start{
-						Target: ymxs.Setting(slot[i].Target), Source: sounds,
-						Prescaler: slot[i].Prescaler, Count: slot[i].Count,
-						TimerReset: stopped, PlaceReset: !unmoved}
+					here[timerOf[i]] = ymxs.StartOne{
+						Target: ymxs.Setting(slot[i].Target), Source: sounds.(ymxs.Single),
+						Timing: ymxs.Timing{Prescaler: slot[i].Prescaler,
+							Count: slot[i].Count, TimerReset: stopped,
+							PlaceReset: !unmoved}}
 					running[i] = slot[i]
 					runs[i] = sounds
 					lastKind[i] = slot[i].Kind
@@ -226,8 +227,8 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 					}
 				} else if slot[i].Prescaler != prescalerNow[i] ||
 					slot[i].Count != countNow[i] {
-					here[timerOf[i]] = ymxs.Retune{Prescaler: slot[i].Prescaler,
-						Count: slot[i].Count}
+					here[timerOf[i]] = ymxs.Retune{Timing: ymxs.Timing{
+						Prescaler: slot[i].Prescaler, Count: slot[i].Count}}
 				}
 				prescalerNow[i] = slot[i].Prescaler
 				countNow[i] = slot[i].Count

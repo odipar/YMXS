@@ -1,12 +1,13 @@
 # The YMXS format
 
-Version 3 defines tune data and playback on the Atari ST's YM2149 and
+Version 4 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file includes version 3 beside the structure. A reader reads the
+A file includes its version beside the structure: a writer writes 4, and a
+reader reads 4 and the version before it (json.md 2.4). A reader reads the
 version first; another version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
@@ -71,25 +72,58 @@ public interface YMXS {
 
     sealed interface Effect permits Start, Retune, Stop { }
 
-    record Start(Target target, Source source, Prescaler prescaler, int count,
-                 boolean timerReset, boolean placeReset) implements Effect { }
+    sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
 
-    record Retune(Prescaler prescaler, int count, boolean timerReset,
-                  boolean placeReset) implements Effect { }
+    record Timing(Prescaler prescaler, int count, boolean timerReset,
+                  boolean placeReset) { }
+
+    record StartOne(OneTarget target, Single source, Timing timing) implements Start { }
+
+    record StartPair(TwoTarget target, Pair source, Timing timing) implements Start { }
+
+    record StartTriple(ThreeTarget target, Triple source, Timing timing) implements Start { }
+
+    record Retune(Timing timing) implements Effect { }
 
     record Stop() implements Effect { }
 
-    sealed interface Target permits SetRegister { }
+    sealed interface Target permits OneTarget, TwoTarget, ThreeTarget { }
 
-    record SetRegister(Register register) implements Target { }
+    sealed interface OneTarget extends Target permits SetRegister { }
 
-    sealed interface Source permits Single { }
+    sealed interface TwoTarget extends Target permits SetTone, SetNoise, SetEnvelope { }
+
+    sealed interface ThreeTarget extends Target permits SetVoice, SetBuzzer { }
+
+    record SetRegister(Register register) implements OneTarget { }
+
+    record SetTone(Voice voice) implements TwoTarget { }
+
+    record SetNoise(Voice voice) implements TwoTarget { }
+
+    record SetEnvelope() implements TwoTarget { }
+
+    record SetVoice(Voice voice) implements ThreeTarget { }
+
+    record SetBuzzer() implements ThreeTarget { }
+
+    sealed interface Source permits Single, Pair, Triple { }
 
     record Single(String name, Table<Integer> table) implements Source { }
+
+    record Pair(String name, Table<Two> table) implements Source { }
+
+    record Triple(String name, Table<Three> table) implements Source { }
+
+    record Two(int first, int second) { }
+
+    record Three(int first, int second, int third) { }
 
     enum Register {
         R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
     }
+
+    enum Voice { A, B, C }
 
     enum Timer { A, B, C, D }
 
@@ -174,9 +208,9 @@ target reads, N a row number.
 | the rows of the source of a `Start` have a number of values other than the number its target reads | `a source of W values a row on setRn, which reads U` |
 | row N of the source of a `Start` is a value above the most of the register its target writes | `a source on setRn whose row N is V, and the target is 0 to M` |
 
-Note: every source and target of this version has one value a row (1.8),
+Note: a target of this version reads one, two or three values a row (3.1.1),
 so the line `a source of W values a row on setRn, which reads U` arises
-in a later version alone (8.2, 8.3).
+where a source and the target that runs it differ.
 
 **1.12 The order of the report.**
 
@@ -261,25 +295,46 @@ whose target is `setR13` writes it (3.1.1).
 
 ### 3.1 The targets
 
-**3.1.1** A target is a procedure the player calls at a tick with one
-row of a source; it writes the row to a register. This version defines
-`setR0` to `setR13`: `setRn` writes the row's one value to `Rn`, and
-`setR7` writes bits 5 to 0 and leaves 7 and 6 (2.4). Every target of
-this version reads a row of one value.
+**3.1.1** A target is a procedure the player calls at a tick with one row of
+a source; it writes the row's values to the registers below, value i of the
+row to register i of the target. A target reads one, two or three values a
+row, and the source an effect runs on it has that many values a row (3.2.1).
 
-**3.1.2** A target is numbered by its register, 0 to 13, and named `set`
-followed by the register's name; a later version numbers further targets
-14 to 127 (8.2).
+| target | registers, in the order it writes them | values a row |
+|---|---|---|
+| `setR0` to `setR13` | `Rn` | 1 |
+| `setToneA`, `setToneB`, `setToneC` | R0 R1, R2 R3, R4 R5 | 2 |
+| `setVoiceA`, `setVoiceB`, `setVoiceC` | R0 R1 R8, R2 R3 R9, R4 R5 R10 | 3 |
+| `setEnvelope` | R11 R12 | 2 |
+| `setBuzzer` | R11 R12 R13 | 3 |
+| `setNoiseA`, `setNoiseB`, `setNoiseC` | R6 R8, R6 R9, R6 R10 | 2 |
+
+`setR7` writes bits 5 to 0 and leaves 7 and 6 (2.4). A tone target writes
+the twelve bits of a voice's period, fine then coarse (2.2); a voice target
+writes those and the volume, whose bit 4 selects the envelope (2.3); an
+envelope target writes the sixteen bits of the envelope period (2.5), and a
+buzzer target those and the shape, which every write restarts (2.6). A noise
+target writes the noise period and one voice's volume; R6 is one register
+for the three voices (2.2), so two noise targets running at once write one
+period and the later tick stands.
+
+**3.1.2** A target of one register is numbered by its register, 0 to 13, and
+named `set` followed by the register's name. The targets of several
+registers are numbered 14 to 24, in the order of the table above: `setToneA`
+is 14, `setVoiceA` 17, `setEnvelope` 20, `setBuzzer` 21 and `setNoiseA` 22.
+A later version numbers further targets 25 to 127 (8.2).
 
 ### 3.2 The sources
 
-**3.2.1** A source is a name and a table (1.4) of one value a row. The name
-is text for display and for reports, and distinguishes sources (1.9); a
-player reads the table alone.
+**3.2.1** A source is a name and a table (1.4) of one, two or three values a
+row, the values a row the target of every effect that runs it reads (3.1.1);
+a source of other values a row than its target reads is an error of the
+structure (1.11). The name is text for display and for reports, and
+distinguishes sources (1.9); a player reads the table alone.
 
-**3.2.2** Every value of a source is 0 to the most of the register
-written by the target of every effect that runs it; outside that is an
-error of the structure (1.11).
+**3.2.2** Value i of every row of a source is 0 to the most of register i of
+the target of every effect that runs it; outside that is an error of the
+structure (1.11).
 
 **3.2.3** Two effects run one source where two rows start it on two
 timers; it is one source of the tune (1.9). Each timer has a separate
@@ -437,8 +492,8 @@ tick alone.
 **5.2 A tick** of a timer running an effect, in order:
 
 1. Read the row of the source at the place (3.4.2).
-2. Call the target with it; the target writes the value to its register
-   (3.1.1).
+2. Call the target with it; the target writes the row's values to its
+   registers, value i to register i (3.1.1).
 3. Where the source has a row after the row read (1.5), the place is that
    row.
 4. Where the source has ended (1.5), stop the timer: the source has run out,
@@ -479,8 +534,8 @@ a structure with one is outside the check.
 - (e) The row of a `Start` is the start row of the effect, the row of a
       `Stop` its stop row.
 
-**Rule 1: while an effect runs on a register, every row leaves that
-register alone.**
+**Rule 1: while an effect runs on a register its target writes, every
+row leaves that register alone.**
 
 - 1(a) A row breaks the rule where it sets a register on which an effect
   runs at step 4 of its frame: the start row where it sets the register (6.2
@@ -724,14 +779,14 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3,
+**8.1** What a reader does with a file whose version is other than 3 or 4,
 beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
-**8.2** Targets past the fourteen: a procedure writing a register of the
-MC68901, and one reading a row wider than a byte or of more than one
-value, numbered 14 to 127 (3.1.2).
+**8.2** Targets past the twenty-five: a procedure writing a register of the
+MC68901, one writing other registers of the YM2149 together, and one reading
+a row wider than a byte, numbered 25 to 127 (3.1.2).
 
-**8.3** Sources of more than one value a row (1.11).
+**8.3** Sources of more than three values a row (3.2.1).
 
 **8.4** The place of a timer before the first `Start` or `Retune` with
 `placeReset` set on it, and the row a tick reads where the place is outside

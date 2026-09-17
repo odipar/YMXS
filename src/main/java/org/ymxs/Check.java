@@ -7,6 +7,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.OneTarget;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Retune;
@@ -14,6 +15,7 @@ import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.SetRegister;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
@@ -96,14 +98,14 @@ public final class Check {
     public static List<String> of(Effect effect) {
         return switch (effect) {
             case Start start -> {
-                List<String> said = new ArrayList<>(count(start.count()));
-                said.addAll(rate(start.prescaler(), start.count()));
+                List<String> said = new ArrayList<>(count(Tunes.count(start)));
+                said.addAll(rate(Tunes.prescaler(start), Tunes.count(start)));
                 said.addAll(runs(start));
                 yield said;
             }
             case Retune retune -> {
-                List<String> said = new ArrayList<>(count(retune.count()));
-                said.addAll(rate(retune.prescaler(), retune.count()));
+                List<String> said = new ArrayList<>(count(retune.timing().count()));
+                said.addAll(rate(retune.timing().prescaler(), retune.timing().count()));
                 yield said;
             }
             case Stop ignored -> List.of();
@@ -114,12 +116,14 @@ public final class Check {
      *  are read against the target that runs it, so this reads only what
      *  is decidable without one. */
     public static List<String> of(Source source) {
-        List<String> said = new ArrayList<>(table(Tunes.table(source), "the source"));
-        List<Integer> values = Tunes.values(source);
-        for (int at = 0; at < values.size(); at++) {
-            if (values.get(at) < 0) {
-                said.add("row " + at + " is " + values.get(at)
-                        + ", and a register is 0 upward");
+        List<String> said = new ArrayList<>(table(Tunes.rows(source), "the source"));
+        List<List<Integer>> rows = Tunes.rows(source).rows();
+        for (int at = 0; at < rows.size(); at++) {
+            for (int value : rows.get(at)) {
+                if (value < 0) {
+                    said.add("row " + at + " is " + value
+                            + ", and a register is 0 upward");
+                }
             }
         }
         return said;
@@ -128,19 +132,23 @@ public final class Check {
     /** What a start must satisfy: the target reads the row shape the
      *  source writes, and the source's values fit that register. */
     private static List<String> runs(Start start) {
-        List<String> said = new ArrayList<>(of(start.source()));
-        if (Tunes.columns(start.target()) != Tunes.columns(start.source())) {
-            said.add("a source of " + Tunes.columns(start.source()) + " values a row on "
-                    + Tunes.name(start.target()) + ", which reads "
-                    + Tunes.columns(start.target()));
+        List<String> said = new ArrayList<>(of(Tunes.source(start)));
+        if (Tunes.columns(Tunes.target(start)) != Tunes.columns(Tunes.source(start))) {
+            said.add("a source of " + Tunes.columns(Tunes.source(start)) + " values a row on "
+                    + Tunes.name(Tunes.target(start)) + ", which reads "
+                    + Tunes.columns(Tunes.target(start)));
             return said;
         }
-        int most = Tunes.most(start.target());
-        List<Integer> values = Tunes.values(start.source());
-        for (int at = 0; at < values.size(); at++) {
-            if (values.get(at) > most) {
-                said.add("a source on " + Tunes.name(start.target()) + " whose row " + at
-                        + " is " + values.get(at) + ", and the target is 0 to " + most);
+        List<Integer> mosts = Tunes.mosts(Tunes.target(start));
+        List<List<Integer>> rows = Tunes.rows(Tunes.source(start)).rows();
+        for (int at = 0; at < rows.size(); at++) {
+            List<Integer> row = rows.get(at);
+            for (int value = 0; value < row.size(); value++) {
+                if (row.get(value) > mosts.get(value)) {
+                    said.add("a source on " + Tunes.name(Tunes.target(start)) + " whose row "
+                            + at + " is " + row.get(value) + ", and the target is 0 to "
+                            + mosts.get(value));
+                }
             }
         }
         return said;
@@ -299,15 +307,15 @@ public final class Check {
             switch (effect) {
                 case Start start -> {
                     place(at, timer, start);
-                    shared(at, timer, start.target());
+                    shared(at, timer, Tunes.target(start));
                     Running before = running.get(timer);
                     if (before != null) {
                         collided(timer, before);
                     }
-                    running.put(timer, new Running(start.target(), start.source(), at,
+                    running.put(timer, new Running(Tunes.target(start), Tunes.source(start), at,
                             until(at, start)));
-                    lastSource.put(timer, start.source());
-                    lastTarget.put(timer, start.target());
+                    lastSource.put(timer, Tunes.source(start));
+                    lastTarget.put(timer, Tunes.target(start));
                 }
                 case Retune ignored -> {
                     Running runs = runs(timer, at);
@@ -347,12 +355,15 @@ public final class Check {
          *  the order. The rule is the writer's to settle, and the row
          *  where the second starts is where it arises. */
         private void shared(int at, Timer timer, Target target) {
-            Register register = written(target);
+            List<Register> registers = written(target);
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
                 if (one.getKey() == timer || at >= one.getValue().until) {
                     continue;
                 }
-                if (written(one.getValue().target) == register) {
+                Register register = registers.stream()
+                        .filter(written(one.getValue().target)::contains)
+                        .findFirst().orElse(null);
+                if (register != null) {
                     say(at, timer, "starts on " + register + ", where Timer "
                             + one.getKey() + " runs: rule 2 leaves the order of two"
                             + " timers writing one register to the writer",
@@ -376,7 +387,7 @@ public final class Check {
                     continue;
                 }
                 said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
-                        + " runs on " + written(one.getValue().target) + " when its last"
+                        + " runs on " + written(one.getValue().target).get(0) + " when its last"
                         + " row has played: the wrap resumes with the timer running from"
                         + " the pass before"
                         + (one.getValue().until != Integer.MAX_VALUE ? RECKONED : ""));
@@ -389,7 +400,7 @@ public final class Check {
             if (runs.collisions == 0) {
                 return;
             }
-            Register register = written(runs.target);
+            Register register = written(runs.target).get(0);
             if (runs.collisions == 1) {
                 say(runs.first, timer, "runs on " + register + ", and this row sets it",
                         runs.until != Integer.MAX_VALUE);
@@ -407,7 +418,7 @@ public final class Check {
          *  starts has the row count of the one this effect last ran on the
          *  same target. */
         private void place(int at, Timer timer, Start start) {
-            if (start.placeReset()) {
+            if (Tunes.placeReset(start)) {
                 return;
             }
             Source before = lastSource.get(timer);
@@ -417,14 +428,14 @@ public final class Check {
                 return;
             }
             Target last = lastTarget.get(timer);
-            if (last == null || !start.target().equals(last)) {
-                say(at, timer, "starts a source on " + Tunes.name(start.target())
+            if (last == null || !Tunes.target(start).equals(last)) {
+                say(at, timer, "starts a source on " + Tunes.name(Tunes.target(start))
                         + " without the place's reset, and this timer last ran on "
                         + (last == null ? "no target" : Tunes.name(last)), false);
                 return;
             }
-            int now = Tunes.size(Tunes.table(start.source()));
-            int then = Tunes.size(Tunes.table(before));
+            int now = Tunes.size(Tunes.rows(Tunes.source(start)));
+            int then = Tunes.size(Tunes.rows(before));
             if (now != then) {
                 say(at, timer, "starts a source of " + now + " rows without the place's"
                         + " reset, and the one before it had " + then, false);
@@ -441,8 +452,8 @@ public final class Check {
                 if (at >= runs.until) {
                     continue;
                 }
-                Register register = written(runs.target);
-                if (register == Register.R13 || !row.registers().containsKey(register)) {
+                if (written(runs.target).stream().noneMatch(written ->
+                        written != Register.R13 && row.registers().containsKey(written))) {
                     continue;
                 }
                 runs.collides(at);
@@ -465,17 +476,15 @@ public final class Check {
         /** The row a start's source ends on, or no row where it
          *  repeats. */
         private int until(int at, Start start) {
-            if (Tunes.table(start.source()).repeat().isPresent()) {
+            if (Tunes.rows(Tunes.source(start)).repeat().isPresent()) {
                 return Integer.MAX_VALUE;
             }
-            return at + Chip.frames(Tunes.size(Tunes.table(start.source())),
-                    start.prescaler(), start.count(), tune.rate());
+            return at + Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start))),
+                    Tunes.prescaler(start), Tunes.count(start), tune.rate());
         }
 
-        private Register written(Target target) {
-            return switch (target) {
-                case SetRegister set -> set.register();
-            };
+        private List<Register> written(Target target) {
+            return Tunes.registers(target);
         }
 
         private void say(int at, Timer timer, String what, boolean reckoned) {

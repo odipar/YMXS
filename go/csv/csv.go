@@ -58,10 +58,24 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 	sources := ymxs.Sources(tune)
 	for _, source := range sources {
 		table(out, "source", "name", "repeat")
-		row(out, ymxs.SourceName(source), repeatOf(ymxs.SourceTable(source).Repeat))
-		table(out, "value", "row", "value")
-		for line, value := range ymxs.Values(source) {
-			row(out, line, value)
+		row(out, ymxs.SourceName(source), repeatOf(ymxs.SourceRows(source).Repeat))
+		// the cell is value where the source has one value a row, and
+		// value1 to valueU where it has more (csv.md 3.6)
+		named := []any{"value", "row"}
+		if ymxs.SourceColumns(source) == 1 {
+			named = append(named, "value")
+		} else {
+			for at := 1; at <= ymxs.SourceColumns(source); at++ {
+				named = append(named, fmt.Sprintf("value%d", at))
+			}
+		}
+		table(out, named...)
+		for line, values := range ymxs.SourceRows(source).Rows {
+			cells := []any{line}
+			for _, value := range values {
+				cells = append(cells, value)
+			}
+			row(out, cells...)
 		}
 	}
 
@@ -114,12 +128,12 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		}
 		switch e := effect.(type) {
 		case ymxs.Start:
-			row(out, line, text.Start, ymxs.TargetNumber(e.Target),
-				indexOf(sources, e.Source)+1, ymxs.Divides(e.Prescaler), e.Count,
-				flagOf(e.TimerReset), flagOf(e.PlaceReset))
+			row(out, line, text.Start, ymxs.TargetNumber(ymxs.StartTarget(e)),
+				indexOf(sources, ymxs.StartSource(e))+1, ymxs.Divides(ymxs.StartTiming(e).Prescaler), ymxs.StartTiming(e).Count,
+				flagOf(ymxs.StartTiming(e).TimerReset), flagOf(ymxs.StartTiming(e).PlaceReset))
 		case ymxs.Retune:
-			row(out, line, text.Retune, "", "", ymxs.Divides(e.Prescaler), e.Count,
-				flagOf(e.TimerReset), flagOf(e.PlaceReset))
+			row(out, line, text.Retune, "", "", ymxs.Divides(e.Timing.Prescaler),
+				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset))
 		case ymxs.Stop:
 			row(out, line, text.Stop, "", "", "", "", "", "")
 		}
@@ -243,9 +257,9 @@ func Read(said string) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != text.Version {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d", version,
-			text.Version)
+	if version != text.Version && version != text.Before {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
+			text.Before, text.Version)
 	}
 	var tunes []ymxs.Tune
 	at := 1
@@ -261,7 +275,7 @@ func Read(said string) (ymxs.Multi, error) {
 			mine = append(mine, sections[at])
 			at++
 		}
-		tune, err := tuneOf(sections[from], mine, len(tunes)+1)
+		tune, err := tuneOf(sections[from], mine, len(tunes)+1, version)
 		if err != nil {
 			return ymxs.Multi{}, err
 		}
@@ -273,7 +287,7 @@ func Read(said string) (ymxs.Multi, error) {
 // tuneOf is one tune, from the table that opens it and the tables after
 // it. A source opens a source table, and the values after it belong to
 // that source.
-func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
+func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, error) {
 	if len(told.rows) != 1 {
 		return ymxs.Tune{}, fmt.Errorf("tune %d is opened by %d rows, and one row opens it",
 			number, len(told.rows))
@@ -285,7 +299,7 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 	}
 	var names []string
 	var repeats []string
-	var values [][]int
+	var values [][][]int
 	registers := make([]map[ymxs.Register]int, count)
 	effects := make([]map[ymxs.Timer]ymxs.Effect, count)
 	for at := 0; at < count; at++ {
@@ -302,18 +316,37 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 			}
 			names = append(names, one.of(one.rows[0], "name"))
 			repeats = append(repeats, one.of(one.rows[0], "repeat"))
-			values = append(values, []int{})
+			values = append(values, [][]int{})
 		case "value":
 			if len(values) == 0 {
 				return ymxs.Tune{}, fmt.Errorf("tune %d opens values before any source",
 					number)
 			}
 			for _, line := range one.rows {
-				value, err := whole(one.of(line, "value"), "value")
+				// the cell is value where the source has one value a row,
+				// and value1 where it has more (csv.md 3.6)
+				cell, named := one.of(line, "value"), "value"
+				if cell == "" {
+					cell, named = one.of(line, "value1"), "value1"
+				}
+				value, err := whole(cell, named)
 				if err != nil {
 					return ymxs.Tune{}, err
 				}
-				values[len(values)-1] = append(values[len(values)-1], value)
+				made := []int{value}
+				for at := 2; at <= 3; at++ {
+					named := fmt.Sprintf("value%d", at)
+					cell := one.of(line, named)
+					if cell == "" {
+						continue
+					}
+					value, err := whole(cell, named)
+					if err != nil {
+						return ymxs.Tune{}, err
+					}
+					made = append(made, value)
+				}
+				values[len(values)-1] = append(values[len(values)-1], made)
 			}
 		case "registers":
 			for _, line := range one.rows {
@@ -344,15 +377,19 @@ func tuneOf(told *block, mine []*block, number int) (ymxs.Tune, error) {
 	}
 	var sources []ymxs.Source
 	for at, name := range names {
-		if repeats[at] == "" {
-			sources = append(sources, ymxs.OnceSource(name, values[at]))
-		} else {
-			repeat, err := whole(repeats[at], "repeat")
+		repeat, repeating := 0, repeats[at] != ""
+		if repeating {
+			read, err := whole(repeats[at], "repeat")
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
-			sources = append(sources, ymxs.RepeatingSource(name, values[at], repeat))
+			repeat = read
 		}
+		made, err := ymxs.SourceOf(name, values[at], repeat, repeating)
+		if err != nil {
+			return ymxs.Tune{}, err
+		}
+		sources = append(sources, made)
 	}
 	for _, one := range acts {
 		timer, err := timerOf(one.name, number)
@@ -439,9 +476,9 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int) (ymxs.Ef
 		if err != nil {
 			return nil, err
 		}
-		return ymxs.Start{Target: run, Source: sources[number-1], Prescaler: by,
+		return ymxs.Starting(run, sources[number-1], ymxs.Timing{Prescaler: by,
 			Count: count, TimerReset: flag(acts.of(one, "timerReset")),
-			PlaceReset: flag(acts.of(one, "placeReset"))}, nil
+			PlaceReset: flag(acts.of(one, "placeReset"))})
 	case text.Retune:
 		by, err := prescaler(acts, one)
 		if err != nil {
@@ -451,9 +488,9 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int) (ymxs.Ef
 		if err != nil {
 			return nil, err
 		}
-		return ymxs.Retune{Prescaler: by, Count: count,
+		return ymxs.Retune{Timing: ymxs.Timing{Prescaler: by, Count: count,
 			TimerReset: flag(acts.of(one, "timerReset")),
-			PlaceReset: flag(acts.of(one, "placeReset"))}, nil
+			PlaceReset: flag(acts.of(one, "placeReset"))}}, nil
 	case text.Stop:
 		return ymxs.Stop{}, nil
 	}

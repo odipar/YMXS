@@ -69,7 +69,7 @@ final class RecordTest {
             for (int value : Tunes.values(source)) {
                 values.add(String.valueOf(value));
             }
-            var repeat = Tunes.table(source).repeat();
+            var repeat = Tunes.rows(source).repeat();
             sources.add("{\"rows\":" + values + ",\"repeat\":"
                     + (repeat.isPresent() ? String.valueOf(repeat.getAsInt()) : "null")
                     + "}");
@@ -94,17 +94,17 @@ final class RecordTest {
     /** The object of an operation, as the table of 7.4 lists it. */
     private static String operation(Tune tune, Effect effect) {
         return switch (effect) {
-            case Start start -> "{\"start\":{\"target\":\"" + Tunes.name(start.target())
-                    + "\",\"source\":" + Tunes.number(tune, start.source())
-                    + ",\"prescaler\":" + Chip.divides(start.prescaler())
-                    + ",\"count\":" + start.count()
-                    + ",\"timerReset\":" + start.timerReset()
-                    + ",\"placeReset\":" + start.placeReset() + "}}";
+            case Start start -> "{\"start\":{\"target\":\"" + Tunes.name(Tunes.target(start))
+                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start))
+                    + ",\"prescaler\":" + Chip.divides(Tunes.prescaler(start))
+                    + ",\"count\":" + Tunes.count(start)
+                    + ",\"timerReset\":" + Tunes.timerReset(start)
+                    + ",\"placeReset\":" + Tunes.placeReset(start) + "}}";
             case Retune retune -> "{\"retune\":{\"prescaler\":"
-                    + Chip.divides(retune.prescaler())
-                    + ",\"count\":" + retune.count()
-                    + ",\"timerReset\":" + retune.timerReset()
-                    + ",\"placeReset\":" + retune.placeReset() + "}}";
+                    + Chip.divides(retune.timing().prescaler())
+                    + ",\"count\":" + retune.timing().count()
+                    + ",\"timerReset\":" + retune.timing().timerReset()
+                    + ",\"placeReset\":" + retune.timing().placeReset() + "}}";
             case Stop ignored -> "{\"stop\":{}}";
         };
     }

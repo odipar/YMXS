@@ -68,16 +68,16 @@ final class ReadTest {
         assertEquals(1, Tunes.sources(tune).size());
         Single source = assertInstanceOf(Single.class, Tunes.sources(tune).get(0));
         assertEquals(List.of(12, 0), Tunes.values(source));
-        assertEquals(OptionalInt.of(0), Tunes.table(source).repeat());
+        assertEquals(OptionalInt.of(0), Tunes.rows(source).repeat());
 
         assertEquals(java.util.EnumSet.of(Timer.A), Tunes.timers(tune));
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(2).effects().get(Timer.A));
-        assertEquals(Tunes.setting(Register.R8), start.target());
-        assertEquals(Prescaler.BY_4, start.prescaler());
-        assertEquals(100, start.count());
-        assertTrue(start.timerReset(), "the timer was stopped, so it runs a whole period");
-        assertTrue(start.placeReset(), "no wave ran before it, so the place goes to row 0");
+        assertEquals(Tunes.setting(Register.R8), Tunes.target(start));
+        assertEquals(Prescaler.BY_4, Tunes.prescaler(start));
+        assertEquals(100, Tunes.count(start));
+        assertTrue(Tunes.timerReset(start), "the timer was stopped, so it runs a whole period");
+        assertTrue(Tunes.placeReset(start), "no wave ran before it, so the place goes to row 0");
 
         for (int f = 3; f <= 5; f++) {
             assertTrue(Tunes.rows(tune).get(f).effects().isEmpty(),
@@ -102,11 +102,11 @@ final class ReadTest {
         Single source = assertInstanceOf(Single.class, Tunes.sources(tune).get(0));
         assertEquals(List.of(0, 4, 15, 8, 13), Tunes.values(source),
                 "the sample's high four bits a row, and a closing row at mid-scale");
-        assertEquals(OptionalInt.empty(), Tunes.table(source).repeat(), "a recording plays once");
+        assertEquals(OptionalInt.empty(), Tunes.rows(source).repeat(), "a recording plays once");
 
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(1).effects().get(Timer.D));
-        assertEquals(Tunes.setting(Register.R9), start.target());
+        assertEquals(Tunes.setting(Register.R9), Tunes.target(start));
         assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
                 "a recording silences the tone and noise of its voice while it runs, which"
                         + " for voice B is bits 1 and 4");

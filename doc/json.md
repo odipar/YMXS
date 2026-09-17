@@ -1,6 +1,6 @@
 # JSON
 
-JSON encodes version 3 of the structure in [SPEC.md](SPEC.md) 1.
+JSON encodes version 4 of the structure in [SPEC.md](SPEC.md) 1.
 [csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
 normative except sentences beginning `Note:` and section 10.
 
@@ -48,7 +48,7 @@ object has that member and *absent* otherwise.
 | key | value | meaning |
 |---|---|---|
 | `format` | the text `ymxs` | this form |
-| `version` | the whole number 3 | the version of the structure |
+| `version` | the whole number 4, or 3 for a file of the version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
 **2.2** A reader reads the listed keys and skips unknown keys. An emitter
@@ -57,7 +57,12 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A reader reads version 3 alone (SPEC.md 8).
+**2.4** A writer writes version 4. A reader reads version 4 and the version
+before it: a file of version 3 has one value a row in every source and a
+`target` of 0 to 13, the shapes that version defines, and reads as the
+structure those make. A row of several values or a `target` above 13 in a
+file of version 3 is an error of the form (8.1), as is any other version
+(SPEC.md 8).
 
 ---
 
@@ -103,14 +108,16 @@ An emitter emits them in first-start order (SPEC.md 1.9).
 |---|---|---|
 | `name` | a text | the source's name; a report names a source by it, and a player does not read it |
 | `repeat` | a whole number from 0 to V minus 1, or `null` | the row the source repeats to; `null` marks a source that plays once |
-| `values` | an array of V whole numbers, V at least 1 | the rows of the source; row j is the element at index j |
+| `values` | an array of V rows, V at least 1: a row is a whole number where the source has one value a row, and an array of two or three whole numbers where it has more | the rows of the source; row j is the element at index j, and a row of several values is a value a register of the target that runs it (SPEC.md 3.1.1) |
 
 **4.2** `name` and `values` are present in every source; an absent `repeat`
-reads as `null`; an element of `values` other than a whole number is an
-error (8.1).
+reads as `null`. Every row of one source has one shape: a whole number in
+each, or an array of one length, two or three, in each. An element of
+`values` other than a whole number or such an array, and an array of another
+length or of an element other than a whole number, are errors (8.1).
 
-**4.3** Every value is 0 to the most of the register of every target the
-rows start the source on (SPEC.md 3.2.2; ranges in 5.1); outside that is
+**4.3** Value i of every row is 0 to the most of register i of every target
+the rows start the source on (SPEC.md 3.2.2; ranges in 5.1); outside that is
 an error of the structure (8.3).
 
 **4.4** Every source in `sources` is started by a row; an unstarted source
@@ -157,7 +164,7 @@ the row's operation has that part (6.2) and -1 elsewhere.
 | key | value where the row has the part | meaning |
 |---|---|---|
 | `shape` | -1, 0, 1 or 2 | the operation the row performs on the effect of Timer T (6.2) |
-| `target` | 0 to 13 | the target: n is `setRn`, the target that writes register Rn |
+| `target` | 0 to 24 | the target of that number (SPEC.md 3.1.2): 0 to 13 is `setRn`, and 14 to 24 the targets of two and three registers |
 | `source` | 1 to S | the number of the source (1.7) |
 | `prescaler` | 4, 10, 16, 50, 64, 100 or 200 | the divisor of the prescaler |
 | `count` | 0 to 255 | the count, the value of the timer's data register |
@@ -187,7 +194,7 @@ error (8.1). Note: a timer object whose every `shape` is -1 or 2 needs
 for false; a reader reads 1 as true and every other whole number as
 false.
 
-**6.6** `target` outside 0 to 13, `source` outside 1 to S, and
+**6.6** `target` outside 0 to 24, `source` outside 1 to S, and
 `prescaler` other than the seven divisors are errors (8.1). `count`
 outside 0 to 255, and a prescaler and count whose rate (SPEC.md 3.3)
 exceeds 125,000 ticks a second, are errors of the structure (8.3).
@@ -215,7 +222,7 @@ where every step passes.
    the row sets.
 8. Read `timerA` to `timerD` where present, in that order, an object
    each; for each row i from 0 to R - 1 read `shape` at index i, one of
-   -1, 0, 1, 2, then for a start `source` (1 to S), `target` (0 to 13),
+   -1, 0, 1, 2, then for a start `source` (1 to S), `target` (0 to 24),
    `prescaler` (one of the seven divisors), `count`, `timerReset`,
    `placeReset`, and for a retune the last four. A column is verified
    present, an array of length R and a whole number at index i as it is
@@ -248,7 +255,8 @@ the `a tree of X` line.
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 3 | `version N, and this reads 3` |
+| `version` other than 3 or 4 | `version N, and this reads 3 or 4` |
+| a row of several values, or a `target` above 13, in a file of version 3 | `source X has a row of several values, and version 3 has one value a row`, `target N, and version 3 reaches 0 to 13` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |
@@ -265,7 +273,7 @@ the `a tree of X` line.
 | a value of a timer column not a whole number | `Timer T's COL at row I is X, and this form requires a whole number` |
 | `shape` other than -1, 0, 1 and 2 | `row I sets shape N on Timer T, and a shape is 0, 1 or 2` |
 | `source` outside 1 to S | `row I starts source N, and the tune runs S` |
-| `target` outside 0 to 13 | `no register N: a tune reaches R0 to R13` |
+| `target` outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a source of `sources` that no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
 
@@ -352,7 +360,7 @@ retuned at row 1, stopped at row 3.
 ```json
 {
   "format": "ymxs",
-  "version": 3,
+  "version": 4,
   "tunes": [
     {
       "title": "Four rows, one square",

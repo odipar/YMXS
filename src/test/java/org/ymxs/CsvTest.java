@@ -11,12 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
@@ -175,7 +178,7 @@ final class CsvTest {
 
     @Test
     void aTimerHoldsWhatTheTextFormHoldsOfIt() {
-        Source square = Tunes.repeating("square", List.of(15, 0), 0);
+        Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(Timer.A, Tunes.struck(
                         Tunes.setting(Register.R8), square, Prescaler.BY_4, 100))),
@@ -204,8 +207,8 @@ final class CsvTest {
 
     @Test
     void everyShapeCrossesOver() {
-        Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
-        Source drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
+        Single square = Tunes.repeating("square 15", List.of(15, 0), 0);
+        Single drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
         Map<Register, Integer> all = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
             all.put(register, Chip.most(register));
@@ -215,8 +218,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, new Start(Tunes.setting(Register.R10), drum,
-                                Prescaler.BY_200, 0, false, true))),
+                        Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true)))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));
@@ -270,7 +272,7 @@ final class CsvTest {
     @Test
     void aHeadingThisDoesNotReadIsNamed() {
         IllegalArgumentException old = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxs,3,1\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxs,4,1\n"));
         assertTrue(String.valueOf(old.getMessage()).contains("has a comma in it"),
                 String.valueOf(old.getMessage()));
         IllegalArgumentException alone = assertThrows(IllegalArgumentException.class,
@@ -278,7 +280,7 @@ final class CsvTest {
         assertTrue(String.valueOf(alone.getMessage()).contains("names no columns"),
                 String.valueOf(alone.getMessage()));
         IllegalArgumentException last = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi\nformat,version,tunes\nymxs,3,1\n\n### tune\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,4,1\n\n### tune\n"));
         assertTrue(String.valueOf(last.getMessage()).contains("names no columns"),
                 String.valueOf(last.getMessage()));
     }
@@ -291,12 +293,59 @@ final class CsvTest {
                 String.valueOf(no.getMessage()));
     }
 
+    /** A source of several values a row: csv.md 3.6 gives its value block
+     *  the cells `value2` and `value3`, and a source of one value a row
+     *  has the `value` cell alone. */
+    @Test
+    void aValueBlockCarriesTheValuesOfItsRow() {
+        String csv = """
+                ### multi
+                format,version,tunes
+                ymxs,4,1
+
+                ### tune
+                title,composer,writer,rate,rows,repeat
+                ,,t,50,2,0
+
+                ### source
+                name,repeat
+                a sweep,0
+
+                ### value
+                row,value1,value2,value3
+                0,46,1,15
+                1,32,1,13
+
+                ### registers
+                row,r7
+                0,56
+
+                ### timerA
+                row,shape,source,target,prescaler,count,timerReset,placeReset
+                0,0,1,17,50,60,1,1
+                """;
+        Multi read = Csv.read(csv);
+        Source source = Tunes.sources(read.tunes().get(0)).get(0);
+        assertEquals(3, Tunes.columns(source), "the source is three values a row");
+        assertEquals(List.of(List.of(46, 1, 15), List.of(32, 1, 13)),
+                Tunes.rows(source).rows(), "the rows read as the cells stand");
+        String written = Csv.write(read);
+        assertTrue(written.contains("row,value1,value2,value3"),
+                "the block names the cells it has: " + written);
+        assertTrue(written.contains("0,46,1,15"), "and the row is its values: " + written);
+        assertEquals(read, Csv.read(written), "the form crosses both ways");
+        String three = csv.replace("ymxs,4,1", "ymxs,3,1");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Csv.read(three)).getMessage());
+        assertTrue(said.contains("version 3 has one value a row"), said);
+    }
+
     @Test
     void aColumnIsFoundByItsNameAndNotItsPlace() {
         String csv = """
                 ### multi
                 version,tunes,format
-                3,1,ymxs
+                4,1,ymxs
 
                 ### tune
                 rows,rate,repeat,writer,composer,title

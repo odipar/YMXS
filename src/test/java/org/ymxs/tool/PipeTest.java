@@ -145,7 +145,7 @@ final class PipeTest {
 
     /** The multi of tools.md 4.1: four rows repeating to row 4, and a
      *  source of two rows repeating to row 2. */
-    private static final String TWO_FAULTS = "{\"format\":\"ymxs\",\"version\":3,"
+    private static final String TWO_FAULTS = "{\"format\":\"ymxs\",\"version\":4,"
             + "\"tunes\":[{\"title\":\"Four rows, one square\",\"composer\":\"\","
             + "\"writer\":\"by hand\",\"rate\":50,\"rows\":4,\"repeat\":4,"
             + "\"sources\":[{\"name\":\"square 13\",\"repeat\":2,\"values\":[13,0]}],"

@@ -103,7 +103,7 @@ standalone executables for Windows, macOS and Linux on x64 and arm64.
 ```bash
 cd go && go test ./... && go build ./cmd/...
 release/publish.sh
-go get github.com/odipar/ymxs/go@v0.4.0
+go get github.com/odipar/ymxs/go@v0.4.1
 ```
 
 ## Where the figures come from

@@ -18,13 +18,38 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.0` beside `v0.4.0`.
+version of it is a tag of that directory: `go/v0.4.1` beside `v0.4.1`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.1, 2026-09-17
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.1>, built from the commit
+tagged `v0.4.1`.
+
+The order a target writes its registers is the player's. One clause moves
+and every other file stands as 0.4.0 has it, so every file of this release
+reads under 0.4.0 and the other way round, and the JSON and CSV the tools
+write are the bytes 0.4.0 wrote.
+
+- `3.1.1`'s table read "registers, in the order it writes them", which
+  fixed an order for every target. The sound depends on two of those
+  orderings alone, and the text under the table already named both: a
+  voice's fine byte before its coarse nibble, so the period standing
+  between the two writes is the new fine with the old coarse; and a
+  buzzer's shape after its period, since writing the shape restarts the
+  generator on the period standing. Where a volume register stands among
+  them is unheard.
+- The table is the map from a value of the row to a register now, as its
+  column says, and those two orderings stand written out below it. A
+  player that writes the rest in another order plays the tune this
+  structure defines: YMXR's tick writes the column the marker stands in
+  last, which is R8 between R0 and R1 for a voice and R6 after R8 for a
+  noise.
 
 ### 0.4.0, 2026-09-17
 

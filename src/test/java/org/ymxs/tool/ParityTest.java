@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>One input has one output. Java and Go read the same dumps, write the
  * same JSON, cross to CSV and back the same way and report the same
- * faults, so a caller who takes either has the same bytes at every step.
+ * faults, so a caller reading either has the same bytes at every step.
  *
  * <p>The tools are run as a caller runs them: the input on standard input,
  * the output on standard output. What is compared is standard output and

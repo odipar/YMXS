@@ -57,7 +57,7 @@ func main() {
 	said(t, song, reading)
 }
 
-// said is what the dump came to, on standard error.
+// said reports what the dump came to, on standard error.
 func said(t *tool.Tool, song ym.Song, reading ym.Reading) {
 	if !t.Reports() {
 		return

@@ -7,7 +7,7 @@ import (
 	"github.com/odipar/ymxs/go/text"
 )
 
-// The tunes of doc/tunes, which are the documents' own examples.
+// The tunes of doc/tunes, the examples the documents carry.
 var tunes = []string{"circus", "digidrum", "example", "retrigger", "turrican-2", "two-tunes"}
 
 func read(t *testing.T, named string) string {

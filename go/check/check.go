@@ -24,7 +24,7 @@ import (
 	"github.com/odipar/ymxs/go/ymxs"
 )
 
-// Multi is what is wrong with the multi, or an empty list.
+// Multi lists what is wrong with the multi, or an empty list.
 func Multi(multi ymxs.Multi) []string {
 	var said []string
 	if len(multi.Tunes) == 0 {
@@ -38,7 +38,7 @@ func Multi(multi ymxs.Multi) []string {
 	return said
 }
 
-// Tune is what is wrong with the tune, or an empty list.
+// Tune lists what is wrong with the tune, or an empty list.
 func Tune(tune ymxs.Tune) []string {
 	var said []string
 	if tune.Rate < 1 {
@@ -54,7 +54,7 @@ func Tune(tune ymxs.Tune) []string {
 	return said
 }
 
-// Row is what is wrong with the row, or an empty list.
+// Row lists what is wrong with the row, or an empty list.
 func Row(row ymxs.Row) []string {
 	var said []string
 	for _, one := range ymxs.Registered(row) {
@@ -72,7 +72,7 @@ func Row(row ymxs.Row) []string {
 	return said
 }
 
-// Effect is what is wrong with one row's operation on one effect, or an
+// Effect lists what is wrong with one row's operation on one effect, or an
 // empty list.
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
@@ -88,7 +88,7 @@ func Effect(effect ymxs.Effect) []string {
 	panic(fmt.Sprintf("no effect %T", effect))
 }
 
-// Source is what is wrong with a source, or an empty list. A source's
+// Source lists what is wrong with a source, or an empty list. A source's
 // values are read against the target that runs it, so this reads only what
 // is decidable without one.
 func Source(source ymxs.Source) []string {
@@ -105,7 +105,7 @@ func Source(source ymxs.Source) []string {
 	return said
 }
 
-// runs is what a start must satisfy: the target reads the row shape the
+// runs reads what a start must satisfy: the target reads the row shape the
 // source writes, and the source's values fit that register.
 func runs(start ymxs.Start) []string {
 	said := Source(ymxs.StartSource(start))
@@ -127,7 +127,7 @@ func runs(start ymxs.Start) []string {
 	return said
 }
 
-// rate is what a rate must satisfy: a 68000 services the ticks it comes
+// rate reads what a rate must satisfy: a 68000 services the ticks it comes
 // to. The count is read first, since a count outside the register makes no
 // rate.
 func rate(prescaler ymxs.Prescaler, at int) []string {
@@ -144,14 +144,14 @@ func rate(prescaler ymxs.Prescaler, at int) []string {
 	return nil
 }
 
-// Declared is what is wrong with the sources a form declares beside the
+// Declared lists what is wrong with the sources a form declares beside the
 // tune its rows make, or nil.
 //
 // A form numbers its sources and names them, where the structure reaches a
 // source through the row that starts it (ymxs.Sources). So a form may
 // declare one no row starts, which is dropped where the form is read.
 //
-// A name is what a reader of the form reads and no more: an effect names
+// A name reaches a reader of the form and no more: an effect names
 // its source by the number of the table it stands in, in JSON and in CSV
 // alike, so two sources under one name are told apart by those numbers
 // and are no fault.
@@ -215,8 +215,8 @@ func MustTune(tune ymxs.Tune) (ymxs.Tune, error) {
 
 // ------------------------------------------------------- SPEC.md 6
 
-// running is what one timer runs, and the row its source ends on.
-// running is what one timer runs: the target and the source, the row the
+// running records one timer's source, and the row it ends on.
+// running records one timer's run: the target and the source, the row the
 // start stands on, the row the source ends on, and the rows that set the
 // target's register while it ran.
 type running struct {
@@ -382,7 +382,7 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 		// A stop of a source that has run out by the reckoning is a writer
 		// settling rule 4, and the row a tune repeats to stops every
 		// effect so that the wrap resumes from a known setting. Neither is
-		// a slip. A stop where this timer has run nothing is.
+		// a slip. A stop where this timer has run no source is one.
 		if !on && !w.repeats(at) {
 			w.say(at, timer, "stops an effect this timer has not started", false)
 		}
@@ -467,7 +467,7 @@ func (w *writing) reckoned(timer ymxs.Timer, at int) bool {
 	return on && runs.until != math.MaxInt32 && at >= runs.until
 }
 
-// reckoned is what a reading rests on where the source is one that plays
+// reckoned records what a reading rests on where the source is one that plays
 // once: its end is reckoned from its rate rather than read off a row.
 const reckoned = ", which rests on how long a source that plays once runs, reckoned" +
 	" from its rate"

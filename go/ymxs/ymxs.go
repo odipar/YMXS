@@ -34,7 +34,7 @@ type Tune struct {
 // that is the whole difference.
 //
 // The repeat row is read through Repeat, so a table is either repeating or
-// playing once and nothing else.
+// playing once alone.
 type Table[T any] struct {
 	Rows   []T
 	repeat int // the row it repeats to, or None
@@ -137,7 +137,7 @@ func (StartOne) start()    {}
 func (StartPair) start()   {}
 func (StartTriple) start() {}
 
-// Target is what a timer's tick calls with a source's row: a procedure
+// Target is the procedure a timer's tick calls with a source's row: it
 // that reads one row and writes it to the registers of the target, value i
 // to register i. A target is grouped by the values a row it reads, so a
 // start pairs it with a source of that width. A later version defines
@@ -339,8 +339,8 @@ const (
 // Prescalers is every prescaler, in the order they are declared.
 var Prescalers = []Prescaler{By4, By10, By16, By50, By64, By100, By200}
 
-// itoa is strconv.Itoa for a small number, so that this file imports
-// nothing.
+// itoa is strconv.Itoa for a small number, so that this file stands on
+// the standard library alone.
 func itoa(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))

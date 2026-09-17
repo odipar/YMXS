@@ -53,7 +53,8 @@ public final class Tunes {
     /** The stop, the same for every timer and every row. */
     public static final Stop STOP = new Stop();
 
-    /** An empty row. A player advancing over it writes no register and
+    /** An empty row. A player advancing over it leaves every register as it
+     *  is and
      *  moves no timer. */
     public static final Row EMPTY = new Row(Map.of(), Map.of());
 

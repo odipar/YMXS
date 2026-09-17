@@ -32,7 +32,7 @@ import (
 	"github.com/odipar/ymxs/go/ymxs"
 )
 
-// Table is what a line opening a table begins with.
+// Table opens a line that begins a table.
 const Table = "### "
 
 // --------------------------------------------------------------- out

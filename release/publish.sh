@@ -1,6 +1,6 @@
 #!/bin/sh
 # The standalone YMXS executables: the five tools of doc/tools.md, one set
-# per platform, each a single file a machine runs with nothing installed
+# per platform, each a single file a machine runs with none of this
 # beside it.
 #
 #   release/publish.sh [version]      # the six platforms below
@@ -58,7 +58,7 @@ for target in $TARGETS; do
     mkdir -p "$OUT/$target"
     for tool in $TOOLS; do
         # CGO off makes the binary static and the cross-build runs; -s -w
-        # drop the symbol and debug tables, which nothing here reads.
+        # drop the symbol and debug tables, which no tool here reads.
         (cd go && CGO_ENABLED=0 GOOS=$os GOARCH=$arch \
             go build -ldflags="-s -w" -o "$OUT/$target/$tool$ext" \
             ./cmd/"$tool")
@@ -72,7 +72,7 @@ done
 release/manifest.sh "$VERSION" "$OUT/release"
 
 # The host's executables, tried as a user would: from a directory that is
-# not this repository, with nothing beside them. A dump goes in and the
+# not this repository, and with no tool beside them. A dump goes in and the
 # tables come out, which is every tool but the merge in one pipe.
 case "$(uname -s)-$(uname -m)" in
     Darwin-arm64) host=osx-arm64 ;;

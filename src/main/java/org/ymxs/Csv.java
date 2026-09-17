@@ -7,9 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
-import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
@@ -19,8 +19,12 @@ import org.ymxs.YMXS.Start;
 import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Three;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.Two;
 
 /**
  * The other form: a tune as tables, for reading in a spreadsheet
@@ -79,10 +83,19 @@ public final class Csv {
         for (Source source : sources) {
             table(out, "source", "name", "repeat");
             row(out, Tunes.name(source), repeat(Tunes.rows(source)));
-            table(out, "value", "row", "value");
-            List<Integer> values = Tunes.values(source);
-            for (int line = 0; line < values.size(); line++) {
-                row(out, line, values.get(line));
+            // 3.6: the cells are row and value, and value2 and value3
+            // where the source has two or three values a row
+            List<Object> named = new ArrayList<>(List.of("value", "row", "value"));
+            for (int at = 2; at <= Tunes.columns(source); at++) {
+                named.add("value" + at);
+            }
+            table(out, named.toArray());
+            List<List<Integer>> lines = Tunes.rows(source).rows();
+            for (int line = 0; line < lines.size(); line++) {
+                List<Object> cells = new ArrayList<>();
+                cells.add(line);
+                cells.addAll(lines.get(line));
+                row(out, cells.toArray());
             }
         }
 
@@ -228,7 +241,7 @@ public final class Csv {
                 mine.add(sections.get(at));
                 at++;
             }
-            tunes.add(tune(sections.get(from), mine, tunes.size() + 1));
+            tunes.add(tune(sections.get(from), mine, tunes.size() + 1, version));
         }
         return Check.must(new Multi(tunes));
     }
@@ -236,7 +249,38 @@ public final class Csv {
     /** One tune, from the table that opens it and the tables after it. A
      *  source opens a `source` table, and the values after it belong to
      *  that source. */
-    private static Tune tune(Block told, List<Block> mine, int number) {
+    /** One source out of its name, its rows and its repeat: a row of one
+     *  value where the value block has the `value` cell alone, and of two
+     *  or three where it has `value2` and `value3` (3.6). A file of the
+     *  version before this one has one value a row (json.md 2.4). */
+    private static Source source(String name, List<List<Integer>> rows,
+            OptionalInt repeat, int version) {
+        for (List<Integer> row : rows) {
+            if (row.size() != rows.get(0).size()) {
+                throw new IllegalArgumentException("source " + name + " has rows of "
+                        + rows.get(0).size() + " and of " + row.size()
+                        + " values, and a source has one shape");
+            }
+            if (row.size() > 1 && version < Json.VERSION) {
+                throw new IllegalArgumentException("source " + name + " has a row of"
+                        + " several values, and version " + version
+                        + " has one value a row");
+            }
+        }
+        if (rows.isEmpty() || rows.get(0).size() == 1) {
+            return new Single(name, new Table<>(
+                    rows.stream().map(row -> row.get(0)).toList(), repeat));
+        }
+        if (rows.get(0).size() == 2) {
+            return new Pair(name, new Table<>(rows.stream()
+                    .map(row -> new Two(row.get(0), row.get(1))).toList(), repeat));
+        }
+        return new Triple(name, new Table<>(rows.stream()
+                .map(row -> new Three(row.get(0), row.get(1), row.get(2))).toList(),
+                repeat));
+    }
+
+    private static Tune tune(Block told, List<Block> mine, int number, int version) {
         if (told.rows().size() != 1) {
             throw new IllegalArgumentException("tune " + number + " is opened by "
                     + told.rows().size() + " rows, and one row opens it");
@@ -245,7 +289,7 @@ public final class Csv {
         int count = number(told.of(one, "rows"), "rows");
         List<String> names = new ArrayList<>();
         List<OptionalInt> repeats = new ArrayList<>();
-        List<List<Integer>> values = new ArrayList<>();
+        List<List<List<Integer>>> values = new ArrayList<>();
         List<Map<Register, Integer>> registers = empty(count, Register.class);
         List<Map<Timer, Effect>> effects = empty(count, Timer.class);
         List<Block> acts = new ArrayList<>();
@@ -266,9 +310,17 @@ public final class Csv {
                         throw new IllegalArgumentException("tune " + number + " opens values"
                                 + " before any source");
                     }
-                    List<Integer> last = values.get(values.size() - 1);
+                    List<List<Integer>> last = values.get(values.size() - 1);
                     for (List<String> line : block.rows()) {
-                        last.add(number(block.of(line, "value"), "value"));
+                        List<Integer> row = new ArrayList<>();
+                        row.add(number(block.of(line, "value"), "value"));
+                        for (int at = 2; at <= 3; at++) {
+                            String cell = block.of(line, "value" + at);
+                            if (!cell.isEmpty()) {
+                                row.add(number(cell, "value" + at));
+                            }
+                        }
+                        last.add(row);
                     }
                 }
                 case "registers" -> {
@@ -296,8 +348,8 @@ public final class Csv {
         }
         List<Source> sources = new ArrayList<>();
         for (int at = 0; at < names.size(); at++) {
-            sources.add(new Single(names.get(at), new Table<>(values.get(at),
-                    repeats.get(at))));
+            sources.add(source(names.get(at), values.get(at), repeats.get(at),
+                    version));
         }
         for (Block block : acts) {
             Timer timer = timer(block.name(), number);

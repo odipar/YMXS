@@ -293,6 +293,53 @@ final class CsvTest {
                 String.valueOf(no.getMessage()));
     }
 
+    /** A source of several values a row: csv.md 3.6 gives its value block
+     *  the cells `value2` and `value3`, and a source of one value a row
+     *  has the `value` cell alone. */
+    @Test
+    void aValueBlockCarriesTheValuesOfItsRow() {
+        String csv = """
+                ### multi
+                format,version,tunes
+                ymxs,4,1
+
+                ### tune
+                title,composer,writer,rate,rows,repeat
+                ,,t,50,2,0
+
+                ### source
+                name,repeat
+                a sweep,0
+
+                ### value
+                row,value,value2,value3
+                0,46,1,15
+                1,32,1,13
+
+                ### registers
+                row,r7
+                0,56
+
+                ### timerA
+                row,shape,source,target,prescaler,count,timerReset,placeReset
+                0,0,1,17,50,60,1,1
+                """;
+        Multi read = Csv.read(csv);
+        Source source = Tunes.sources(read.tunes().get(0)).get(0);
+        assertEquals(3, Tunes.columns(source), "the source is three values a row");
+        assertEquals(List.of(List.of(46, 1, 15), List.of(32, 1, 13)),
+                Tunes.rows(source).rows(), "the rows read as the cells stand");
+        String written = Csv.write(read);
+        assertTrue(written.contains("row,value,value2,value3"),
+                "the block names the cells it has: " + written);
+        assertTrue(written.contains("0,46,1,15"), "and the row is its values: " + written);
+        assertEquals(read, Csv.read(written), "the form crosses both ways");
+        String three = csv.replace("ymxs,4,1", "ymxs,3,1");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Csv.read(three)).getMessage());
+        assertTrue(said.contains("version 3 has one value a row"), said);
+    }
+
     @Test
     void aColumnIsFoundByItsNameAndNotItsPlace() {
         String csv = """

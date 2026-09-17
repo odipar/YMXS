@@ -2,6 +2,7 @@ package org.ymxs;
 
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Voice;
 
 /**
  * The figures of the two chips. Every value here is the YM2149's or the
@@ -77,6 +78,21 @@ public final class Chip {
             case R11, R12 -> "the envelope period";
             case R13 -> "the envelope shape";
         };
+    }
+
+    /** The fine byte of a voice's tone period: R0, R2 or R4. */
+    public static Register fine(Voice voice) {
+        return register(2 * voice.ordinal());
+    }
+
+    /** The coarse nibble of a voice's tone period: R1, R3 or R5. */
+    public static Register coarse(Voice voice) {
+        return register(2 * voice.ordinal() + 1);
+    }
+
+    /** The volume of a voice: R8, R9 or R10. */
+    public static Register volume(Voice voice) {
+        return register(8 + voice.ordinal());
     }
 
     /** The register number, 0 to 13, as the chip numbers them. */

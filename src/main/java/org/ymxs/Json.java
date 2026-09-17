@@ -9,6 +9,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Register;
@@ -17,6 +18,7 @@ import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
@@ -92,7 +94,7 @@ public final class Json {
         for (Source source : sources) {
             ObjectNode one = written.addObject();
             one.put("name", Tunes.name(source));
-            put(one, "repeat", Tunes.table(source).repeat());
+            put(one, "repeat", Tunes.rows(source).repeat());
             ArrayNode values = one.putArray("values");
             for (int value : Tunes.values(source)) {
                 values.add(value);
@@ -164,21 +166,21 @@ public final class Json {
             switch (effect) {
                 case Start start -> {
                     shape.add(START);
-                    target.add(Tunes.number(start.target()));
-                    source.add(sources.indexOf(start.source()) + 1);
-                    prescaler.add(Chip.divides(start.prescaler()));
-                    count.add(start.count());
-                    timerReset.add(start.timerReset() ? 1 : 0);
-                    placeReset.add(start.placeReset() ? 1 : 0);
+                    target.add(Tunes.number(Tunes.target(start)));
+                    source.add(sources.indexOf(Tunes.source(start)) + 1);
+                    prescaler.add(Chip.divides(Tunes.prescaler(start)));
+                    count.add(Tunes.count(start));
+                    timerReset.add(Tunes.timerReset(start) ? 1 : 0);
+                    placeReset.add(Tunes.placeReset(start) ? 1 : 0);
                 }
                 case Retune retune -> {
                     shape.add(RETUNE);
                     target.add(NONE);
                     source.add(NONE);
-                    prescaler.add(Chip.divides(retune.prescaler()));
-                    count.add(retune.count());
-                    timerReset.add(retune.timerReset() ? 1 : 0);
-                    placeReset.add(retune.placeReset() ? 1 : 0);
+                    prescaler.add(Chip.divides(retune.timing().prescaler()));
+                    count.add(retune.timing().count());
+                    timerReset.add(retune.timing().timerReset() ? 1 : 0);
+                    placeReset.add(retune.timing().placeReset() ? 1 : 0);
                 }
                 case Stop ignored -> {
                     shape.add(STOP);
@@ -324,18 +326,14 @@ public final class Json {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + source + ", and the tune runs " + sources.size());
                 }
-                yield new Start(Tunes.target(column(columns, "target", at, timer, rows)),
+                yield Tunes.starting(Tunes.target(column(columns, "target", at, timer, rows)),
                         sources.get(source - 1),
                         Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
                         column(columns, "count", at, timer, rows),
                         column(columns, "timerReset", at, timer, rows) == 1,
                         column(columns, "placeReset", at, timer, rows) == 1);
             }
-            case RETUNE -> new Retune(
-                    Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
-                    column(columns, "count", at, timer, rows),
-                    column(columns, "timerReset", at, timer, rows) == 1,
-                    column(columns, "placeReset", at, timer, rows) == 1);
+            case RETUNE -> new Retune(new Timing(Chip.prescaler(column(columns, "prescaler", at, timer, rows)), column(columns, "count", at, timer, rows), column(columns, "timerReset", at, timer, rows) == 1, column(columns, "placeReset", at, timer, rows) == 1));
             case STOP -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " on Timer " + timer + ", and a shape is " + START + ", "

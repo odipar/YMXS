@@ -11,12 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
@@ -175,7 +178,7 @@ final class CsvTest {
 
     @Test
     void aTimerHoldsWhatTheTextFormHoldsOfIt() {
-        Source square = Tunes.repeating("square", List.of(15, 0), 0);
+        Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(Timer.A, Tunes.struck(
                         Tunes.setting(Register.R8), square, Prescaler.BY_4, 100))),
@@ -204,8 +207,8 @@ final class CsvTest {
 
     @Test
     void everyShapeCrossesOver() {
-        Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
-        Source drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
+        Single square = Tunes.repeating("square 15", List.of(15, 0), 0);
+        Single drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
         Map<Register, Integer> all = new java.util.EnumMap<>(Register.class);
         for (Register register : Register.values()) {
             all.put(register, Chip.most(register));
@@ -215,8 +218,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, new Start(Tunes.setting(Register.R10), drum,
-                                Prescaler.BY_200, 0, false, true))),
+                        Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true)))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));

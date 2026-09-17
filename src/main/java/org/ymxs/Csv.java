@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Register;
@@ -15,6 +16,7 @@ import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
@@ -76,7 +78,7 @@ public final class Csv {
         List<Source> sources = Tunes.sources(tune);
         for (Source source : sources) {
             table(out, "source", "name", "repeat");
-            row(out, Tunes.name(source), repeat(Tunes.table(source)));
+            row(out, Tunes.name(source), repeat(Tunes.rows(source)));
             table(out, "value", "row", "value");
             List<Integer> values = Tunes.values(source);
             for (int line = 0; line < values.size(); line++) {
@@ -131,12 +133,12 @@ public final class Csv {
             }
             switch (effect) {
                 case Start start -> row(out, line, Json.START,
-                        Tunes.number(start.target()), sources.indexOf(start.source()) + 1,
-                        Chip.divides(start.prescaler()), start.count(),
-                        start.timerReset() ? 1 : 0, start.placeReset() ? 1 : 0);
+                        Tunes.number(Tunes.target(start)), sources.indexOf(Tunes.source(start)) + 1,
+                        Chip.divides(Tunes.prescaler(start)), Tunes.count(start),
+                        Tunes.timerReset(start) ? 1 : 0, Tunes.placeReset(start) ? 1 : 0);
                 case Retune retune -> row(out, line, Json.RETUNE, "", "",
-                        Chip.divides(retune.prescaler()), retune.count(),
-                        retune.timerReset() ? 1 : 0, retune.placeReset() ? 1 : 0);
+                        Chip.divides(retune.timing().prescaler()), retune.timing().count(),
+                        retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0);
                 case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "");
             }
         }
@@ -341,16 +343,13 @@ public final class Csv {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + number + ", and the tune runs " + sources.size());
                 }
-                yield new Start(Tunes.target(number(acts.of(one, "target"), "target")),
+                yield Tunes.starting(Tunes.target(number(acts.of(one, "target"), "target")),
                         sources.get(number - 1),
                         Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                         number(acts.of(one, "count"), "count"),
                         flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
             }
-            case Json.RETUNE -> new Retune(
-                    Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
-                    number(acts.of(one, "count"), "count"),
-                    flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
+            case Json.RETUNE -> new Retune(new Timing(Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")), number(acts.of(one, "count"), "count"), flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset"))));
             case Json.STOP -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " sets shape "
                     + shape + " of an effect, and a shape is " + Json.START + ", "

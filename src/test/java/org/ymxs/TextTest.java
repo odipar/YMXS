@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Prescaler;
@@ -21,6 +23,7 @@ import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
@@ -88,9 +91,9 @@ final class TextTest {
     /** A tune with all three shapes in it, written and read back. */
     @Test
     void everyShapeSurvivesTheRoundTrip() {
-        Source square = Tunes.repeating("square 15", List.of(15, 0), 0);
-        Source drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
-        Source buzzer = Tunes.repeating("buzzer", List.of(10), 0);
+        Single square = Tunes.repeating("square 15", List.of(15, 0), 0);
+        Single drum = Tunes.once("drum", List.of(8, 12, 15, 13, 5));
+        Single buzzer = Tunes.repeating("buzzer", List.of(10), 0);
         List<Row> rows = new ArrayList<>();
         rows.add(Tunes.EMPTY);
         // every register a row sets, at the largest value that fits it
@@ -108,16 +111,13 @@ final class TextTest {
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, new Start(Tunes.setting(Register.R10), drum,
-                        Prescaler.BY_200, 0, false, true))));
+                Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true)))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.B, new Start(Tunes.setting(Register.R13), buzzer,
-                        Prescaler.BY_50, 1, true, false),
-                Timer.C, new Start(Tunes.setting(Register.R9), square,
-                        Prescaler.BY_10, 3, false, false))));
+                Timer.B, new StartOne(Tunes.setting(Register.R13), buzzer, new Timing(Prescaler.BY_50, 1, true, false)),
+                Timer.C, new StartOne(Tunes.setting(Register.R9), square, new Timing(Prescaler.BY_10, 3, false, false)))));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.A, Tunes.bend(Prescaler.BY_4, 118),
-                Timer.D, new Retune(Prescaler.BY_100, 7, true, true))));
+                Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true)))));
         rows.add(new Row(Map.of(Register.R8, 12), Map.of(
                 Timer.A, Tunes.STOP, Timer.B, Tunes.STOP,
                 Timer.C, Tunes.STOP, Timer.D, Tunes.STOP)));
@@ -167,7 +167,7 @@ final class TextTest {
 
     @Test
     void aTimerIsAStructureOfItsOwn() {
-        Source square = Tunes.repeating("square", List.of(15, 0), 0);
+        Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,

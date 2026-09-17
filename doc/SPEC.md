@@ -71,25 +71,58 @@ public interface YMXS {
 
     sealed interface Effect permits Start, Retune, Stop { }
 
-    record Start(Target target, Source source, Prescaler prescaler, int count,
-                 boolean timerReset, boolean placeReset) implements Effect { }
+    sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
 
-    record Retune(Prescaler prescaler, int count, boolean timerReset,
-                  boolean placeReset) implements Effect { }
+    record Timing(Prescaler prescaler, int count, boolean timerReset,
+                  boolean placeReset) { }
+
+    record StartOne(OneTarget target, Single source, Timing timing) implements Start { }
+
+    record StartPair(TwoTarget target, Pair source, Timing timing) implements Start { }
+
+    record StartTriple(ThreeTarget target, Triple source, Timing timing) implements Start { }
+
+    record Retune(Timing timing) implements Effect { }
 
     record Stop() implements Effect { }
 
-    sealed interface Target permits SetRegister { }
+    sealed interface Target permits OneTarget, TwoTarget, ThreeTarget { }
 
-    record SetRegister(Register register) implements Target { }
+    sealed interface OneTarget extends Target permits SetRegister { }
 
-    sealed interface Source permits Single { }
+    sealed interface TwoTarget extends Target permits SetTone, SetNoise, SetEnvelope { }
+
+    sealed interface ThreeTarget extends Target permits SetVoice, SetBuzzer { }
+
+    record SetRegister(Register register) implements OneTarget { }
+
+    record SetTone(Voice voice) implements TwoTarget { }
+
+    record SetNoise(Voice voice) implements TwoTarget { }
+
+    record SetEnvelope() implements TwoTarget { }
+
+    record SetVoice(Voice voice) implements ThreeTarget { }
+
+    record SetBuzzer() implements ThreeTarget { }
+
+    sealed interface Source permits Single, Pair, Triple { }
 
     record Single(String name, Table<Integer> table) implements Source { }
+
+    record Pair(String name, Table<Two> table) implements Source { }
+
+    record Triple(String name, Table<Three> table) implements Source { }
+
+    record Two(int first, int second) { }
+
+    record Three(int first, int second, int third) { }
 
     enum Register {
         R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
     }
+
+    enum Voice { A, B, C }
 
     enum Timer { A, B, C, D }
 

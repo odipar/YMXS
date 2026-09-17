@@ -10,6 +10,7 @@ import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.Chip;
 import org.ymxs.Tunes;
+import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
@@ -202,7 +203,7 @@ public final class Read {
                         boolean unmoved = !keyframe && slot[i].kind() == Slot.SQUARE
                                 && lastKind[i] == Slot.SQUARE
                                 && lastTarget[i] == slot[i].target();
-                        here.put(TIMER_OF[i], new Start(Tunes.setting(slot[i].target()),
+                        here.put(TIMER_OF[i], Tunes.starting(Tunes.setting(slot[i].target()),
                                 sounds, slot[i].prescaler(), slot[i].count(), stopped,
                                 !unmoved));
                         running[i] = slot[i];
@@ -210,13 +211,12 @@ public final class Read {
                         lastKind[i] = slot[i].kind();
                         lastTarget[i] = slot[i].target();
                         if (slot[i].kind() == Slot.RECORDING) {
-                            drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.table(sounds)),
+                            drumEnd[i] = f + Chip.frames(Tunes.size(Tunes.rows(sounds)),
                                     slot[i].prescaler(), slot[i].count(), song.playerHz());
                         }
                     } else if (slot[i].prescaler() != prescalerNow[i]
                             || slot[i].count() != countNow[i]) {
-                        here.put(TIMER_OF[i], new Retune(slot[i].prescaler(), slot[i].count(),
-                                false, false));
+                        here.put(TIMER_OF[i], new Retune(new Timing(slot[i].prescaler(), slot[i].count(), false, false)));
                     }
                     prescalerNow[i] = slot[i].prescaler();
                     countNow[i] = slot[i].count();

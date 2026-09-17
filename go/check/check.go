@@ -77,11 +77,11 @@ func Row(row ymxs.Row) []string {
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
-		said := count(e.Count)
-		said = append(said, rate(e.Prescaler, e.Count)...)
+		said := count(ymxs.StartTiming(e).Count)
+		said = append(said, rate(ymxs.StartTiming(e).Prescaler, ymxs.StartTiming(e).Count)...)
 		return append(said, runs(e)...)
 	case ymxs.Retune:
-		return append(count(e.Count), rate(e.Prescaler, e.Count)...)
+		return append(count(e.Timing.Count), rate(e.Timing.Prescaler, e.Timing.Count)...)
 	case ymxs.Stop:
 		return nil
 	}
@@ -92,11 +92,14 @@ func Effect(effect ymxs.Effect) []string {
 // values are read against the target that runs it, so this reads only what
 // is decidable without one.
 func Source(source ymxs.Source) []string {
-	said := table(len(ymxs.Values(source)), ymxs.SourceTable(source).Repeat, "the source")
-	for at, value := range ymxs.Values(source) {
-		if value < 0 {
-			said = append(said, fmt.Sprintf("row %d is %d, and a register is 0 upward",
-				at, value))
+	rows := ymxs.SourceRows(source)
+	said := table(len(rows.Rows), rows.Repeat, "the source")
+	for at, row := range rows.Rows {
+		for _, value := range row {
+			if value < 0 {
+				said = append(said, fmt.Sprintf("row %d is %d, and a register is 0 upward",
+					at, value))
+			}
 		}
 	}
 	return said
@@ -105,17 +108,20 @@ func Source(source ymxs.Source) []string {
 // runs is what a start must satisfy: the target reads the row shape the
 // source writes, and the source's values fit that register.
 func runs(start ymxs.Start) []string {
-	said := Source(start.Source)
-	if ymxs.TargetColumns(start.Target) != ymxs.SourceColumns(start.Source) {
+	said := Source(ymxs.StartSource(start))
+	if ymxs.TargetColumns(ymxs.StartTarget(start)) != ymxs.SourceColumns(ymxs.StartSource(start)) {
 		return append(said, fmt.Sprintf("a source of %d values a row on %s, which reads %d",
-			ymxs.SourceColumns(start.Source), ymxs.TargetName(start.Target),
-			ymxs.TargetColumns(start.Target)))
+			ymxs.SourceColumns(ymxs.StartSource(start)), ymxs.TargetName(ymxs.StartTarget(start)),
+			ymxs.TargetColumns(ymxs.StartTarget(start))))
 	}
-	most := ymxs.TargetMost(start.Target)
-	for at, value := range ymxs.Values(start.Source) {
-		if value > most {
-			said = append(said, fmt.Sprintf("a source on %s whose row %d is %d, and the"+
-				" target is 0 to %d", ymxs.TargetName(start.Target), at, value, most))
+	mosts := ymxs.TargetMosts(ymxs.StartTarget(start))
+	for at, row := range ymxs.SourceRows(ymxs.StartSource(start)).Rows {
+		for value, most := range mosts {
+			if row[value] > most {
+				said = append(said, fmt.Sprintf("a source on %s whose row %d is %d, and"+
+					" the target is 0 to %d", ymxs.TargetName(ymxs.StartTarget(start)),
+					at, row[value], most))
+			}
 		}
 	}
 	return said
@@ -279,16 +285,20 @@ func (w *writing) repeats(at int) bool {
 // fixes the order. The rule is the writer's to settle, and the row where
 // the second starts is where it arises.
 func (w *writing) shared(at int, timer ymxs.Timer, target ymxs.Target) {
-	register := written(target)
+	registers := written(target)
 	for _, one := range ymxs.Timers {
 		runs, on := w.running[one]
 		if one == timer || !on || at >= runs.until {
 			continue
 		}
-		if written(runs.target) == register {
+		for _, register := range registers {
+			if !has(written(runs.target), register) {
+				continue
+			}
 			w.say(at, timer, fmt.Sprintf("starts on %s, where Timer %s runs: rule 2"+
 				" leaves the order of two timers writing one register to the writer",
 				register, one), runs.until != math.MaxInt32)
+			break
 		}
 	}
 }
@@ -318,7 +328,7 @@ func (w *writing) wrap() {
 		}
 		said := fmt.Sprintf("the tune repeats to row %d, and Timer %s runs on %s when its"+
 			" last row has played: the wrap resumes with the timer running from the pass"+
-			" before", to, timer, written(runs.target))
+			" before", to, timer, written(runs.target)[0])
 		if runs.until != math.MaxInt32 {
 			said += reckoned
 		}
@@ -332,7 +342,7 @@ func (w *writing) collided(timer ymxs.Timer, runs *running) {
 	if runs.collisions == 0 {
 		return
 	}
-	register := written(runs.target)
+	register := written(runs.target)[0]
 	if runs.collisions == 1 {
 		w.say(runs.first, timer, fmt.Sprintf("runs on %s, and this row sets it", register),
 			runs.until != math.MaxInt32)
@@ -352,14 +362,14 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		w.place(at, timer, e)
-		w.shared(at, timer, e.Target)
+		w.shared(at, timer, ymxs.StartTarget(e))
 		if before, on := w.running[timer]; on {
 			w.collided(timer, before)
 		}
-		w.running[timer] = &running{target: e.Target, source: e.Source, from: at,
+		w.running[timer] = &running{target: ymxs.StartTarget(e), source: ymxs.StartSource(e), from: at,
 			until: w.until(at, e), first: -1, last: -1}
-		w.lastSource[timer] = e.Source
-		w.lastTarget[timer] = e.Target
+		w.lastSource[timer] = ymxs.StartSource(e)
+		w.lastTarget[timer] = ymxs.StartTarget(e)
 	case ymxs.Retune:
 		if _, on := w.runs(timer, at); !on {
 			w.say(at, timer, "retunes an effect that is idle: a rate written to a timer"+
@@ -386,7 +396,7 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 // starts has the row count of the one this effect last ran on the same
 // target.
 func (w *writing) place(at int, timer ymxs.Timer, start ymxs.Start) {
-	if start.PlaceReset {
+	if ymxs.StartTiming(start).PlaceReset {
 		return
 	}
 	before, ran := w.lastSource[timer]
@@ -396,17 +406,17 @@ func (w *writing) place(at int, timer ymxs.Timer, start ymxs.Start) {
 		return
 	}
 	last, on := w.lastTarget[timer]
-	if !on || !ymxs.TargetEqual(start.Target, last) {
+	if !on || !ymxs.TargetEqual(ymxs.StartTarget(start), last) {
 		named := "no target"
 		if on {
 			named = ymxs.TargetName(last)
 		}
-		w.say(at, timer, "starts a source on "+ymxs.TargetName(start.Target)+
+		w.say(at, timer, "starts a source on "+ymxs.TargetName(ymxs.StartTarget(start))+
 			" without the place's reset, and this timer last ran on "+named, false)
 		return
 	}
-	now := len(ymxs.Values(start.Source))
-	then := len(ymxs.Values(before))
+	now := len(ymxs.SourceRows(ymxs.StartSource(start)).Rows)
+	then := len(ymxs.SourceRows(before).Rows)
 	if now != then {
 		w.say(at, timer, fmt.Sprintf("starts a source of %d rows without the place's"+
 			" reset, and the one before it had %d", now, then), false)
@@ -421,11 +431,17 @@ func (w *writing) registers(at int, row ymxs.Row) {
 		if !on || at >= runs.until {
 			continue
 		}
-		register := written(runs.target)
-		if register == ymxs.R13 {
-			continue
+		hit := false
+		for _, register := range written(runs.target) {
+			if register == ymxs.R13 {
+				continue
+			}
+			if _, set := row.Registers[register]; set {
+				hit = true
+				break
+			}
 		}
-		if _, set := row.Registers[register]; !set {
+		if !hit {
 			continue
 		}
 		if runs.first < 0 {
@@ -458,19 +474,28 @@ const reckoned = ", which rests on how long a source that plays once runs, recko
 
 // until is the row a start's source ends on, or no row where it repeats.
 func (w *writing) until(at int, start ymxs.Start) int {
-	if _, repeats := ymxs.SourceTable(start.Source).Repeat(); repeats {
+	if _, repeats := ymxs.SourceRows(ymxs.StartSource(start)).Repeat(); repeats {
 		return math.MaxInt32
 	}
-	return at + ymxs.Frames(len(ymxs.Values(start.Source)), start.Prescaler,
-		start.Count, w.tune.Rate)
+	return at + ymxs.Frames(len(ymxs.SourceRows(ymxs.StartSource(start)).Rows),
+		ymxs.StartTiming(start).Prescaler,
+		ymxs.StartTiming(start).Count, w.tune.Rate)
 }
 
-func written(target ymxs.Target) ymxs.Register {
-	switch t := target.(type) {
-	case ymxs.SetRegister:
-		return t.Register
+// written is the registers a target writes, value i of a row to register
+// i (ymxs.TargetRegisters).
+func written(target ymxs.Target) []ymxs.Register {
+	return ymxs.TargetRegisters(target)
+}
+
+// has is whether the registers have that one in them.
+func has(registers []ymxs.Register, one ymxs.Register) bool {
+	for _, register := range registers {
+		if register == one {
+			return true
+		}
 	}
-	panic(fmt.Sprintf("no target %T", target))
+	return false
 }
 
 func (w *writing) say(at int, timer ymxs.Timer, what string, rests bool) {

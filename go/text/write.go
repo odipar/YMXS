@@ -90,9 +90,9 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				source := sources[at]
 				w.object(depth+2, func(s *entries) {
 					s.text("name", ymxs.SourceName(source))
-					s.repeat("repeat", ymxs.SourceTable(source))
+					s.repeat("repeat", ymxs.SourceRows(source))
 					s.field("values", func() {
-						w.values(depth+3, ymxs.Values(source))
+						w.rows(depth+3, ymxs.SourceRows(source).Rows)
 					})
 				})
 			})
@@ -141,19 +141,19 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 		switch e := effect.(type) {
 		case ymxs.Start:
 			shape[at] = Start
-			target[at] = ymxs.TargetNumber(e.Target)
-			source[at] = indexOf(sources, e.Source) + 1
-			prescaler[at] = ymxs.Divides(e.Prescaler)
-			count[at] = e.Count
-			timerReset[at] = flag(e.TimerReset)
-			placeReset[at] = flag(e.PlaceReset)
+			target[at] = ymxs.TargetNumber(ymxs.StartTarget(e))
+			source[at] = indexOf(sources, ymxs.StartSource(e)) + 1
+			prescaler[at] = ymxs.Divides(ymxs.StartTiming(e).Prescaler)
+			count[at] = ymxs.StartTiming(e).Count
+			timerReset[at] = flag(ymxs.StartTiming(e).TimerReset)
+			placeReset[at] = flag(ymxs.StartTiming(e).PlaceReset)
 		case ymxs.Retune:
 			shape[at] = Retune
 			target[at], source[at] = None, None
-			prescaler[at] = ymxs.Divides(e.Prescaler)
-			count[at] = e.Count
-			timerReset[at] = flag(e.TimerReset)
-			placeReset[at] = flag(e.PlaceReset)
+			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)
+			count[at] = e.Timing.Count
+			timerReset[at] = flag(e.Timing.TimerReset)
+			placeReset[at] = flag(e.Timing.PlaceReset)
 		case ymxs.Stop:
 			shape[at] = Stop
 			target[at], source[at] = None, None
@@ -273,6 +273,23 @@ func (w *writer) array(depth, values int, write func(int)) {
 }
 
 // values writes a column at that depth: one line, wrapping at Wrap.
+// rows writes a source's rows: a number where the source has one value a
+// row, and an array of its values where it has more (json.md 4.1).
+func (w *writer) rows(depth int, rows [][]int) {
+	w.array(depth, len(rows), func(at int) {
+		if depth > arrays && at > 0 && at%Wrap == 0 {
+			w.newline(depth)
+		}
+		if len(rows[at]) == 1 {
+			w.b.WriteString(strconv.Itoa(rows[at][0]))
+			return
+		}
+		w.array(depth+1, len(rows[at]), func(value int) {
+			w.b.WriteString(strconv.Itoa(rows[at][value]))
+		})
+	})
+}
+
 func (w *writer) values(depth int, column []int) {
 	w.array(depth, len(column), func(at int) {
 		if depth > arrays && at > 0 && at%Wrap == 0 {
@@ -342,6 +359,8 @@ func tableRepeat(table any) (int, bool) {
 	case ymxs.Table[ymxs.Row]:
 		return t.Repeat()
 	case ymxs.Table[int]:
+		return t.Repeat()
+	case ymxs.Table[[]int]:
 		return t.Repeat()
 	}
 	return 0, false

@@ -73,66 +73,203 @@ type Effect interface {
 	effect()
 }
 
-// Start runs Source on Target at that rate, from this row on. Every start
-// records the target and the rate, changed or not, since a start defines
-// the effect rather than the parts of it that differ.
-type Start struct {
-	Target     Target
-	Source     Source
+// Timing is the rate a row writes the timer, and the two resets it
+// performs with it: the prescaler and the count are the rate (SPEC.md
+// 3.3), and a start and a retune each record one of these.
+type Timing struct {
 	Prescaler  Prescaler
 	Count      int
 	TimerReset bool
 	PlaceReset bool
+}
+
+// Start runs a source on a target at that rate, from this row on. Every
+// start records the target and the rate, changed or not, since a start
+// defines the effect rather than the parts of it that differ.
+//
+// A start is a shape a width: each pairs a target with a source of the
+// values a row that target reads, so a source that fits its target is a
+// shape here rather than a rule a check reads.
+type Start interface {
+	Effect
+	start()
+}
+
+// StartOne is a start of one value a row.
+type StartOne struct {
+	Target OneTarget
+	Source Single
+	Timing Timing
+}
+
+// StartPair is a start of two values a row.
+type StartPair struct {
+	Target TwoTarget
+	Source Pair
+	Timing Timing
+}
+
+// StartTriple is a start of three values a row.
+type StartTriple struct {
+	Target ThreeTarget
+	Source Triple
+	Timing Timing
 }
 
 // Retune leaves the effect on its source and target, at the rate in this
 // value. A bend changes the count; a note struck again at the rate already
 // running changes the place alone.
 type Retune struct {
-	Prescaler  Prescaler
-	Count      int
-	TimerReset bool
-	PlaceReset bool
+	Timing Timing
 }
 
 // Stop stops the effect: its timer stops, and the effect is idle until a
 // later row starts a source on it.
 type Stop struct{}
 
-func (Start) effect()  {}
-func (Retune) effect() {}
-func (Stop) effect()   {}
+func (StartOne) effect()    {}
+func (StartPair) effect()   {}
+func (StartTriple) effect() {}
+func (Retune) effect()      {}
+func (Stop) effect()        {}
+
+func (StartOne) start()    {}
+func (StartPair) start()   {}
+func (StartTriple) start() {}
 
 // Target is what a timer's tick calls with a source's row: a procedure
-// that reads one row and writes it. A later version defines targets
-// reaching the MC68901 registers, and targets that read a row of more than
-// one value.
+// that reads one row and writes it to the registers of the target, value i
+// to register i. A target is grouped by the values a row it reads, so a
+// start pairs it with a source of that width. A later version defines
+// targets reaching the MC68901 registers.
 type Target interface {
 	target()
 }
 
-// SetRegister is the target of this version, setR0 to setR13, which writes
-// a source's row to one YM2149 register.
+// OneTarget is a target of one value a row.
+type OneTarget interface {
+	Target
+	oneTarget()
+}
+
+// TwoTarget is a target of two values a row, the first value to the first
+// register it writes.
+type TwoTarget interface {
+	Target
+	twoTarget()
+}
+
+// ThreeTarget is a target of three values a row, in the order of the
+// registers it writes.
+type ThreeTarget interface {
+	Target
+	threeTarget()
+}
+
+// SetRegister is setR0 to setR13, which write a source's row to one
+// YM2149 register.
 type SetRegister struct {
 	Register Register
 }
 
-func (SetRegister) target() {}
+// SetTone is the tone period of one voice, fine then coarse.
+type SetTone struct {
+	Voice Voice
+}
+
+// SetNoise is the noise period and the volume of one voice. R6 is one
+// register for the three voices, so two of these running at once write one
+// period and the later tick stands.
+type SetNoise struct {
+	Voice Voice
+}
+
+// SetEnvelope is the envelope period, fine then coarse.
+type SetEnvelope struct{}
+
+// SetVoice is the tone period of one voice and its volume, whose bit 4
+// selects the envelope, so one source moves a voice's pitch and volume and
+// hands the voice to the envelope generator on a row.
+type SetVoice struct {
+	Voice Voice
+}
+
+// SetBuzzer is the envelope period and the shape, which every write
+// restarts.
+type SetBuzzer struct{}
+
+func (SetRegister) target()    {}
+func (SetTone) target()        {}
+func (SetNoise) target()       {}
+func (SetEnvelope) target()    {}
+func (SetVoice) target()       {}
+func (SetBuzzer) target()      {}
+func (SetRegister) oneTarget() {}
+func (SetTone) twoTarget()     {}
+func (SetNoise) twoTarget()    {}
+func (SetEnvelope) twoTarget() {}
+func (SetVoice) threeTarget()  {}
+func (SetBuzzer) threeTarget() {}
 
 // Source is a table a tick advances a row at a time, its target writing
-// each row. A later version defines sources of more than one value a row.
+// each row. A source is grouped by the values a row, as a target is by the
+// values it reads.
 type Source interface {
 	source()
 }
 
-// Single is the source of this version: one value a row, the row shape
-// every target of this version reads.
+// Single is one value a row, the row a target of one register reads.
 type Single struct {
 	Name  string
 	Table Table[int]
 }
 
+// Pair is two values a row, the row a target of two registers reads.
+type Pair struct {
+	Name  string
+	Table Table[Two]
+}
+
+// Triple is three values a row, the row a target of three registers reads.
+type Triple struct {
+	Name  string
+	Table Table[Three]
+}
+
+// Two is one row of a source of two values, a value a register of the
+// target that runs it.
+type Two struct {
+	First  int
+	Second int
+}
+
+// Three is one row of a source of three values, a value a register of the
+// target that runs it.
+type Three struct {
+	First  int
+	Second int
+	Third  int
+}
+
 func (Single) source() {}
+func (Pair) source()   {}
+func (Triple) source() {}
+
+// Voice is one of the three voices of the YM2149, which a target names
+// where it writes the registers of one.
+type Voice int
+
+// The three voices, A to C.
+const (
+	VoiceA Voice = iota
+	VoiceB
+	VoiceC
+)
+
+// String is the voice's letter, A to C.
+func (v Voice) String() string {
+	return string(rune('A' + int(v)))
+}
 
 // Register is one of the fourteen YM2149 registers a row sets and a target
 // writes. Two of the chip's sixteen are its I/O ports, outside a tune.

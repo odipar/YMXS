@@ -88,6 +88,21 @@ func Reaches(register Register) string {
 	panic(fmt.Sprintf("no register %d", int(register)))
 }
 
+// Fine is the fine byte of a voice's tone period: R0, R2 or R4.
+func Fine(voice Voice) Register {
+	return Register(2 * int(voice))
+}
+
+// Coarse is the coarse nibble of a voice's tone period: R1, R3 or R5.
+func Coarse(voice Voice) Register {
+	return Register(2*int(voice) + 1)
+}
+
+// Volume is the volume of a voice: R8, R9 or R10.
+func Volume(voice Voice) Register {
+	return Register(8 + int(voice))
+}
+
 // Number is the register number, 0 to 13, as the chip numbers them.
 func Number(register Register) int {
 	return int(register)

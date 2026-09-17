@@ -131,3 +131,34 @@ func TestAHeadingThisDoesNotReadIsNamed(t *testing.T) {
 		}
 	}
 }
+
+// TestASourceOfSeveralValuesCrossesTheForms is a tune with a source of
+// three values a row: it crosses to the tables and back, and the value
+// block names value1, value2 and value3 (csv.md 3.6).
+func TestASourceOfSeveralValuesCrossesTheForms(t *testing.T) {
+	said := `{"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
+		"writer":"t","rate":50,"rows":2,"repeat":0,
+		"sources":[{"name":"a sweep","repeat":0,"values":[[46,1,15],[32,1,13]]}],
+		"registers":{"r7":[56,-1]},
+		"timerA":{"shape":[0,-1],"target":[17,-1],"source":[1,-1],
+		"prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],"placeReset":[1,-1]}}]}`
+	multi, err := text.Read(said)
+	if err != nil {
+		t.Fatal(err)
+	}
+	made := csv.Write(multi)
+	if !strings.Contains(made, "row,value1,value2,value3") {
+		t.Errorf("the block names the cells it has:\n%s", made)
+	}
+	if !strings.Contains(made, "0,46,1,15") {
+		t.Errorf("and the row is its values:\n%s", made)
+	}
+	back, err := csv.Read(made)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text.Write(back) != text.Write(multi) {
+		t.Errorf("the tune moved crossing to the tables and back:\n%s\n%s",
+			text.Write(multi), text.Write(back))
+	}
+}

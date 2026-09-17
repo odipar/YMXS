@@ -105,7 +105,7 @@ final class ShapeTest {
                 continue;
             }
             String said = Files.readString(at);
-            Matcher cited = Pattern.compile("([A-Za-z_]+)\\.md (\\d+(?:\\.\\d+)*)")
+            Matcher cited = Pattern.compile("([A-Za-z_]+)\\.md\\)? (\\d+(?:\\.\\d+)*)")
                     .matcher(said);
             while (cited.find()) {
                 Path in = Path.of("doc", cited.group(1) + ".md");

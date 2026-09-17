@@ -18,13 +18,30 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.3.5` beside `v0.3.5`.
+version of it is a tag of that directory: `go/v0.3.6` beside `v0.3.6`.
 
 A player pins a version of this format: the structure's version is 3 and
 stands in every file this writes, and a release's number names the tools
 rather than the format.
 
 ## Published
+
+### 0.3.6, 2026-09-17
+
+<https://github.com/odipar/YMXS/releases/tag/v0.3.6>, built from the commit
+tagged `v0.3.6`.
+
+A check reads one citation more. The structure, the tools and the two forms
+are 0.3.5's, so every file of this release reads under 0.3.5 and the other
+way round, and the JSON and CSV the tools write are the bytes 0.3.5 wrote.
+
+- `everyClauseCitedInAnotherDocumentIsDefined` read a citation written as
+  `SPEC.md 7` and passed over one written through a link, the form
+  README.md uses, so the clauses a reader follows from there were read by
+  no check. The closing bracket is part of the pattern now: 75 citations
+  are read where 67 were, and each resolves.
+- ST4, DTX and YMXR read a citation the same way, so one check stands in
+  the four repositories of the family.
 
 ### 0.3.5, 2026-09-16
 

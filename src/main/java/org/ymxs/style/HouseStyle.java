@@ -298,9 +298,9 @@ public record HouseStyle(List<Construct> constructs, List<String> names,
         }
     }
 
-    /** Whether {@code path} is one of the scripts under the tree's own
-     *  {@code bin/}. A directory of that name elsewhere is a build's, and
-     *  what a build writes there is an executable rather than a script. */
+    /** Whether {@code path} is one of the scripts under the repository's
+     *  {@code bin/}. A directory of that name deeper in the tree is a
+     *  build's, and a build writes executables there, not scripts. */
     private static boolean inBin(Path path) {
         Path up = path.getParent();
         if (up == null || up.getFileName() == null

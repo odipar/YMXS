@@ -72,6 +72,90 @@ the register of value i. So the structure's check has the rule in it
 already, and a version that assigns the targets above is where W and U
 first differ.
 
+### The Java shapes
+
+`org.ymxs.YMXS` is the structure's specification, and the two shapes this
+needs are sealed interfaces of one record each, each with a javadoc line
+naming this extension:
+
+```java
+sealed interface Target permits SetRegister { }
+record SetRegister(Register register) implements Target { }
+
+sealed interface Source permits Single { }
+record Single(String name, Table<Integer> table) implements Source { }
+```
+
+A version that assigns the targets adds a record to each:
+
+```java
+sealed interface Target permits SetRegister, SetRegisters { }
+
+/** A target that writes a source's row to several registers, value i of
+ *  the row to register i of this list. */
+record SetRegisters(List<Register> registers) implements Target { }
+
+sealed interface Source permits Single, Several { }
+
+/** A source of several values a row, one a register of the target that
+ *  runs it. */
+record Several(String name, Table<List<Integer>> table) implements Source { }
+```
+
+A record added rather than a record widened leaves every structure of
+version 3 the shape it is, and the sealed interfaces stop `Chip`, `Tunes`
+and `Check` compiling until each reads the new shape, which the package's
+javadoc names as the mechanism.
+
+An effect pairing a source with a target it fits is a rule rather than a
+shape: no record expresses "this source has a value a register of that
+target". `Check` reads it, and 1.11 has the line already.
+
+```java
+new Start(new SetRegisters(List.of(R0, R1, R8)),
+          new Several("a sweep", new Table<>(List.of(
+                  List.of(0x2E, 0x01, 0x0F),
+                  List.of(0x20, 0x01, 0x0D)), OptionalInt.of(0))),
+          Prescaler.BY_64, 40, true, true);
+```
+
+### What names a target
+
+Two ways, and the choice decides where the names and the numbers of the
+table above live.
+
+- **The registers.** `SetRegisters(List.of(R0, R1, R8))`. The structure
+  models any tuple of registers, and YMXR assigns numbers to the eight
+  worth an encoding; a structure of another tuple is one YMXR leaves
+  unencoded, as a rate above 65,535 is (YMXR, tools.md 3.6). This follows
+  the rule `YMXS.java` opens with: no part of the structure is arranged
+  for a form, and every limit in it follows from the two chips.
+- **A named group.** An enum of the eight and `SetVoice(Voice.A)`. The
+  names and the numbers then stand in the structure, a tuple outside them
+  cannot be expressed, and every reader reads one enum rather than a
+  list.
+
+### The accessors
+
+`Tunes` has the two figures the check compares already: `columns(Target)`
+is U, the values a row of a source this target reads, and
+`columns(Source)` is W, the values a row the source has. Both return 1
+today and the check compares them, so that condition reads as it stands.
+
+Three accessors change shape, and twenty-five call sites in the two trees
+and the tests read them:
+
+| accessor | today | with the shape |
+|---|---|---|
+| `most(Target)` | the most of one register | a most a value: `mosts(Target)`, or `most(Target, int value)` |
+| `table(Source)` | `Table<Integer>` | `rows(Source)`, a `Table<List<Integer>>` whose row is a list |
+| `values(Source)` | `List<Integer>`, one a row | `values(Source, int column)`, one a row of that column |
+
+`Chip.most(Register)` and `Chip.number(Register)` read one register and
+stand as they are; `Tunes.number(Target)` and `Tunes.name(Target)` gain
+the arm that reads the new record, and the numbers they return for it are
+the table above.
+
 ### What a version of this costs
 
 - SPEC.md: 3.1.1 and 3.1.2 (the targets and their numbers), 3.2.1 and

@@ -61,8 +61,12 @@ public final class Lha {
         this.sourceLeft = size;
     }
 
-    /** Whether this is an LHA archive: any {@code -lh?-} method at offset 2. */
-    static boolean isArchive(byte[] data) {
+    /** Whether this is an LHA archive: any {@code -lh?-} method at offset 2.
+     *
+     * <p>Public for a reader of YM dumps outside this package: YMXR reads a
+     * packed dump through the same two calls its Go tree reads it through
+     * (doc/tools.md). */
+    public static boolean isArchive(byte[] data) {
         return data.length >= 22 && (data[0] & 0xFF) != 0
                 && data[2] == '-' && data[3] == 'l' && data[4] == 'h'
                 && data[6] == '-';
@@ -71,10 +75,12 @@ public final class Lha {
     /**
      * Unpacks the archive's first member.
      *
+     * <p>Public with {@link #isArchive}, and for the same reader.
+     *
      * @throws IllegalArgumentException with a printable reason when the
      *     header is damaged or the method is one no YM archive uses
      */
-    static byte[] unpack(byte[] archive) {
+    public static byte[] unpack(byte[] archive) {
         if (!isArchive(archive)) {
             throw new IllegalArgumentException("not an LHA archive");
         }

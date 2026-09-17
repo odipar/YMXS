@@ -18,13 +18,44 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.3.6` beside `v0.3.6`.
+version of it is a tag of that directory: `go/v0.4.0` beside `v0.4.0`.
 
-A player pins a version of this format: the structure's version is 3 and
-stands in every file this writes, and a release's number names the tools
-rather than the format.
+A player pins a version of this format: the structure's version is 4, a
+writer writes 4 and a reader reads 4 and 3, and a release's number names
+the tools rather than the format.
 
 ## Published
+
+### 0.4.0, 2026-09-17
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.0>, built from the commit
+tagged `v0.4.0`.
+
+A target that writes several registers, and a source of several values a
+row. The structure's version is 4: a writer writes 4, a reader reads 4 and
+3, and a 0.3.6 reader reports a file this writes as an error of the form.
+A version-3 file reads here as it read there.
+
+- targets 14 to 24, each writing its registers in one order and reading one
+  value of the row each: `setToneA/B/C` writes R0 R1, R2 R3, R4 R5;
+  `setVoiceA/B/C` those and the voice's volume; `setEnvelope` R11 R12;
+  `setBuzzer` those and the shape; `setNoiseA/B/C` the noise period and one
+  voice's volume. An effect runs a voice's period and its volume on one
+  timer where it needed two
+- a source of two or three values a row, whose table is one width from top
+  to bottom (SPEC.md 3.2.1)
+- a source fits its target by shape and not by a check: `Target` is sealed
+  over `OneTarget`, `TwoTarget` and `ThreeTarget`, a source over `Single`,
+  `Pair` and `Triple`, and a start over `StartOne`, `StartPair` and
+  `StartTriple`, each pairing a target with the source of that width.
+  `Timing` is the prescaler, the count and the two resets, which `Retune`
+  and every start share
+- in JSON a row is a number where the source is one value a row and an
+  array of two or three where it is more (json.md 2.4); in CSV a value
+  block names its cells `value` for one and `value1`, `value2`, `value3`
+  for more (csv.md 3.6)
+- the Go tree mirrors the Java tree interface for interface, and
+  `ParityTest` reads the same files through both
 
 ### 0.3.6, 2026-09-17
 

@@ -272,7 +272,7 @@ final class CsvTest {
     @Test
     void aHeadingThisDoesNotReadIsNamed() {
         IllegalArgumentException old = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi,format,version,tunes\nymxs,3,1\n"));
+                () -> Csv.read("### multi,format,version,tunes\nymxs,4,1\n"));
         assertTrue(String.valueOf(old.getMessage()).contains("has a comma in it"),
                 String.valueOf(old.getMessage()));
         IllegalArgumentException alone = assertThrows(IllegalArgumentException.class,
@@ -280,7 +280,7 @@ final class CsvTest {
         assertTrue(String.valueOf(alone.getMessage()).contains("names no columns"),
                 String.valueOf(alone.getMessage()));
         IllegalArgumentException last = assertThrows(IllegalArgumentException.class,
-                () -> Csv.read("### multi\nformat,version,tunes\nymxs,3,1\n\n### tune\n"));
+                () -> Csv.read("### multi\nformat,version,tunes\nymxs,4,1\n\n### tune\n"));
         assertTrue(String.valueOf(last.getMessage()).contains("names no columns"),
                 String.valueOf(last.getMessage()));
     }
@@ -298,7 +298,7 @@ final class CsvTest {
         String csv = """
                 ### multi
                 version,tunes,format
-                3,1,ymxs
+                4,1,ymxs
 
                 ### tune
                 rows,rate,repeat,writer,composer,title

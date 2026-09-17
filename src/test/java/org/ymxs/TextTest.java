@@ -143,7 +143,7 @@ final class TextTest {
     @Test
     void aColumnShorterThanTheTuneIsTurnedAway() {
         String text = """
-                {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
                  "writer":"","rate":50,"rows":4,"repeat":null,"sources":[],
                  "registers":{"r0":[1,2]}}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,
@@ -187,7 +187,7 @@ final class TextTest {
     @Test
     void aTextOfTheShapeThisNoLongerWritesIsAnError() {
         String text = """
-                {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
                  "writer":"","rate":50,"rows":1,"repeat":null,"sources":[],
                  "registers":[{"row":0,"r0":1}],"effects":[]}]}""";
         IllegalArgumentException no = assertThrows(IllegalArgumentException.class,

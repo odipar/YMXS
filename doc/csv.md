@@ -1,6 +1,6 @@
 # CSV
 
-CSV encodes version 3 of the structure in [SPEC.md](SPEC.md) 1 as
+CSV encodes version 4 of the structure in [SPEC.md](SPEC.md) 1 as
 blocks of comma-separated values for reading in a spreadsheet. Section
 7 maps [JSON](json.md) values to cells. Every clause is normative
 except sentences beginning `Note:` and section 8.
@@ -102,7 +102,7 @@ after the tune's other blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 3 | the version of the structure |
+| `version` | the whole number 4 | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader does not read it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -133,7 +133,8 @@ file order, and V counts all of them:
 | column | cell | meaning |
 |---|---|---|
 | `row` | a whole number | the row number of the value within the source; an emitter emits it, and a reader does not read it |
-| `value` | a whole number, from 0 to the largest value that fits the register of every target the tune's rows start the source on (json.md 4.3) | the value of that row of the source |
+| `value` | a whole number, from 0 to the largest value that fits the first register of every target the tune's rows start the source on (json.md 4.3) | value 1 of that row of the source |
+| `value2`, `value3` | a whole number in the range of register 2 or 3 of those targets, where the source has that many values a row | values 2 and 3 of that row; a source of one value a row has neither cell, one of two has `value2`, and one of three has both |
 
 **3.7** A `registers` block has a column a register and a row line a row
 of the tune; an emitter emits one row line for each row that sets a
@@ -158,7 +159,7 @@ each row that acts on the timer (6.2):
 |---|---|---|
 | `row` | a whole number from 0 to R minus 1 | the row of the tune |
 | `shape` | 0, 1 or 2 | the operation the row performs on the effect of Timer T: 0 a start, 1 a retune, 2 a stop |
-| `target` | a whole number from 0 to 13 | the target: n is `setRn`, the target that writes register Rn |
+| `target` | a whole number from 0 to 24 | the target of that number (SPEC.md 3.1.2): 0 to 13 is `setRn`, and 14 to 24 the targets of two and three registers |
 | `source` | a whole number from 1 to S | the number of the source |
 | `prescaler` | 4, 10, 16, 50, 64, 100 or 200 | the divisor of the prescaler |
 | `count` | a whole number from 0 to 255 | the count, the value of the timer's data register |
@@ -245,7 +246,7 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 3 | `version N, and this reads 3` |
+| a `version` cell other than 4 | `version N, and this reads 4` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |
@@ -256,7 +257,7 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | a `row` cell of a timer block outside 0 to R minus 1 | `tune N sets an effect at row X, and the tune runs R rows` |
 | a `shape` cell other than 0, 1 and 2 | `row I sets shape N of an effect, and a shape is 0, 1 or 2` |
 | a `source` cell outside 1 to S | `row I starts source N, and the tune runs S` |
-| a `target` cell outside 0 to 13 | `no register N: a tune reaches R0 to R13` |
+| a `target` cell outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | a `prescaler` cell other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a cell read as a whole number that is not one | `WHAT is "CELL", and this form requires a whole number` |
 | a source no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
@@ -357,7 +358,7 @@ this form.
 ```
 ### multi
 format,version,tunes
-ymxs,3,1
+ymxs,4,1
 
 ### tune
 title,composer,writer,rate,rows,repeat

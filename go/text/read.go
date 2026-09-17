@@ -64,8 +64,9 @@ func multiOf(tree any) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != Version {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d", version, Version)
+	if version != Version && version != Before {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
+			Before, Version)
 	}
 	written, err := array(at, "tunes")
 	if err != nil {

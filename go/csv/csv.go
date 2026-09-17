@@ -243,9 +243,9 @@ func Read(said string) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != text.Version {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d", version,
-			text.Version)
+	if version != text.Version && version != text.Before {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
+			text.Before, text.Version)
 	}
 	var tunes []ymxs.Tune
 	at := 1

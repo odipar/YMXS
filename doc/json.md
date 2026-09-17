@@ -48,7 +48,7 @@ object has that member and *absent* otherwise.
 | key | value | meaning |
 |---|---|---|
 | `format` | the text `ymxs` | this form |
-| `version` | the whole number 4 | the version of the structure |
+| `version` | the whole number 4, or 3 for a file of the version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
 **2.2** A reader reads the listed keys and skips unknown keys. An emitter
@@ -57,7 +57,12 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A reader reads version 4 alone (SPEC.md 8).
+**2.4** A writer writes version 4. A reader reads version 4 and the version
+before it: a file of version 3 has one value a row in every source and a
+`target` of 0 to 13, the shapes that version defines, and reads as the
+structure those make. A row of several values or a `target` above 13 in a
+file of version 3 is an error of the form (8.1), as is any other version
+(SPEC.md 8).
 
 ---
 
@@ -250,7 +255,8 @@ the `a tree of X` line.
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 4 | `version N, and this reads 4` |
+| `version` other than 3 or 4 | `version N, and this reads 3 or 4` |
+| a row of several values, or a `target` above 13, in a file of version 3 | `source X has a row of several values, and version 3 has one value a row`, `target N, and version 3 reaches 0 to 13` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |

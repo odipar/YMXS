@@ -211,9 +211,9 @@ public final class Csv {
                     + Json.FORMAT);
         }
         int version = number(multi.of(multi.rows().get(0), "version"), "version");
-        if (version != Json.VERSION) {
+        if (version != Json.VERSION && version != Json.BEFORE) {
             throw new IllegalArgumentException("version " + version + ", and this reads "
-                    + Json.VERSION);
+                    + Json.BEFORE + " or " + Json.VERSION);
         }
         List<Tune> tunes = new ArrayList<>();
         int at = 1;

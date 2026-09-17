@@ -6,7 +6,8 @@ rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file includes version 4 beside the structure. A reader reads the
+A file includes its version beside the structure: a writer writes 4, and a
+reader reads 4 and the version before it (json.md 2.4). A reader reads the
 version first; another version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
@@ -778,7 +779,7 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3,
+**8.1** What a reader does with a file whose version is other than 3 or 4,
 beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
 **8.2** Targets past the twenty-five: a procedure writing a register of the

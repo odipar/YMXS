@@ -140,6 +140,100 @@ final class TextTest {
                 () -> Text.read("{\"format\":\"ymxs\",\"version\":99,\"tunes\":[]}"));
     }
 
+    /** A source of several values a row, the shape json.md 4.1 defines
+     *  for a target that writes several registers: the rows are arrays
+     *  where the source has two or three values, a bare number where it
+     *  has one, and the two read back as the records they were. */
+    @Test
+    void aSourceOfSeveralValuesARowCrossesTheForm() {
+        String text = """
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":2,"repeat":0,
+                "sources":[{"name":"a sweep","repeat":0,
+                "values":[[46,1,15],[32,1,13]]},
+                {"name":"square","repeat":0,"values":[13,0]}],
+                "registers":{"r7":[56,-1]},
+                "timerA":{"shape":[0,-1],"target":[17,-1],"source":[1,-1],
+                "prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],
+                "placeReset":[1,-1]},
+                "timerB":{"shape":[0,-1],"target":[9,-1],"source":[2,-1],
+                "prescaler":[50,-1],"count":[80,-1],"timerReset":[1,-1],
+                "placeReset":[1,-1]}}]}""";
+        Multi multi = Text.read(text);
+        Tune tune = multi.tunes().get(0);
+        List<Source> sources = Tunes.sources(tune);
+        assertEquals(3, Tunes.columns(sources.get(0)), "the sweep is three values a row");
+        assertEquals(List.of(List.of(46, 1, 15), List.of(32, 1, 13)),
+                Tunes.rows(sources.get(0)).rows(), "the rows read as they are written");
+        assertEquals(1, Tunes.columns(sources.get(1)), "the square is one value a row");
+        assertEquals(multi, Text.read(Text.write(multi)), "the form crosses both ways");
+        String written = Text.write(multi).replaceAll("\\s+", " ");
+        assertTrue(written.contains("[[46,1,15],[32,1,13]]"),
+                "a row of several values writes as an array: " + written);
+        assertTrue(written.contains("\"values\": [13,0]"),
+                "a row of one value writes as a number: " + written);
+    }
+
+    /** A file of the version before this one, which a reader reads
+     *  beside it: the shapes of version 3 alone, and a row of several
+     *  values or a target above 13 in one is an error of the form
+     *  (json.md 2.4). */
+    @Test
+    void theVersionBeforeThisOneIsRead() {
+        String three = """
+                {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":2,"repeat":0,
+                "sources":[{"name":"square","repeat":0,"values":[13,0]}],
+                "registers":{"r7":[56,-1]},
+                "timerA":{"shape":[0,-1],"target":[8,-1],"source":[1,-1],
+                "prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],
+                "placeReset":[1,-1]}}]}""";
+        Multi read = Text.read(three);
+        assertEquals(1, Tunes.columns(Tunes.sources(read.tunes().get(0)).get(0)),
+                "a source of version 3 is one value a row");
+        assertTrue(Text.write(read).contains("\"version\": 4"),
+                "a writer writes this version: " + Text.write(read));
+        String wide = three.replace("\"values\":[13,0]", "\"values\":[[13,1],[0,1]]")
+                .replace("\"target\":[8,-1]", "\"target\":[14,-1]");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(wide)).getMessage());
+        assertTrue(said.contains("version 3 has one value a row"), said);
+        String target = three.replace("\"target\":[8,-1]", "\"target\":[14,-1]");
+        String on = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(target)).getMessage());
+        assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
+        String later = three.replace("\"version\":3", "\"version\":5");
+        String other = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(later)).getMessage());
+        assertTrue(other.contains("version 5, and this reads 3 or 4"), other);
+    }
+
+    /** A source whose rows differ in width, and one whose width differs
+     *  from its target's registers: json.md 4.2 has the first and
+     *  SPEC.md 1.11 the second. */
+    @Test
+    void aSourceOfTwoShapesIsTurnedAway() {
+        String mixed = """
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":1,"repeat":0,
+                "sources":[{"name":"mixed","repeat":0,"values":[13,[12,1]]}],
+                "registers":{"r0":[1]}}]}""";
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(mixed)).getMessage());
+        assertTrue(said.contains("has rows of 1 and of 2 values"), said);
+        String wide = """
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":1,"repeat":0,
+                "sources":[{"name":"pair","repeat":0,"values":[[12,1]]}],
+                "registers":{"r7":[56]},
+                "timerA":{"shape":[0],"target":[17],"source":[1],
+                "prescaler":[50],"count":[60],"timerReset":[1],"placeReset":[1]}}]}""";
+        String pair = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(wide)).getMessage());
+        assertTrue(pair.contains("a source of 2 values a row on setVoiceA, which reads 3"),
+                pair);
+    }
+
     @Test
     void aColumnShorterThanTheTuneIsTurnedAway() {
         String text = """

@@ -9,9 +9,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
-import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
@@ -21,8 +21,13 @@ import org.ymxs.YMXS.Start;
 import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Target;
+import org.ymxs.YMXS.Three;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.Two;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,8 +53,14 @@ public final class Json {
     /** What the tree calls itself. */
     public static final String FORMAT = "ymxs";
 
-    /** The version of the structure this maps. */
+    /** The version of the structure this maps, and the version a writer
+     *  writes. */
     public static final int VERSION = 4;
+
+    /** The version before it, which a reader reads beside it: a file of
+     *  this version has one value a row in every source and a target of
+     *  0 to 13, the shapes that version defines (2.4). */
+    public static final int BEFORE = 3;
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 
@@ -95,9 +106,18 @@ public final class Json {
             ObjectNode one = written.addObject();
             one.put("name", Tunes.name(source));
             put(one, "repeat", Tunes.rows(source).repeat());
+            // 4.1: a row is a number where the source has one value a row,
+            // and an array of its values where it has more
             ArrayNode values = one.putArray("values");
-            for (int value : Tunes.values(source)) {
-                values.add(value);
+            for (List<Integer> row : Tunes.rows(source).rows()) {
+                if (row.size() == 1) {
+                    values.add(row.get(0));
+                    continue;
+                }
+                ArrayNode of = values.addArray();
+                for (int value : row) {
+                    of.add(value);
+                }
             }
         }
         List<Row> rows = Tunes.rows(tune);
@@ -209,27 +229,79 @@ public final class Json {
                     + FORMAT);
         }
         int version = number(tree, "version");
-        if (version != VERSION) {
+        if (version != VERSION && version != BEFORE) {
             throw new IllegalArgumentException("version " + version + ", and this reads "
-                    + VERSION);
+                    + BEFORE + " or " + VERSION);
         }
         List<Tune> tunes = new ArrayList<>();
         for (JsonNode one : array(tree, "tunes")) {
-            tunes.add(tune(one));
+            tunes.add(tune(one, version));
         }
         return Check.must(new Multi(tunes));
     }
 
-    /** One tune out of a JSON tree. */
+    /** One source out of its object: the rows of {@code values}, a number
+     *  each where the source has one value a row and an array each where
+     *  it has two or three, one shape through the source (4.1, 4.2). */
+    private static Source source(JsonNode one, int version) {
+        String name = text(one, "name");
+        List<List<Integer>> rows = new ArrayList<>();
+        for (JsonNode row : array(one, "values")) {
+            if (row.isArray()) {
+                if (version < VERSION) {
+                    throw new IllegalArgumentException("source " + name + " has a row of"
+                            + " several values, and version " + version
+                            + " has one value a row");
+                }
+                List<Integer> values = new ArrayList<>();
+                for (JsonNode value : row) {
+                    values.add(whole(value, "source " + name + " has the value " + value));
+                }
+                if (values.size() < 2 || values.size() > 3) {
+                    throw new IllegalArgumentException("a row of " + values.size()
+                            + " values in source " + name + ", and a row is a number"
+                            + " or two or three values");
+                }
+                rows.add(values);
+            } else {
+                rows.add(List.of(whole(row, "source " + name + " has the value " + row)));
+            }
+        }
+        for (List<Integer> row : rows) {
+            if (row.size() != rows.get(0).size()) {
+                throw new IllegalArgumentException("source " + name + " has rows of "
+                        + rows.get(0).size() + " and of " + row.size()
+                        + " values, and a source has one shape");
+            }
+        }
+        OptionalInt repeat = repeat(one);
+        if (rows.isEmpty() || rows.get(0).size() == 1) {
+            return new Single(name, new Table<>(
+                    rows.stream().map(row -> row.get(0)).toList(), repeat));
+        }
+        if (rows.get(0).size() == 2) {
+            return new Pair(name, new Table<>(rows.stream()
+                    .map(row -> new Two(row.get(0), row.get(1))).toList(), repeat));
+        }
+        return new Triple(name, new Table<>(rows.stream()
+                .map(row -> new Three(row.get(0), row.get(1), row.get(2))).toList(),
+                repeat));
+    }
+
+    /** One tune out of a JSON tree, read as the version this form
+     *  writes. */
     public static Tune tune(JsonNode tree) {
+        return tune(tree, VERSION);
+    }
+
+    /** One tune out of a JSON tree of {@code version}: a file of the
+     *  version before this one has one value a row and a target of 0 to
+     *  13, and another shape in it is an error of the form (2.4). */
+    public static Tune tune(JsonNode tree, int version) {
         int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
         for (JsonNode one : array(tree, "sources")) {
-            List<Integer> values = new ArrayList<>();
-            for (JsonNode value : array(one, "values")) {
-                values.add(value.intValue());
-            }
-            sources.add(new Single(text(one, "name"), new Table<>(values, repeat(one))));
+            sources.add(source(one, version));
         }
         List<Map<Register, Integer>> registers = new ArrayList<>();
         List<Map<Timer, Effect>> effects = new ArrayList<>();
@@ -269,7 +341,7 @@ public final class Json {
                         + " effect");
             }
             for (int at = 0; at < count; at++) {
-                Effect effect = effect(columns, at, sources, timer, count);
+                Effect effect = effect(columns, at, sources, timer, count, version);
                 if (effect != null) {
                     effects.get(at).put(timer, effect);
                 }
@@ -311,10 +383,20 @@ public final class Json {
         }
     }
 
+    /** The target of a number, read against the version: a file of the
+     *  version before this one reaches 0 to 13 (2.4). */
+    private static Target target(int number, int version) {
+        if (version < VERSION && number > 13) {
+            throw new IllegalArgumentException("target " + number + ", and version "
+                    + version + " reaches 0 to 13");
+        }
+        return Tunes.target(number);
+    }
+
     /** One row's operation on the effect of one timer, or null where the
      *  row leaves it alone. */
     private static @Nullable Effect effect(JsonNode columns, int at, List<Source> sources,
-                                           Timer timer, int rows) {
+                                           Timer timer, int rows, int version) {
         int shape = column(columns, "shape", at, timer, rows);
         if (shape == NONE) {
             return null;
@@ -326,7 +408,8 @@ public final class Json {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + source + ", and the tune runs " + sources.size());
                 }
-                yield Tunes.starting(Tunes.target(column(columns, "target", at, timer, rows)),
+                yield Tunes.starting(target(column(columns, "target", at, timer, rows),
+                                version),
                         sources.get(source - 1),
                         Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
                         column(columns, "count", at, timer, rows),

@@ -102,7 +102,7 @@ after the tune's other blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 4 | the version of the structure |
+| `version` | the whole number 4, or 3 for a file of the version before it (json.md 2.4) | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader does not read it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -246,7 +246,7 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 4 | `version N, and this reads 4` |
+| a `version` cell other than 3 or 4 | `version N, and this reads 3 or 4` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |

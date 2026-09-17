@@ -28,6 +28,11 @@ const Format = "ymxs"
 // Version is the version of the structure this maps.
 const Version = 4
 
+// Before is the version before it, which a reader reads beside it: a file
+// of that version has one value a row in every source and a target of 0 to
+// 13, the shapes it defines (json.md 2.4).
+const Before = 3
+
 // None is what stands in a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
 // effect.

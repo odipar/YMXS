@@ -300,7 +300,7 @@ a source; it writes the row's values to the registers below, value i of the
 row to register i of the target. A target reads one, two or three values a
 row, and the source an effect runs on it has that many values a row (3.2.1).
 
-| target | registers, in the order it writes them | values a row |
+| target | registers, value i of the row to register i | values a row |
 |---|---|---|
 | `setR0` to `setR13` | `Rn` | 1 |
 | `setToneA`, `setToneB`, `setToneC` | R0 R1, R2 R3, R4 R5 | 2 |
@@ -317,6 +317,12 @@ buzzer target those and the shape, which every write restarts (2.6). A noise
 target writes the noise period and one voice's volume; R6 is one register
 for the three voices (2.2), so two noise targets running at once write one
 period and the later tick stands.
+
+The order of the writes is the player's, with the two the sound depends on
+fixed here: a voice's fine byte before its coarse nibble, so the period
+standing between the two writes is the new fine with the old coarse rather
+than the other way round; and a buzzer's shape after its period, since
+writing the shape restarts the generator on the period standing.
 
 **3.1.2** A target of one register is numbered by its register, 0 to 13, and
 named `set` followed by the register's name. The targets of several

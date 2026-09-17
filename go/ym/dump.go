@@ -40,7 +40,7 @@ type Song struct {
 	Values    [][]byte // the frames, a vector a register
 }
 
-// Unreadable is what this reader cannot read.
+// Unreadable names what this reader cannot read.
 type Unreadable struct {
 	Said string
 }

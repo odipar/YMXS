@@ -17,7 +17,7 @@ below it.
 The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
-The Go tree is a module of its own, `github.com/odipar/ymxs/go`, and a
+The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
 version of it is a tag of that directory: `go/v0.4.1` beside `v0.4.1`.
 
 A player pins a version of this format: the structure's version is 4, a
@@ -300,12 +300,11 @@ here.** One word a thing for a row and a frame.
   records rows and a run counts frames.
 - The tune key `frames` was the row count under a frame's name, and it is
   `rows`. The key `rows` was the columns a register, which are not rows,
-  and it is `registers`, which is what the record names them.
+  and it is `registers`, the name the record uses for them.
 - CSV follows: the `tune` table's `frames` column is `rows`, and the
   `### rows` table is `### registers`.
 - SPEC.md, json.md, csv.md and ym.md define the two words once and use
-  them. A dump's frames keep the name, since a frame is what a dump
-  records.
+  them. A dump's frames keep the name, since a dump records frames.
 
 **Section 1 of SPEC.md is Java that compiles.** It wrote a record with no
 body, an enum with an ellipsis for its constants and no imports, so a
@@ -334,8 +333,8 @@ The columns of a table stand over the cells they name.
   last line. Each is reported for what it is.
 
 **A CSV file 0.1.0 wrote is read by no version of this.** The line naming
-the shape is what it gets, and `ymxs-csv-to-json` from 0.1.0 rewrites one
-as JSON for reading here.
+the shape reads as the shape it names, and `ymxs-csv-to-json` from 0.1.0
+rewrites one as JSON for reading here.
 
 JSON is unchanged, and so is the structure's version: it is 1 in both
 forms, and every JSON file 0.1.0 wrote reads here.

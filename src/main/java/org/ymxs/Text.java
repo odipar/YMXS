@@ -37,7 +37,7 @@ public final class Text {
 
     /**
      * Every multi in {@code text}, one after another. JSON puts no
-     * count in front of a stream of values, so this is what a reader gets
+     * count in front of a stream of values, so a reader reads this
      * where several files are handed to it as one.
      *
      * @throws IllegalArgumentException where the text is not JSON, not this

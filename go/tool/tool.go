@@ -1,4 +1,4 @@
-// Package tool is what every tool here shares: it reads one input on
+// Package tool is shared by every tool here: it reads one input on
 // standard input, writes one output on standard output, and reports
 // progress and faults on standard error. A tool therefore composes in a
 // pipe, and a redirected run contains the output alone.
@@ -45,8 +45,8 @@ type Tool struct {
 }
 
 // Of is a tool of this name, and the arguments that are left. The flags
-// every tool reads are taken out of args; the rest are returned. A tool
-// that reads no flag of its own is called with none here, and an argument
+// every tool reads are removed from args; the rest are returned. A tool
+// that reads a flag beside these is called with it here, and an argument
 // left over is then a wrong call.
 func Of(named string, args []string, flags ...string) (*Tool, []string) {
 	t := &Tool{named: named, reports: true,
@@ -80,7 +80,7 @@ func (t *Tool) Bytes() []byte {
 	return read
 }
 
-// Write puts said on standard output, which is what the tool is for.
+// Write puts said on standard output, the tool's one product.
 func (t *Tool) Write(said string) {
 	t.WriteBytes([]byte(said))
 }
@@ -117,7 +117,7 @@ func (t *Tool) Reports() bool {
 // is named where the tune is used rather than only where it is checked. A
 // warning is a tune that plays, but not as written, so it stands whether
 // or not -silent was passed: that flag quiets what a tool reports of its
-// work, and this is what the tune gets wrong.
+// work, and this reports what the tune gets wrong.
 func (t *Tool) Warnings(multi ymxs.Multi) int {
 	count := 0
 	for at, tune := range multi.Tunes {
@@ -143,7 +143,7 @@ func (t *Tool) Named() string {
 func (t *Tool) Wrong(with int, said string) {
 	fmt.Fprintln(t.err, t.named+": "+said)
 	t.exit(with)
-	panic(said) // an exit that returns is a fault of its own
+	panic(said) // an exit that returns is a separate fault
 }
 
 // Usage puts the calling convention on standard error and exits 2.

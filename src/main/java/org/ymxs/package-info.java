@@ -1,7 +1,7 @@
 /**
  * The tune data structure, as records. This package is the specification:
  * what a tune is, in terms an implementer can check. doc/SPEC.md defines
- * the rest, which is what a player or an emulator does with it on an Atari
+ * the rest, as a player or an emulator does with it on an Atari
  * ST's YM2149 and MC68901.
  *
  * <p>A form encodes a tune. doc/json.md defines one; a player's binary

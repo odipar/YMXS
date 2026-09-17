@@ -81,7 +81,7 @@ public final class Tool {
         }
     }
 
-    /** {@code said} on standard output, which is what the tool is for. */
+    /** {@code said} on standard output, the tool's one product. */
     public void write(String said) {
         PrintStream out = System.out;
         out.print(said);
@@ -111,7 +111,7 @@ public final class Tool {
      * left in is named where the tune is used rather than only where it
      * is checked. A warning is a tune that plays, but not as written, so
      * it stands whether or not {@code -silent} was passed: that flag
-     * quiets what a tool reports of its work, and this is what the tune
+     * quiets what a tool reports of its work, and this reports what the tune
      * gets wrong.
      */
     public int warnings(Multi multi) {

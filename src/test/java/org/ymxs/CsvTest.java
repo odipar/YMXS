@@ -293,7 +293,7 @@ final class CsvTest {
                 String.valueOf(no.getMessage()));
     }
 
-    /** A source of several values a row: csv.md 3.6 gives its value block
+    /** A source of several values a row: csv.md 3.6 names its value block
      *  the cells `value2` and `value3`, and a source of one value a row
      *  has the `value` cell alone. */
     @Test

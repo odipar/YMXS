@@ -13,7 +13,7 @@ import (
 )
 
 // ReadAll is every multi in the text, one after another. JSON puts no
-// count in front of a stream of values, so this is what a reader gets
+// count in front of a stream of values, so a reader reads this
 // where several files are handed to it as one.
 func ReadAll(said string) ([]ymxs.Multi, error) {
 	var out []ymxs.Multi

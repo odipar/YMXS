@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>json.md 10.1 quotes {@code doc/tunes/example.json} whole and csv.md
  * 8.1 quotes {@code doc/tunes/example.csv} whole. A quoted file is a
- * second copy of it, and the copy is what a reader of the form reads, so
+ * second copy of it, and a reader of the form reads that copy, so
  * this requires each block equal to the file it quotes: a tune written
  * again moves both.
  *

@@ -163,7 +163,7 @@ public final class Check {
      * Tunes#sources}). So a form may declare one no row starts, which is
      * dropped where the form is read.
      *
-     * <p>A name is what a reader of the form reads and no more: an effect
+     * <p>A name reaches a reader of the form and no more: an effect
      * names its source by the number of the table it stands in, in JSON
      * and in CSV alike, so two sources under one name are told apart by
      * those numbers and are no fault.
@@ -331,7 +331,7 @@ public final class Check {
                     // is a writer settling rule 4, and the row a tune
                     // repeats to stops every effect so that the wrap
                     // resumes from a known setting. Neither is a slip. A
-                    // stop where this timer has run nothing is.
+                    // stop where this timer has run no source is one.
                     if (runs == null && !repeats(at)) {
                         say(at, timer, "stops an effect this timer has not started",
                                 false);

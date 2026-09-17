@@ -22,7 +22,7 @@ import (
 	"github.com/odipar/ymxs/go/ymxs"
 )
 
-// Format is what the tree calls itself.
+// Format is the name the tree calls itself by.
 const Format = "ymxs"
 
 // Version is the version of the structure this maps.
@@ -33,7 +33,7 @@ const Version = 4
 // 13, the shapes it defines (json.md 2.4).
 const Before = 3
 
-// None is what stands in a column where the row left that value alone. It
+// None stands in a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
 // effect.
 const None = -1

@@ -11,7 +11,7 @@ import (
 
 // The packed dump of the test resources is the tune doc/tunes/circus.json
 // records: the archive unpacks, the dump reads, and the reading is the
-// documents' own.
+// the documents carry.
 func TestAPackedDumpReadsToTheTuneTheDocumentsRecord(t *testing.T) {
 	packed, err := os.ReadFile("../../src/test/resources/packed.ym")
 	if err != nil {

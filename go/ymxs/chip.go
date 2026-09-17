@@ -61,7 +61,7 @@ func Most(register Register) int {
 	panic(fmt.Sprintf("no register %d", int(register)))
 }
 
-// Reaches is what the register reaches, as text.
+// Reaches is the register's range, as text.
 func Reaches(register Register) string {
 	switch register {
 	case R0, R1:
@@ -117,7 +117,7 @@ func RegisterAt(at int) (Register, error) {
 	return Registers[at], nil
 }
 
-// Divides is what the prescaler divides the clock by.
+// Divides is the number the prescaler divides the clock by.
 func Divides(prescaler Prescaler) int {
 	switch prescaler {
 	case By4:

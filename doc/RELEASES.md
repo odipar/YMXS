@@ -18,13 +18,45 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.3` beside `v0.4.3`.
+version of it is a tag of that directory: `go/v0.4.4` beside `v0.4.4`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.4, 2026-09-18
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.4>, built from the commit
+tagged `v0.4.4`.
+
+An empty text is not JSON, and a quoted block keeps its words. Every file
+a tool is built from stands as 0.4.2 has it - `go/`, `bin/` and every
+document - so the five executables are that release's and the Go module is
+its bytes. The Java tree gains the reading of an empty text, which the Go
+tree already had.
+
+- **An empty text is not JSON.** A reader handed an empty input reported
+  `format is null, and this form requires a text` in the Java tree and
+  `this is not JSON: EOF` in the Go tree: the Java reader read the empty
+  text as an empty object and then found the keys of that object missing,
+  where the Go reader found no JSON at all. The Java reader now reports
+  what the Go one does, and the two trees answer an empty input alike.
+- **The parity tests read the error paths**, which is the gap that hid it:
+  each repository of the family read something the others did not, and
+  none of the three read an empty input.
+- **A code span that wraps is quoted whole.** The style check blanked a
+  code span a line at a time while the rest of it reads a paragraph
+  joined, so a span broken by a wrap was two unpaired backticks and its
+  words were read as prose. doc/tools.md 11.2 has such a message, the
+  build lock's, and passed because the span fits one line; YMXR wrapped
+  the same sentence and the check fired on a word inside it.
+- **A fenced block is quoted as a code span is.** doc/tools.md 2.1 quotes
+  `bin/ymxs-check` whole, comment and all, and the check reads that script
+  where it stands in the tree, under `sources`, so the fenced copy was a
+  second reading of a file the check already has. Over the four
+  repositories that is 53 blocks, 106 fences and 188 lines.
 
 ### 0.4.3, 2026-09-18
 

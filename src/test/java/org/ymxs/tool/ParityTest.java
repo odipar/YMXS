@@ -34,6 +34,11 @@ final class ParityTest {
     private static final List<String> TOOLS = List.of("ym-to-ymxs", "ymxs-check",
             "ymxs-csv-to-json", "ymxs-json-to-csv", "ymxs-merge");
 
+    /** The tools whose input is the JSON form (json.md), which alone report
+     *  the conditions of json.md 8.1. */
+    private static final List<String> READ_JSON =
+            List.of("ymxs-check", "ymxs-json-to-csv", "ymxs-merge");
+
     /** Where the Go tools are built, once for every test here. */
     private static @Nullable Path built;
 
@@ -138,6 +143,48 @@ final class ParityTest {
         System.arraycopy(two, 0, together, one.length, two.length);
         byte[] merged = both("ymxs-merge", together);
         assertTrue(merged.length > one.length, "two tunes in one multi");
+    }
+
+    @Test
+    void anEmptyInputIsOneFaultInBothTrees() throws Exception {
+        for (String tool : TOOLS) {
+            Ran java = ran(Path.of("bin"), tool, new byte[0]);
+            Ran go = ran(built(), tool, new byte[0]);
+            assertEquals(1, java.exit(), tool + " reads an empty input: " + java.said());
+            assertEquals(java.exit(), go.exit(), tool + " exits the same: " + go.said());
+            assertEquals(java.said(), go.said(), tool + " reports the same");
+        }
+    }
+
+    /**
+     * A text that is no JSON at all. json.md 8.1 has the line as
+     * {@code this is not JSON: } and the parser's report after it, and the
+     * two trees parse with two parsers, so they share the prefix alone.
+     */
+    @Test
+    void aTextThatIsNotJsonIsOneConditionInBothTrees() throws Exception {
+        byte[] junk = "xyz".getBytes();
+        for (String tool : READ_JSON) {
+            Ran java = ran(Path.of("bin"), tool, junk);
+            Ran go = ran(built(), tool, junk);
+            assertEquals(1, java.exit(), tool + " reads no such input: " + java.said());
+            assertEquals(java.exit(), go.exit(), tool + " exits the same: " + go.said());
+            for (Ran one : List.of(java, go)) {
+                assertTrue(one.said().contains("this is not JSON: "),
+                        tool + " reports \"" + one.said() + '"');
+            }
+        }
+    }
+
+    @Test
+    void anUnknownFlagIsOneFaultInBothTrees() throws Exception {
+        for (String tool : TOOLS) {
+            Ran java = ran(Path.of("bin"), tool, new byte[0], "-zz");
+            Ran go = ran(built(), tool, new byte[0], "-zz");
+            assertEquals(2, java.exit(), tool + " reads -zz: " + java.said());
+            assertEquals(java.exit(), go.exit(), tool + " exits the same: " + go.said());
+            assertEquals(java.said(), go.said(), tool + " reports the same");
+        }
     }
 
     @Test

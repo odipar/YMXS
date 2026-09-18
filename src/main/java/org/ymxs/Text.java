@@ -65,7 +65,15 @@ public final class Text {
      */
     public static Multi read(String text) {
         try {
-            return Json.multi(MAPPER.readTree(text));
+            com.fasterxml.jackson.databind.JsonNode tree = MAPPER.readTree(text);
+            // A text with no JSON value in it parses to a missing node rather
+            // than a fault, so the reader reports the first condition of
+            // json.md 8.1 here rather than the second: an empty text is not
+            // JSON, and a reader that read on would report the absent format.
+            if (tree == null || tree.isMissingNode()) {
+                throw new IllegalArgumentException("this is not JSON: EOF");
+            }
+            return Json.multi(tree);
         } catch (JsonProcessingException wrong) {
             throw new IllegalArgumentException("this is not JSON: "
                     + wrong.getOriginalMessage(), wrong);

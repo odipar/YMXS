@@ -359,7 +359,9 @@ exits with 2. Then it runs the class with `java -ea` on the classpath of
 
 **11.4 Parity.** `ParityTest` runs the two trees on one input and
 requires the same exit code, the same bytes on standard output and the
-same text on standard error:
+same text on standard error. It skips where Go is absent, so
+`.github/workflows/test.yml`, which runs `mvn test` on a GitHub runner
+where a caller starts it, puts Go on the path:
 
 | input | tools |
 |---|---|

@@ -630,11 +630,11 @@ last `Start` absent. For each row N from 0 to the last:
      the target writes; where the timer has an effect in the model,
      close its run and remove it; put the effect of the `Start` in the
      model, S = N, U as 6.4 defines; set the timer's last `Start` to it.
-- (b) a `Retune`: report the rule 5 line where the effect of the timer is
-         absent from the model or has run out at N.
-- (c) a `Stop`: report the rule 6 line where the effect of the timer is
-         absent from the model and N is other than the repeat row; where it
-         is present, close its run and remove it.
+   - (b) a `Retune`: report the rule 5 line where the effect of the
+     timer is absent from the model or has run out at N.
+   - (c) a `Stop`: report the rule 6 line where the effect of the timer
+     is absent from the model and N is other than the repeat row; where
+     it is present, close its run and remove it.
 2. For each timer with an effect in the model running at N, A to D: where
    the target's register is among R0 to R12 and row N sets it, count row N
    among the run's rows.

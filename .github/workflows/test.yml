@@ -23,4 +23,22 @@ jobs:
       # ParityTest reads the Go tree against the Java one and skips
       # where go is absent, so a runner without it is green and asleep.
       - run: go version
-      - run: mvn -B --no-transfer-progress test
+      # PipeTest runs the tools one into the next and skips where
+      # target/classpath.txt is absent, which bin/run writes and a bare
+      # mvn test does not.
+      - run: mvn -B --no-transfer-progress dependency:build-classpath
+               -Dmdep.outputFile=target/classpath.txt
+      # A skipped test is a check that did not run, and a run that skips
+      # one is green and asleep. Every skip here has a cause the steps
+      # above remove, so the count stands at 0.
+      - name: the suite, and no skip
+        run: |
+          set -o pipefail
+          mvn -B --no-transfer-progress test | tee /tmp/test.log
+          skipped=$(grep -oE 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' \
+              /tmp/test.log | tail -1 | grep -oE '[0-9]+$')
+          if [ "$skipped" != "0" ]; then
+              echo "::error::$skipped skipped, and this workflow reads 0"
+              grep -E 'Skipped: [1-9]' /tmp/test.log
+              exit 1
+          fi

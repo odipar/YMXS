@@ -29,6 +29,7 @@ names
 
 carried
     /org/ymxs/style/
+    /org/ymxs/doc/
 
 own
 

@@ -13,6 +13,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.ymxs.doc.Documents;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -45,29 +46,9 @@ final class ShapeTest {
         List<Path> documents = documents();
         assertTrue(documents.size() > 2, () -> "only " + documents.size()
                 + " documents read; the check is asleep");
-        List<String> wide = new ArrayList<>();
-        for (Path at : documents) {
-            List<String> lines = Files.readAllLines(at);
-            boolean fenced = false;
-            for (int line = 0; line < lines.size(); line++) {
-                String said = lines.get(line);
-                if (said.startsWith("```")) {
-                    fenced = !fenced;
-                    continue;
-                }
-                // A table's cells, a block of code and a link stand as
-                // they are: none of the three rewraps.
-                if (fenced || said.startsWith("|") || said.startsWith("    ")
-                        || said.contains("](")) {
-                    continue;
-                }
-                if (said.length() > WIDTH) {
-                    wide.add(at + ":" + (line + 1) + " runs to " + said.length());
-                }
-            }
-        }
+        List<String> wide = Documents.wide(documents, 78);
         assertTrue(wide.isEmpty(), () -> String.join("\n", wide)
-                + "\nAGENTS.md requires one width.");
+                + "\nAGENTS.md gives one wrap width, and a document keeps it.");
     }
 
     /** The clause numbers a document defines: its numbered headings and
@@ -132,22 +113,7 @@ final class ShapeTest {
 
     @Test
     void everyLinkLeadsSomewhere() throws IOException {
-        List<String> broken = new ArrayList<>();
-        for (Path at : documents()) {
-            List<String> lines = Files.readAllLines(at);
-            for (int line = 0; line < lines.size(); line++) {
-                java.util.regex.Matcher links = java.util.regex.Pattern
-                        .compile("\\]\\(([^)#:]+)(#[^)]*)?\\)").matcher(lines.get(line));
-                while (links.find()) {
-                    Path from = at.getParent();
-                    Path to = (from == null ? Path.of(".") : from)
-                            .resolve(links.group(1)).normalize();
-                    if (!Files.exists(to)) {
-                        broken.add(at + ":" + (line + 1) + " links to " + links.group(1));
-                    }
-                }
-            }
-        }
+        List<String> broken = Documents.links(documents());
         assertTrue(broken.isEmpty(), () -> String.join("\n", broken));
     }
 }

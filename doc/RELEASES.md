@@ -18,13 +18,40 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.1` beside `v0.4.1`.
+version of it is a tag of that directory: `go/v0.4.2` beside `v0.4.2`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.2, 2026-09-18
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.2>, built from the commit
+tagged `v0.4.2`.
+
+The style check, two calls a reader outside this package reads a dump
+through, and a plan that shipped. The tools write the bytes 0.4.1 wrote:
+the ten dumps under YMXR's `ym/test` convert to the structures a build of
+the tag before writes, measured.
+
+- **The struck list is a document.** The check was a list of 88 phrases in
+  a test class, matched as substrings over the documents alone.
+  `org.ymxs.style` reads `STRUCK.md` - a section a rule of AGENTS.md, an
+  entry a name, a pattern and the samples the pattern is and is not in -
+  and runs over every document and every code comment. The package is
+  carried from DTX, which wrote it, and the four repositories of the family
+  run the same 370 lines. Reading comments, which this check never did,
+  found 51 lines to reword, and the cleft four more: AGENTS.md has struck
+  the cleft since it was written and no list encoded it.
+- **`Lha.isArchive` and `Lha.unpack` are public.** They were
+  package-private, so YMXR carried a copy of the whole decoder to read a
+  packed dump - 351 lines of code identical to these but for the class
+  modifier - beside a Go tree that imports this module and calls the
+  exported pair. YMXR's copy goes when it reads this release.
+- **`doc/plan.md` goes.** It worked the voice target out before it became a
+  clause, and 0.4.0 made it SPEC.md 3.1.1.
 
 ### 0.4.1, 2026-09-17
 

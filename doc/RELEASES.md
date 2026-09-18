@@ -18,13 +18,32 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.2` beside `v0.4.2`.
+version of it is a tag of that directory: `go/v0.4.3` beside `v0.4.3`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.3, 2026-09-18
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.3>, built from the commit
+tagged `v0.4.3`.
+
+The document checks are one package. Every file a tool is built from stands
+as 0.4.2 has it - `go/`, `bin/` and every document - so the five
+executables are that release's and the Go module is its bytes.
+
+- **`org.ymxs.doc.Documents`** reads a link that resolves, one wrap width
+  and the rows a glossary is read from. Those were written in each of the
+  four repositories of the family, and the copies had drifted: this tree
+  counted a line with a bare URL in it against the wrap width, where ST4
+  left one. The package reads the best of the four, and two of them came
+  from here - the line a broken link is written at, and the count of
+  documents read that says the check is awake. It is carried from DTX,
+  where it is kept, as `org.ymxs.style` is.
+- `ShapeTest` reads the two it had.
 
 ### 0.4.2, 2026-09-18
 

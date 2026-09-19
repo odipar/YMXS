@@ -316,8 +316,8 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 	case Stop:
 		return ymxs.Stop{}, true, nil
 	}
-	return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is %d,"+
-		" %d or %d", at, shape, timer, Start, Retune, Stop)
+	return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is"+
+		" %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop)
 }
 
 // column is one value of one of a timer's columns.

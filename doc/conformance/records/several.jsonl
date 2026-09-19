@@ -1,0 +1,8 @@
+{"rate":50,"timers":["A","B","C"],"sources":[{"rows":[200,1,100,2,50,3],"repeat":0},{"rows":[64,2,15,128,1,12],"repeat":null},{"rows":[16,0,10,32,1,12],"repeat":0}]}
+{"result":0,"w":{"7":56,"9":12},"e":{"A":{"start":{"target":"setToneA","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"setVoiceC","source":2,"prescaler":64,"count":100,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"C":{"start":{"target":"setBuzzer","source":3,"prescaler":100,"count":120,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{"7":56,"9":12},"e":{"A":{"start":{"target":"setToneA","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"setVoiceC","source":2,"prescaler":64,"count":100,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"C":{"start":{"target":"setBuzzer","source":3,"prescaler":100,"count":120,"timerReset":true,"placeReset":true}}}}

@@ -92,7 +92,9 @@ for each timer a row acts on.
 **3.3** The empty text is a value of `title`, `composer` and `writer`.
 
 **3.4** A reader reads sources in file order, source n at index n - 1.
-An emitter emits them in first-start order (SPEC.md 1.9).
+An emitter emits them in first-start order (SPEC.md 1.9), so the two
+numberings are one in a file an emitter wrote; the record of a recorder
+reads the first-start number whichever order a file has (SPEC.md 7.4).
 
 **3.5** Two sources are one source where equal as SPEC.md 1.9 defines.
 
@@ -209,13 +211,14 @@ where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
-3. Read `version`, a whole number equal to 3.
+3. Read `version`, a whole number equal to 3 or 4 (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R.
-6. Read `sources`, an array; for each element read `values` (an array
-   of whole numbers), `name` (a text), `repeat` (a whole number, `null`
-   or absent), in that order.
+6. Read `sources`, an array; for each element read `values` (an array of
+   rows, each a whole number or an array of two or three, as 4.1 defines),
+   `name` (a text), `repeat` (a whole number, `null` or absent), in that
+   order.
 7. Read `registers` where present, an object; for each key `r0` to
    `r13` present, in that order, verify an array of length R and read
    index 0 to R - 1, each a whole number, each other than -1 the value

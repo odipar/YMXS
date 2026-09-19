@@ -35,9 +35,13 @@ final class Record {
         }
         StringJoiner sources = new StringJoiner(",", "[", "]");
         for (Source source : Tunes.sources(tune)) {
+            // one list, the values of row 0 then those of row 1 and so on,
+            // which a source of one value a row reads as a value a row (7.3)
             StringJoiner values = new StringJoiner(",", "[", "]");
-            for (int value : Tunes.values(source)) {
-                values.add(String.valueOf(value));
+            for (List<Integer> row : Tunes.rows(source).rows()) {
+                for (int value : row) {
+                    values.add(String.valueOf(value));
+                }
             }
             var repeat = Tunes.rows(source).repeat();
             sources.add("{\"rows\":" + values + ",\"repeat\":"

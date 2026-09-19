@@ -48,6 +48,9 @@ class ConformanceTest {
                     "every register column, R7's six bits, and a row that sets a register"
                             + " an effect runs on (6.1)"),
             new Source("wrap", 1, 9, "six rows repeating to row 4, so the record wraps"),
+            new Source("several", 1, 8,
+                    "targets of two and three registers, and the sources of two and"
+                            + " three values a row they run (3.1.1, 3.2.1)"),
             new Source("multi", 2, 6,
                     "a multi of two tunes: the record is of the second, at a rate of its"));
 

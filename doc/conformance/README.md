@@ -76,6 +76,25 @@ them outright contradictions.
 - 7.3 left the shape of a source of several values a row: one list, the
   values of row 0 then those of row 1 and so on.
 
+**The second run**, the same day, against the kit at nine tunes with the
+clauses of the first in it and a second implementer. The recorder was 253
+lines and produced eight of the nine records line for line; the ninth, of
+`several`, it produced at nine lines where `TASK.md` and the kit had
+eight, and the reader was right: that tune has four rows repeating to row
+0, which 7.5 reads as eight frames and a first line. The kit had recorded
+it a line short since the tune arrived, and records it whole now. Its
+notes had 6 entries with 3 marked *decides output*, and three clauses
+changed:
+
+- 7.4's `e` is the timers the row acts on, where 4.3 performs an
+  operation on a timer of the tune alone. The clause reads that the record
+  has the row's operations in it whichever timer they name.
+- 7.3 left the values a row of a source of several: they are the values
+  the target that runs it reads (3.1.1).
+- 1.9 read source equality as values "equal in number and order", which
+  leaves a source of one value a row and one of two standing as equal. It
+  compares a row at a time.
+
 3.1.1 cited 2.5 for the envelope period, which stands in 2.2, and a 2.6
 that no document has for the shape that every write restarts, which is
 2.5; R6 stands in 2.1's table rather than 2.2. The kit gained a ninth

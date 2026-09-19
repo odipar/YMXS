@@ -18,13 +18,44 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.4` beside `v0.4.4`.
+version of it is a tag of that directory: `go/v0.4.5` beside `v0.4.5`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.5, 2026-09-19
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.5>, built from the commit
+tagged `v0.4.5`.
+
+A structure reads as 0.4.4 has it, every file and every form: what moves
+is one line a reader reports, and the documents a reader is written
+against.
+
+- **A shape of -1 is named among the shapes a row has.** The JSON form
+  reads -1 as the row that leaves the effect of a timer alone (json.md
+  6.2), and the line a reader reported of another value named 0, 1 and 2
+  alone. Both trees name -1 now, and json.md's row has the line as it
+  stands. The CSV form's cell is 0, 1 or 2, an empty cell being the row
+  that acts on no timer, so the line of that form reads as it did.
+- **A conformance kit, and two readers of it.** doc/conformance is nine
+  tunes in the JSON form, the record of one tune of each beside them, and
+  the task an implementer receives. Two implementers wrote a recorder
+  from SPEC.md and json.md alone and produced every record line for line;
+  their notes moved nine places of the two documents, three of them
+  contradictions. json.md's reading procedure read `version` as equal to
+  3, where 2.4 reads 4 and the version before it and every tune of the
+  kit is version 4: a reader following the procedure stopped on all of
+  them. SPEC.md 1.8 read that this version defines one kind of target and
+  one kind of source, where 1.1 and 3.1.1 define three of each. And 7.4's
+  `source` is the number in first-start order, where a file numbers its
+  sources in file order and only an emitter was bound to the first.
+- **A citation of a specification lands on a clause**, which `SpecTest`
+  reads over SPEC.md, json.md, csv.md and ym.md: 3.1.1 cited 2.5 for the
+  envelope period, which stands in 2.2, and a 2.6 no document has.
 
 ### 0.4.4, 2026-09-18
 

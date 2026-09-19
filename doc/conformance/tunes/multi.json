@@ -1,0 +1,96 @@
+{
+  "format": "ymxs",
+  "version": 4,
+  "tunes": [
+    {
+      "title": "First",
+      "composer": "",
+      "writer": "by hand",
+      "rate": 50,
+      "rows": 2,
+      "repeat": 0,
+      "sources": [],
+      "registers": {
+        "r0": [
+          1,
+          2
+        ],
+        "r7": [
+          62,
+          -1
+        ],
+        "r8": [
+          15,
+          -1
+        ]
+      }
+    },
+    {
+      "title": "Second",
+      "composer": "",
+      "writer": "by hand",
+      "rate": 60,
+      "rows": 3,
+      "repeat": 1,
+      "sources": [
+        {
+          "name": "square",
+          "repeat": 0,
+          "values": [
+            14,
+            2
+          ]
+        }
+      ],
+      "registers": {
+        "r0": [
+          9,
+          8,
+          7
+        ],
+        "r7": [
+          56,
+          -1,
+          -1
+        ]
+      },
+      "timerD": {
+        "shape": [
+          0,
+          -1,
+          2
+        ],
+        "target": [
+          8,
+          -1,
+          -1
+        ],
+        "source": [
+          1,
+          -1,
+          -1
+        ],
+        "prescaler": [
+          200,
+          -1,
+          -1
+        ],
+        "count": [
+          150,
+          -1,
+          -1
+        ],
+        "timerReset": [
+          1,
+          -1,
+          -1
+        ],
+        "placeReset": [
+          1,
+          -1,
+          -1
+        ]
+      }
+    }
+  ]
+}

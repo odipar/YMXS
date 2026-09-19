@@ -1,0 +1,29 @@
+{
+  "format": "ymxs",
+  "version": 4,
+  "tunes": [
+    {
+      "title": "One row",
+      "composer": "",
+      "writer": "by hand",
+      "rate": 50,
+      "rows": 1,
+      "repeat": 0,
+      "sources": [],
+      "registers": {
+        "r0": [
+          128
+        ],
+        "r1": [
+          1
+        ],
+        "r7": [
+          62
+        ],
+        "r8": [
+          15
+        ]
+      }
+    }
+  ]
+}

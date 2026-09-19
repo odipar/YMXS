@@ -65,6 +65,8 @@ binary layout is defined by that player.
 [`example.json`](doc/tunes/example.json) appears in both form documents
 and as recorder output in SPEC.md 7. [tools.md](doc/tools.md) covers
 conversion, checking and merging; [ym.md](doc/ym.md) defines YM import.
+[doc/conformance](doc/conformance) is the kit an independent recorder is
+written against, and the runs against it.
 
 ## What is here
 

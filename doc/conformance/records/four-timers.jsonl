@@ -1,0 +1,13 @@
+{"rate":50,"timers":["A","B","C","D"],"sources":[{"rows":[15,0],"repeat":0},{"rows":[12,3],"repeat":0},{"rows":[10,12],"repeat":0},{"rows":[8,9,10,11,12],"repeat":null}]}
+{"result":0,"w":{"0":200,"2":150,"4":100,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"setR9","source":2,"prescaler":64,"count":100,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"A":{"retune":{"prescaler":64,"count":80,"timerReset":true,"placeReset":false}},"C":{"start":{"target":"setR10","source":3,"prescaler":100,"count":120,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"D":{"start":{"target":"setR6","source":4,"prescaler":200,"count":200,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"A":{"stop":{}}}}
+{"result":0,"w":{},"e":{"B":{"stop":{}}}}
+{"result":0,"w":{"0":200,"2":150,"4":100,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"setR9","source":2,"prescaler":64,"count":100,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"A":{"retune":{"prescaler":64,"count":80,"timerReset":true,"placeReset":false}},"C":{"start":{"target":"setR10","source":3,"prescaler":100,"count":120,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"D":{"start":{"target":"setR6","source":4,"prescaler":200,"count":200,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{"A":{"stop":{}}}}
+{"result":0,"w":{},"e":{"B":{"stop":{}}}}

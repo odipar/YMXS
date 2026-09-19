@@ -1,0 +1,35 @@
+{
+  "format": "ymxs",
+  "version": 4,
+  "tunes": [
+    {
+      "title": "Plays once",
+      "composer": "",
+      "writer": "by hand",
+      "rate": 50,
+      "rows": 4,
+      "repeat": null,
+      "sources": [],
+      "registers": {
+        "r0": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "r7": [
+          62,
+          -1,
+          -1,
+          -1
+        ],
+        "r8": [
+          15,
+          14,
+          13,
+          12
+        ]
+      }
+    }
+  ]
+}

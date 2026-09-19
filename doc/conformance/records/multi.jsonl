@@ -1,0 +1,6 @@
+{"rate":60,"timers":["D"],"sources":[{"rows":[14,2],"repeat":0}]}
+{"result":0,"w":{"0":9,"7":56},"e":{"D":{"start":{"target":"setR8","source":1,"prescaler":200,"count":150,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{"0":8},"e":{}}
+{"result":0,"w":{"0":7},"e":{"D":{"stop":{}}}}
+{"result":0,"w":{"0":8},"e":{}}
+{"result":0,"w":{"0":7},"e":{"D":{"stop":{}}}}

@@ -1,0 +1,11 @@
+{"rate":50,"timers":["A"],"sources":[{"rows":[15,0],"repeat":0},{"rows":[1,2,3,4],"repeat":2},{"rows":[5,6,7],"repeat":null}]}
+{"result":0,"w":{"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"setR8","source":2,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"setR8","source":3,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"setR8","source":2,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"setR8","source":3,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}

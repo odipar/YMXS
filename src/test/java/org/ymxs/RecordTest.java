@@ -8,17 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.StringJoiner;
 import org.junit.jupiter.api.Test;
-import org.ymxs.YMXS.Effect;
-import org.ymxs.YMXS.Register;
-import org.ymxs.YMXS.Retune;
-import org.ymxs.YMXS.Row;
-import org.ymxs.YMXS.Source;
-import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.Stop;
-import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -57,74 +47,12 @@ final class RecordTest {
         return out;
     }
 
-    /** The first line of the record (7.3). */
-    private static String first(Tune tune) {
-        StringJoiner timers = new StringJoiner(",", "[", "]");
-        for (Timer timer : Tunes.timers(tune)) {
-            timers.add('"' + timer.name() + '"');
-        }
-        StringJoiner sources = new StringJoiner(",", "[", "]");
-        for (Source source : Tunes.sources(tune)) {
-            StringJoiner values = new StringJoiner(",", "[", "]");
-            for (int value : Tunes.values(source)) {
-                values.add(String.valueOf(value));
-            }
-            var repeat = Tunes.rows(source).repeat();
-            sources.add("{\"rows\":" + values + ",\"repeat\":"
-                    + (repeat.isPresent() ? String.valueOf(repeat.getAsInt()) : "null")
-                    + "}");
-        }
-        return "{\"rate\":" + tune.rate() + ",\"timers\":" + timers
-                + ",\"sources\":" + sources + "}";
-    }
-
-    /** The line of a frame that reads {@code row} (7.4). */
-    private static String frame(Tune tune, Row row) {
-        StringJoiner writes = new StringJoiner(",", "{", "}");
-        for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
-            writes.add("\"" + Chip.number(one.getKey()) + "\":" + one.getValue());
-        }
-        StringJoiner effects = new StringJoiner(",", "{", "}");
-        for (Map.Entry<Timer, Effect> one : Tunes.effects(row).entrySet()) {
-            effects.add('"' + one.getKey().name() + "\":" + operation(tune, one.getValue()));
-        }
-        return "{\"result\":0,\"w\":" + writes + ",\"e\":" + effects + "}";
-    }
-
-    /** The object of an operation, as the table of 7.4 lists it. */
-    private static String operation(Tune tune, Effect effect) {
-        return switch (effect) {
-            case Start start -> "{\"start\":{\"target\":\"" + Tunes.name(Tunes.target(start))
-                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start))
-                    + ",\"prescaler\":" + Chip.divides(Tunes.prescaler(start))
-                    + ",\"count\":" + Tunes.count(start)
-                    + ",\"timerReset\":" + Tunes.timerReset(start)
-                    + ",\"placeReset\":" + Tunes.placeReset(start) + "}}";
-            case Retune retune -> "{\"retune\":{\"prescaler\":"
-                    + Chip.divides(retune.timing().prescaler())
-                    + ",\"count\":" + retune.timing().count()
-                    + ",\"timerReset\":" + retune.timing().timerReset()
-                    + ",\"placeReset\":" + retune.timing().placeReset() + "}}";
-            case Stop ignored -> "{\"stop\":{}}";
-        };
-    }
-
-    /** One pass of the tune: the first line, then a frame a row (4.2). */
-    private static List<String> record(Tune tune) {
-        List<String> out = new ArrayList<>();
-        out.add(first(tune));
-        for (Row row : Tunes.rows(tune)) {
-            out.add(frame(tune, row));
-        }
-        return out;
-    }
-
     @Test
     void theExampleOfSevenSixIsTheRecordOfTheExampleTune() throws IOException {
         Tune tune = Tunes.tune(Text.read(Files.readString(EXAMPLE)), 1);
         List<String> quoted = quoted();
         assertEquals(1 + Tunes.size(tune.table()), quoted.size(),
                 SPEC + " 7.6 lists the first line and one pass");
-        assertEquals(record(tune), quoted, SPEC + " 7.6 is not the record of " + EXAMPLE);
+        assertEquals(Record.record(tune), quoted, SPEC + " 7.6 is not the record of " + EXAMPLE);
     }
 }

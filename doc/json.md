@@ -274,7 +274,7 @@ the `a tree of X` line.
 | a timer column not an array | `Timer T's COL is X, and this form requires a column` |
 | a timer column of a length L other than R | `Timer T's COL is L values long, and the tune has R rows` |
 | a value of a timer column not a whole number | `Timer T's COL at row I is X, and this form requires a whole number` |
-| `shape` other than -1, 0, 1 and 2 | `row I sets shape N on Timer T, and a shape is 0, 1 or 2` |
+| `shape` other than -1, 0, 1 and 2 | `row I sets shape N on Timer T, and a shape is -1, 0, 1 or 2` |
 | `source` outside 1 to S | `row I starts source N, and the tune runs S` |
 | `target` outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |

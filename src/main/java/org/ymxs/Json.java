@@ -419,8 +419,8 @@ public final class Json {
             case RETUNE -> new Retune(new Timing(Chip.prescaler(column(columns, "prescaler", at, timer, rows)), column(columns, "count", at, timer, rows), column(columns, "timerReset", at, timer, rows) == 1, column(columns, "placeReset", at, timer, rows) == 1));
             case STOP -> Tunes.STOP;
             default -> throw new IllegalArgumentException("row " + at + " sets shape "
-                    + shape + " on Timer " + timer + ", and a shape is " + START + ", "
-                    + RETUNE + " or " + STOP);
+                    + shape + " on Timer " + timer + ", and a shape is " + NONE + ", "
+                    + START + ", " + RETUNE + " or " + STOP);
         };
     }
 

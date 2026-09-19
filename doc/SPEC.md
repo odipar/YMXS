@@ -179,7 +179,8 @@ empty list: read the rows from row 0 to the last, within a row the timers A,
 B, C, D; where the operation is a `Start` whose source is new to the list,
 append it. The order is the *first-start order*; the sources are numbered
 from 1 in it, and a source is selected by number. Two sources are equal
-where their names are equal, their values equal in number and order, and
+where their names are equal, their values equal in number and order a row
+at a time, and
 their repeat rows both absent or both present and equal; two `Start`s of
 equal sources start one source of the tune, and equal values under two names
 are two sources.
@@ -732,19 +733,22 @@ feed, byte 10, ending every line. The first line is the figures of the tune
 (7.3), each line after it one frame (7.4).
 
 **7.3 The first line** is `{"rate":H,"timers":[...],"sources":[...]}`:
-`rate` the rate of the tune H; `timers` the timers of the tune (1.10), each
-as its letter `"A"` to `"D"`, in that order, `[]` where empty; `sources` the
-sources of the tune (1.9) in number order, each `{"rows":[...],"repeat":RR}`
-with `rows` one list of its values in row order, the values of row 0 then
-those of row 1 and so on, and RR its repeat row, or `null` for a source
-that plays once, `[]` where empty.
+`rate` the rate of the tune H; `timers` the timers of the tune (1.10),
+each as its letter `"A"` to `"D"`, in that order, `[]` where empty;
+`sources` the sources of the tune (1.9) in number order, each
+`{"rows":[...],"repeat":RR}` with `rows` one list of its values in row
+order, the values of row 0 then those of row 1 and so on, a row being one,
+two or three values as the target that runs the source reads (3.1.1), and
+RR its repeat row, or `null` for a source that plays once, `[]` where
+empty.
 
 **7.4 A frame's line.** For a frame that reads a row,
 `{"result":0,"w":{...},"e":{...}}`: `w` the registers the frame writes
 (4.4), keyed by number as text, `"0"` to `"13"`, in ascending numeric order,
 `"2"` before `"10"`, each with the value written, R7's its six bits (2.4),
 `{}` where empty, a register an effect runs on included where the row sets
-it (6.1); `e` the timers the row acts on, keyed by letter `"A"` to `"D"`, in
+it (6.1); `e` the timers the row acts on, as the row has them, whether or
+not the timer is one of the tune (4.3), keyed by letter `"A"` to `"D"`, in
 that order, each with the operation as one object of the table, `{}` where
 empty. For the first frame after the end (4.6), `{"result":-1}`.
 

@@ -25,5 +25,5 @@ which the wrap resumes.
 | `sources` | 1 | 11 | three sources: one repeating to row 0, one to a row above it, one that plays once |
 | `registers` | 1 | 7 | every register column, R7's six bits, and a row that sets a register an effect runs on (6.1) |
 | `wrap` | 1 | 9 | six rows repeating to row 4, so the record wraps |
-| `several` | 1 | 8 | targets of two and three registers, and the sources of two and three values a row they run (3.1.1, 3.2.1) |
+| `several` | 1 | 9 | targets of two and three registers, and the sources of two and three values a row they run (3.1.1, 3.2.1) |
 | `multi` | 2 | 6 | a multi of two tunes: the record is of the second, at a rate of its |

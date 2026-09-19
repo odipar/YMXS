@@ -6,3 +6,4 @@
 {"result":0,"w":{"7":56,"9":12},"e":{"A":{"start":{"target":"setToneA","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
 {"result":0,"w":{},"e":{"B":{"start":{"target":"setVoiceC","source":2,"prescaler":64,"count":100,"timerReset":true,"placeReset":true}}}}
 {"result":0,"w":{},"e":{"C":{"start":{"target":"setBuzzer","source":3,"prescaler":100,"count":120,"timerReset":true,"placeReset":true}}}}
+{"result":0,"w":{},"e":{}}

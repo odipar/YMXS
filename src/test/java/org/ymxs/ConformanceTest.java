@@ -48,7 +48,7 @@ class ConformanceTest {
                     "every register column, R7's six bits, and a row that sets a register"
                             + " an effect runs on (6.1)"),
             new Source("wrap", 1, 9, "six rows repeating to row 4, so the record wraps"),
-            new Source("several", 1, 8,
+            new Source("several", 1, 9,
                     "targets of two and three registers, and the sources of two and"
                             + " three values a row they run (3.1.1, 3.2.1)"),
             new Source("multi", 2, 6,
@@ -85,6 +85,14 @@ class ConformanceTest {
                 | tune | of the file | lines | what it reaches |
                 |---|---|---|---|
                 """ + String.join("\n", rows) + "\n";
+        // An implementer receives TASK.md, so a tune the kit has and that
+        // table leaves out is a tune a run produces no record for.
+        String task = Files.readString(KIT_AT.resolve("TASK.md"), StandardCharsets.UTF_8);
+        for (Source source : KIT) {
+            assertTrue(task.contains("| `%s.json` | %d | %d |".formatted(
+                            source.name(), source.tune(), source.lines())),
+                    "TASK.md has no line count for " + source.name());
+        }
         String sources = Files.readString(KIT_AT.resolve("SOURCES.md"), StandardCharsets.UTF_8);
         if (!sources.contains(said)) {
             Files.writeString(KIT_AT.resolve("SOURCES.generated.md"), said,

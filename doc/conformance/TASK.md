@@ -38,6 +38,7 @@ in the frame, and one wraps with two timers running.
 | `sources.json` | 1 | 11 |
 | `registers.json` | 1 | 7 |
 | `wrap.json` | 1 | 9 |
+| `several.json` | 1 | 9 |
 | `multi.json` | 2 | 6 |
 
 **4. The rules.**

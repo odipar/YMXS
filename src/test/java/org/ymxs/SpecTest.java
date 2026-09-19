@@ -7,7 +7,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -119,5 +123,46 @@ final class SpecTest {
         long open = java.chars().filter(c -> c == '{').count();
         long close = java.chars().filter(c -> c == '}').count();
         assertEquals(open, close, "the braces of the block balance");
+    }
+
+    /** The clauses one document defines: `**N.N**` and `## N.N`, a section
+     *  number standing for itself and for the clauses under it. */
+    private static Set<String> clausesOf(String said) {
+        Set<String> out = new HashSet<>();
+        Matcher m = Pattern.compile("(?m)^(?:\\*\\*|#+ )R?(\\d+(?:\\.\\d+)*)").matcher(said);
+        while (m.find()) {
+            String clause = m.group(1);
+            out.add(clause);
+            for (int dot = clause.indexOf('.'); dot > 0; dot = clause.indexOf('.', dot + 1)) {
+                out.add(clause.substring(0, dot));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Every citation of a specification lands on a clause of it.
+     *
+     * <p>A citation in these documents is the clause in brackets, `(2.2)`,
+     * and a reader follows it. 3.1.1 cited a 2.6 no document has until the
+     * first reader of the conformance kit found it, with the documents
+     * alone; this reads every citation at once, so one that lands nowhere
+     * is named where it is written.
+     */
+    @Test
+    void everyCitationLandsOnAClause() throws IOException {
+        List<String> wrong = new ArrayList<>();
+        for (Path at : List.of(Path.of("doc/SPEC.md"), Path.of("doc/json.md"),
+                Path.of("doc/csv.md"), Path.of("doc/ym.md"))) {
+            String said = Files.readString(at);
+            Set<String> clauses = clausesOf(said);
+            Matcher m = Pattern.compile("\\((\\d+(?:\\.\\d+){1,3})\\)").matcher(said);
+            while (m.find()) {
+                if (!clauses.contains(m.group(1))) {
+                    wrong.add(at + " cites (" + m.group(1) + "), which is no clause of it");
+                }
+            }
+        }
+        assertTrue(wrong.isEmpty(), String.join("\n", wrong));
     }
 }

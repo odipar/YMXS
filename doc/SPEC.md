@@ -167,10 +167,12 @@ effect the timer runs; a `Stop` stops the timer. A `Start` and a
 on a timer running an effect ends it and begins another. Section 4
 defines each operation as steps.
 
-**1.8 Targets and sources.** This version defines one kind of target,
-`SetRegister`, one a register, named `setR0` to `setR13` (3.1), and one
-kind of source, `Single`: a text `name` and a `table` of one integer a
-row (3.2).
+**1.8 Targets and sources.** This version defines three kinds of target:
+`SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
+`SetNoise` and `SetEnvelope`, two registers each; and `SetVoice` and
+`SetBuzzer`, three (3.1). It defines three kinds of source to match,
+`Single`, `Pair` and `Triple`: a text `name` and a `table` of one, two or
+three integers a row (3.2).
 
 **1.9 The sources of a tune.** The list this procedure produces from an
 empty list: read the rows from row 0 to the last, within a row the timers A,
@@ -312,10 +314,10 @@ row, and the source an effect runs on it has that many values a row (3.2.1).
 `setR7` writes bits 5 to 0 and leaves 7 and 6 (2.4). A tone target writes
 the twelve bits of a voice's period, fine then coarse (2.2); a voice target
 writes those and the volume, whose bit 4 selects the envelope (2.3); an
-envelope target writes the sixteen bits of the envelope period (2.5), and a
-buzzer target those and the shape, which every write restarts (2.6). A noise
+envelope target writes the sixteen bits of the envelope period (2.2), and a
+buzzer target those and the shape, which every write restarts (2.5). A noise
 target writes the noise period and one voice's volume; R6 is one register
-for the three voices (2.2), so two noise targets running at once write one
+for the three voices (2.1), so two noise targets running at once write one
 period and the later tick stands.
 
 The order of the writes is the player's, with the two the sound depends on
@@ -733,7 +735,8 @@ feed, byte 10, ending every line. The first line is the figures of the tune
 `rate` the rate of the tune H; `timers` the timers of the tune (1.10), each
 as its letter `"A"` to `"D"`, in that order, `[]` where empty; `sources` the
 sources of the tune (1.9) in number order, each `{"rows":[...],"repeat":RR}`
-with its values in row order and RR its repeat row, or `null` for a source
+with `rows` one list of its values in row order, the values of row 0 then
+those of row 1 and so on, and RR its repeat row, or `null` for a source
 that plays once, `[]` where empty.
 
 **7.4 A frame's line.** For a frame that reads a row,
@@ -752,14 +755,17 @@ empty. For the first frame after the end (4.6), `{"result":-1}`.
 | a `Stop` | `{"stop":{}}` |
 
 `target` is the name of the target (3.1.2), `source` the number S of the
-source (1.9), `prescaler` the divisor P (3.3.2), `count` the count C
-(3.3.3), `timerReset` and `placeReset` the resets (3.4), each B `true`
-or `false`.
+source in first-start order (1.9), which the numbering of a file matches
+where a writer emitted it (json.md 3.4), `prescaler` the divisor P
+(3.3.2), `count` the count C (3.3.3), `timerReset` and `placeReset` the
+resets (3.4), each B `true` or `false`.
 
 **7.5 The length.** The first line and the lines of as many frames as the
 host requires, from frame 0, except that the record of a tune that plays
 once ends with its `{"result":-1}` line, produced for the first frame after
-the end, where the record ends. One pass and one loop of a tune of R rows
+the end, where the record ends. Where the host names no count, it is one
+pass and one loop of a tune that repeats and one pass and the frame after
+it of a tune that plays once. One pass and one loop of a tune of R rows
 repeating to RR is R + (R - RR) frames; one pass of a tune of R rows that
 plays once and the frame after it is R + 1, the whole record for any number
 of frames at or above R + 1. Two recorders of one tune over one number of

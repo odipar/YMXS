@@ -1,4 +1,4 @@
-# YMXS
+# YMXS - tune data for the Atari ST's sound chip, and the tools for it
 
 ## Read this first
 
@@ -15,13 +15,62 @@ distributed `.ym` is a port of the LZH code of his ST-Sound library.
 
 ## What YMXS is
 
-YMXS defines tune data and playback for the Atari ST's YM2149 sound
-chip and MC68901 (MFP) timers. [YMXR](https://github.com/odipar/YMXR)
-is a player in a separate repository.
+YMXS defines a tune for the Atari ST as data: the settings a player
+writes to the YM2149 sound chip each frame, and the effects that the
+timers of the MC68901 (MFP) run at rates above the frame rate. It
+defines what a player does with that data, and the range of every value
+on the two chips.
 
-[YMX](https://github.com/odipar/YMX) is the family this repository
-belongs to: a design document defining how YMXS, YMXR, DTX and ST4 fit
-together.
+This repository is the specification and five tools. The tools convert a
+YM dump into a YMXS tune, check a tune, write it as JSON or CSV, and merge
+several tunes into one file. A player is a separate program that reads a
+YMXS tune and makes the sound, so a tracker that writes a YMXS tune
+reaches every player that reads one.
+
+## Getting started
+
+The five tools come as standalone executables for Windows, macOS and
+Linux, on x64 and arm64, from the
+[releases](https://github.com/odipar/YMXS/releases): one zip a platform
+([tools.md](doc/tools.md) 12).
+
+| tool | reads | writes |
+|---|---|---|
+| `ym-to-ymxs` | a YM5 or YM6 dump | the tune as JSON |
+| `ymxs-check` | a tune as JSON | the text read, and a report on standard error |
+| `ymxs-json-to-csv` | JSON | CSV |
+| `ymxs-csv-to-json` | CSV | JSON |
+| `ymxs-merge` | several files of JSON, one after another | one file of JSON |
+
+Each tool reads standard input and writes standard output, so one pipes
+into the next. This converts a dump, checks it and writes it as CSV:
+
+```bash
+ym-to-ymxs < tune.ym | ymxs-check | ymxs-json-to-csv > tune.csv
+```
+
+[`packed.ym`](src/test/resources/packed.ym) is a dump to try it on, and
+[`example.json`](doc/tunes/example.json) a tune to read. In a checkout the
+same tools are under [`bin/`](bin), and [tools.md](doc/tools.md) 10 runs
+the pipe a stage at a time.
+
+## Words used here
+
+| word | definition |
+|---|---|
+| YM2149 | the sound chip of the Atari ST |
+| MFP | the MC68901, the chip of the four timers, A to D |
+| register | one of R0 to R15 of the YM2149; a tune sets R0 to R13 |
+| frame | one call of the player |
+| tick | one interrupt of a timer |
+| row | one entry of a table |
+| tune | a title, a composer, a writer, a rate and a table of rows |
+| multi | a list of tunes, numbered from 1; the host selects a tune by number |
+| effect | the source connected to a target on a timer, at the rate of its prescaler and count |
+| source | a name and a table of one, two or three values a row |
+| target | a procedure the player calls at a tick with one row of a source |
+| host | the program that selects a tune and calls the player once a frame |
+| YM dump | a YM5 or YM6 file: sixteen bytes a frame, one a register of the YM2149 |
 
 ## Reading and playback
 
@@ -114,6 +163,13 @@ Every limit of a value follows from the two chips and the 68000
 ([SPEC.md](doc/SPEC.md) 2 and 3). The choices of the structure follow
 measurements of register dumps, read as [ym.md](doc/ym.md) defines; the
 dumps are outside this repository.
+
+## Related repositories
+
+[YMXR](https://github.com/odipar/YMXR) is a player of YMXS tunes for the
+Atari ST. [YMX](https://github.com/odipar/YMX) is the family this
+repository belongs to: a design document defining how YMXS, YMXR, DTX and
+ST4 fit together.
 
 ## License
 

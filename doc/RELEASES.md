@@ -18,13 +18,31 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.6` beside `v0.4.6`.
+version of it is a tag of that directory: `go/v0.4.7` beside `v0.4.7`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.7, 2026-09-23
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.7>, built from the commit
+tagged `v0.4.7`.
+
+Every file a tool is built from stands as 0.4.6 has it, so the five
+executables are that release's bytes and the Go module is its source. One
+test reads the line a tool reports today.
+
+- **A pipe test read the line before the four formats.** `PipeTest` runs
+  the tools one into the next and read `not a YM5! or YM6! dump` from
+  `ym-to-ymxs`, which 0.4.6 reworded to name YM3! and YM3b; the test now
+  reads the line as it stands. It runs where `target/classpath.txt`
+  stands, which `bin/run` and the workflow write and `mvn test` alone
+  does not, so it and eight others skip on a bare local run: 116 tests
+  where the workflow runs 123. 0.4.6 was cut from such a run, and the
+  workflow found this after the release was published.
 
 ### 0.4.6, 2026-09-23
 

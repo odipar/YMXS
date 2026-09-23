@@ -1,7 +1,7 @@
 # Reading a YM dump
 
-`ym-to-ymxs` ([tools.md](tools.md) 9) converts a YM5! or YM6! register
-dump into a tune. This document defines the dump layout, errors and
+`ym-to-ymxs` ([tools.md](tools.md) 9) converts a YM3!, YM3b, YM5! or YM6!
+register dump into a tune. This document defines the dump layout, errors and
 mapping from frames to rows, sources and effects. Terms follow
 [SPEC.md](SPEC.md). Note: its figures were measured on dumps read this way.
 
@@ -9,13 +9,16 @@ mapping from frames to rows, sources and effects. Terms follow
 
 ## 1. Definitions
 
-**1.1** A *dump* is a header, D samples, three strings and F frames.
-Every field of more than one byte is most significant byte first, except
-in an archive header (2.5).
+**1.1** A *dump* is F frames and the format its first four bytes name: a
+YM5! or YM6! dump has a header, D samples and three strings before the
+frames (2.1), and the frames of a YM3! or YM3b dump follow those four bytes
+(2.6). Every field of more than one byte is most significant byte first,
+except in an archive header (2.5).
 
 **1.2** A *frame* of a dump is one call of the dump's player: sixteen
 bytes, one a register R0 to R15 of the YM2149; R14 and R15, the I/O
-ports, are each the count of one effect (section 4). The reading
+ports, are each the count of one effect (section 4). A frame of a YM3
+dump is fourteen bytes, R0 to R13, and its R14 and R15 are 0. The reading
 produces one row a frame.
 
 **1.3** A *slot* is one of two fields of a frame, in the high bits of
@@ -80,6 +83,14 @@ member are skipped. For a stored member the unpacked size is trusted; where
 it exceeds the bytes after the header, the reading is left to the
 implementation (tools.md 11.5).
 
+**2.6 A YM3 dump.** Bytes 0 to 3 are `YM3!` or `YM3b`, and fourteen vectors
+of F bytes follow, vector r being register r of frames 0 to F - 1; under
+`YM3b` the 4 bytes after the vectors are L. F is the bytes after byte 3, less
+those 4 under `YM3b`, divided by 14, and a remainder is an error (section 3).
+Bytes after the frames, and after L under `YM3b`, are skipped. The name and
+the author are empty, D is 0, H is 50, L is 0 under `YM3!`, and R14 and R15
+of every frame are 0, so every slot of every frame is off (4.2).
+
 ---
 
 ## 3. What is an error of a dump
@@ -88,11 +99,13 @@ An error ends `ym-to-ymxs` with exit 1 and an empty output, reported by the
 line below (tools.md 4.1). The errors are found in this order, the first
 found reported: an archive that fails to unpack (2.5); the fields of 2.1 in
 offset order, the samples (2.2) and the strings (2.3), each where the input
-ends inside it; F and H, after the strings; the frames (2.4).
+ends inside it; F and H, after the strings; the frames (2.4). For a YM3 dump
+the frames (2.6) are the one error after the format.
 
 | line | where |
 |---|---|
-| `not a YM5! or YM6! dump: it opens with "XXXX"` | bytes 0 to 3 are neither, XXXX those bytes |
+| `not a YM3!, YM3b, YM5! or YM6! dump: it opens with "XXXX"` | bytes 0 to 3 are none of the four, XXXX those bytes |
+| `the frames of a YM3! dump are B bytes, and a frame is 14 bytes` | the bytes of a YM3 dump after byte 3, less the 4 of `YM3b`, are 0 or leave a remainder on 14, B being those bytes; `YM3b` in place of `YM3!` for that format |
 | `the check string after YM5! is not there` | bytes 4 to 11 are not `LeOnArD!`; `YM6!` in place of `YM5!` for that format |
 | `a header field declares B bytes and L are left` | the input ends inside a header field: B is 4 for the field at offset 0, 8 for the field at offset 4, and 2 for every other field of 2.1 and for the size field of a sample (2.2), each of which is read two bytes at a time; L is the bytes left before the end of the input |
 | `the extra data declares E bytes and L are left` | the input ends inside the extra data |

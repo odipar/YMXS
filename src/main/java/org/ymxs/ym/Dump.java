@@ -3,12 +3,16 @@ package org.ymxs.ym;
 import java.nio.charset.StandardCharsets;
 
 /**
- * A YM5!/YM6! register dump, read in the terms of the file.
+ * A YM3!/YM3b/YM5!/YM6! register dump, read in the terms of the file.
  *
- * <p>The layout is a fixed header, extra data, the digidrum samples, three
- * strings ended by a zero, and then the frames: either sixteen vectors of
- * one register each, or one record of sixteen bytes a frame. Both come out
+ * <p>The YM5 layout is a fixed header, extra data, the digidrum samples,
+ * three strings ended by a zero, and then the frames: either sixteen vectors
+ * of one register each, or one record of sixteen bytes a frame. Both come out
  * as sixteen register vectors.
+ *
+ * <p>A YM3 dump opens with the frames: fourteen vectors of one register each
+ * follow the four bytes of the format, and under YM3b a long after them is
+ * the frame the dump repeats to. See {@link #ym3}.
  *
  * <p>A distributed {@code .ym} is usually an archive containing the dump,
  * and {@link Lha} unpacks one, so both forms read here.
@@ -22,7 +26,7 @@ public final class Dump {
      *  all sixteen: the two I/O ports are where this format files an
      *  effect's timer count.
      *
-     * @param format YM5! or YM6!
+     * @param format YM3!, YM3b, YM5! or YM6!
      * @param frames how many frames the dump runs
      * @param playerHz how often the dump's player was called
      * @param loopFrame the frame the dump repeats to
@@ -59,7 +63,7 @@ public final class Dump {
 
     /** The song in {@code data}.
      *
-     * @throws Unreadable where it is not a YM5! or YM6! dump
+     * @throws Unreadable where it is not a YM3!, YM3b, YM5! or YM6! dump
      */
     public static Song read(byte[] data) {
         if (Lha.isArchive(data)) {
@@ -75,8 +79,12 @@ public final class Dump {
 
     private Song run() {
         String format = ascii(4);
+        if (format.equals("YM3!") || format.equals("YM3b")) {
+            return ym3(format);
+        }
         if (!format.equals("YM6!") && !format.equals("YM5!")) {
-            throw new Unreadable("not a YM5! or YM6! dump: it opens with \"" + format + "\"");
+            throw new Unreadable("not a YM3!, YM3b, YM5! or YM6! dump: it opens with \""
+                    + format + "\"");
         }
         if (!ascii(8).equals("LeOnArD!")) {
             throw new Unreadable("the check string after " + format + " is not there");
@@ -112,6 +120,41 @@ public final class Dump {
         byte[][] registers = (attributes & 1) != 0 ? vectors(count) : records(count);
         return new Song(format, count, playerHz, loopFrame, attributes, drums, name, author,
                 registers);
+    }
+
+    /** The registers a YM3 dump has, R0 to R13. R14 and R15, where this
+     *  format files an effect's count, stand outside YM3, and the rate it
+     *  leaves unsaid is 50 Hz. */
+    private static final int YM3_REGISTERS = 14;
+    private static final int YM3_HZ = 50;
+
+    /**
+     * A YM3 dump: the four bytes of the format, then fourteen vectors of one
+     * register each, R0 to R13, and under YM3b a long after them, the frame
+     * the dump repeats to. The frame count is the vectors' length, the name
+     * and the author are empty, the sample count is 0, and R14 and R15 are
+     * zero, so every slot of every frame is off (4.2).
+     */
+    private Song ym3(String format) {
+        int trailing = format.equals("YM3b") ? 4 : 0;
+        int rest = data.length - at - trailing;
+        if (rest <= 0 || rest % YM3_REGISTERS != 0) {
+            throw new Unreadable("the frames of a " + format + " dump are "
+                    + Math.max(rest, 0) + " bytes, and a frame is " + YM3_REGISTERS
+                    + " bytes");
+        }
+        int frames = rest / YM3_REGISTERS;
+        byte[][] registers = new byte[Song.REGISTERS][];
+        for (int r = 0; r < Song.REGISTERS; r++) {
+            registers[r] = new byte[frames];
+            if (r < YM3_REGISTERS) {
+                System.arraycopy(data, at, registers[r], 0, frames);
+                at += frames;
+            }
+        }
+        long loopFrame = trailing > 0 ? u32() : 0;
+        return new Song(format, frames, YM3_HZ, loopFrame, 1, new byte[0][], "", "",
+                registers);   // attribute bit 0: the frames are vectors
     }
 
     /** Sixteen vectors of one register each. */

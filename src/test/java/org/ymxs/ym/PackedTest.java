@@ -56,7 +56,7 @@ final class PackedTest {
         Dump.Unreadable no = assertThrows(Dump.Unreadable.class,
                 () -> Dump.read("not a dump and not an archive".getBytes(
                         java.nio.charset.StandardCharsets.US_ASCII)));
-        assertTrue(String.valueOf(no.getMessage()).contains("not a YM5! or YM6! dump"),
+        assertTrue(String.valueOf(no.getMessage()).contains("not a YM3!, YM3b, YM5! or YM6! dump"),
                 String.valueOf(no.getMessage()));
     }
 }

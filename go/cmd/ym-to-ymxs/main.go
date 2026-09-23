@@ -1,5 +1,5 @@
-// Command ym-to-ymxs reads a YM5!/YM6! register dump on standard input
-// and writes JSON on standard output. A distributed .ym is usually an
+// Command ym-to-ymxs reads a YM3!/YM3b/YM5!/YM6! register dump on standard
+// input and writes JSON on standard output. A distributed .ym is usually an
 // archive containing the dump, and both forms read.
 //
 // One dump is one tune, so the output is a multi of one. ymxs-merge

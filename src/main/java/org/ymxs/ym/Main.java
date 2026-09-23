@@ -10,8 +10,8 @@ import org.ymxs.YMXS.Tune;
 import org.ymxs.tool.Tool;
 
 /**
- * {@code ym-to-ymxs}: a YM5!/YM6! register dump on standard input, JSON on
- * standard output. A distributed {@code .ym} is usually an archive
+ * {@code ym-to-ymxs}: a YM3!/YM3b/YM5!/YM6! register dump on standard input,
+ * JSON on standard output. A distributed {@code .ym} is usually an archive
  * containing the dump, and both forms read.
  *
  * <p>One dump is one tune, so the output is a multi of one.

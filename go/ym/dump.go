@@ -1,11 +1,15 @@
-// Package ym reads a YM5!/YM6! register dump into the tune data
+// Package ym reads a YM3!/YM3b/YM5!/YM6! register dump into the tune data
 // structure: one row a frame, and a source for each distinct sound the
 // dump's effect slots produce.
 //
-// The layout is a fixed header, extra data, the digidrum samples, three
+// The YM5 layout is a fixed header, extra data, the digidrum samples, three
 // strings ended by a zero, and then the frames: either sixteen vectors of
 // one register each, or one record of sixteen bytes a frame. Both come out
 // as sixteen register vectors.
+//
+// A YM3 dump opens with the frames: fourteen vectors of one register each
+// follow the four bytes of the format, and under YM3b a long after them is
+// the frame the dump repeats to. See ym3.
 //
 // A distributed .ym is usually an archive containing the dump, and Unpack
 // unpacks one, so both forms read here.
@@ -19,6 +23,14 @@ import (
 // Registers is the registers in the file, R0 to R15.
 const Registers = 16
 
+// ym3Registers is the registers a YM3 dump has, R0 to R13. R14 and R15,
+// where this format files an effect's count, stand outside YM3, and ym3Hz
+// is the rate it leaves unsaid.
+const (
+	ym3Registers = 14
+	ym3Hz        = 50
+)
+
 // DrumsAre4Bit is attribute bit 2: the samples are one four-bit value a
 // byte.
 const DrumsAre4Bit = 4
@@ -29,7 +41,7 @@ const DrumsAre4Bit = 4
 // Values[r][frame] is R(r) as the file has it, all sixteen: the two I/O
 // ports are where this format files an effect's timer count.
 type Song struct {
-	Format    string   // YM5! or YM6!
+	Format    string   // YM3!, YM3b, YM5! or YM6!
 	Frames    int      // how many frames the dump runs
 	PlayerHz  int      // how often the dump's player was called
 	LoopFrame int64    // the frame the dump repeats to
@@ -59,7 +71,7 @@ type dump struct {
 }
 
 // Read is the song in the data. The error is an Unreadable where it is not
-// a YM5! or YM6! dump.
+// a YM3!, YM3b, YM5! or YM6! dump.
 func Read(data []byte) (Song, error) {
 	if IsArchive(data) {
 		out, err := Unpack(data)
@@ -78,8 +90,12 @@ func (d *dump) run() (Song, error) {
 	if err != nil {
 		return Song{}, err
 	}
+	if format == "YM3!" || format == "YM3b" {
+		return d.ym3(format)
+	}
 	if format != "YM6!" && format != "YM5!" {
-		return Song{}, unreadable("not a YM5! or YM6! dump: it opens with %q", format)
+		return Song{}, unreadable("not a YM3!, YM3b, YM5! or YM6! dump: it opens with %q",
+			format)
 	}
 	check, err := d.ascii(8)
 	if err != nil {
@@ -162,6 +178,42 @@ func (d *dump) run() (Song, error) {
 	return Song{Format: format, Frames: count, PlayerHz: playerHz, LoopFrame: loopFrame,
 		Attribute: attributes, Drums: drums, Name: name, Author: author,
 		Values: values}, nil
+}
+
+// ym3 reads a YM3 dump: the four bytes of the format, then fourteen vectors
+// of one register each, R0 to R13, and under YM3b a long after them, the
+// frame the dump repeats to. The frame count is the vectors' length, the
+// name and the author are empty, the sample count is 0, and R14 and R15 are
+// zero, so every slot of every frame is off (4.2).
+func (d *dump) ym3(format string) (Song, error) {
+	trailing := 0
+	if format == "YM3b" {
+		trailing = 4
+	}
+	rest := len(d.data) - d.at - trailing
+	if rest <= 0 || rest%ym3Registers != 0 {
+		return Song{}, unreadable("the frames of a %s dump are %d bytes, and a frame is"+
+			" %d bytes", format, max(rest, 0), ym3Registers)
+	}
+	frames := rest / ym3Registers
+	values := make([][]byte, Registers)
+	for r := 0; r < Registers; r++ {
+		values[r] = make([]byte, frames)
+		if r < ym3Registers {
+			copy(values[r], d.data[d.at:])
+			d.at += frames
+		}
+	}
+	loopFrame := int64(0)
+	if trailing > 0 {
+		one, err := d.u32()
+		if err != nil {
+			return Song{}, err
+		}
+		loopFrame = one
+	}
+	return Song{Format: format, Frames: frames, PlayerHz: ym3Hz, LoopFrame: loopFrame,
+		Attribute: 1, Drums: [][]byte{}, Values: values}, nil // bit 0: the frames are vectors
 }
 
 // vectors reads sixteen vectors of one register each.

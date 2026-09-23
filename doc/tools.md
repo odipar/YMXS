@@ -42,7 +42,7 @@ is in UTF-16 code units (11.5 for the Go tree).
 
 | tool | reads | writes | flags |
 |---|---|---|---|
-| `ym-to-ymxs` | a YM5! or YM6! register dump, in an LHA archive or not ([ym.md](ym.md)) | JSON, a multi of one tune | `-r`, `-rROW`, `-silent` |
+| `ym-to-ymxs` | a YM3!, YM3b, YM5! or YM6! register dump, in an LHA archive or not ([ym.md](ym.md)) | JSON, a multi of one tune | `-r`, `-rROW`, `-silent` |
 | `ymxs-check` | JSON | the text read | `-silent` |
 | `ymxs-json-to-csv` | JSON | CSV | `-silent` |
 | `ymxs-csv-to-json` | CSV | JSON | `-silent` |
@@ -257,8 +257,8 @@ the lines (1.3, 11.5).
 
 ## 9. ym-to-ymxs
 
-**9.1** The input is a YM5! or YM6! register dump, in an LHA archive or
-bare, and the output is JSON of a multi of one tune. [ym.md](ym.md) defines
+**9.1** The input is a YM3!, YM3b, YM5! or YM6! register dump, in an LHA
+archive or bare, and the output is JSON of a multi of one tune. [ym.md](ym.md) defines
 the reading and the errors of a dump.
 
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
@@ -285,10 +285,11 @@ both with a stack trace in place of an error line.
 
     <format> "<name>" by "<author>", <R> rows at <H> Hz, <S> sources, timers [<timers>]
 
-`<format>` is `YM5!` or `YM6!`; `<name>` and `<author>` the dump's name and
-author as they stand; R the row count, H the rate, S the number of sources
-the rows start, `<timers>` the timers some row starts a source on, A to D,
-separated by `, `, `[]` where empty; `rows` and `sources` for every R and S.
+`<format>` is `YM3!`, `YM3b`, `YM5!` or `YM6!`; `<name>` and `<author>` the
+dump's name and author as they stand, each empty for a YM3 dump (ym.md 2.6);
+R the row count, H the rate, S the number of sources the rows start,
+`<timers>` the timers some row starts a source on, A to D, separated by
+`, `, `[]` where empty; `rows` and `sources` for every R and S.
 Three parts follow, each where its figure is above 0, in this order: `, N
 slots this does not read`, `, N frames a recording kept a square wave off
 its voice`, `, N recordings cut at the row the tune repeats to` (ym.md 9).

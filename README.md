@@ -9,7 +9,7 @@ every change. [LICENSE](LICENSE) is the terms, and its attribution records
 who did what. Whether to use software written that way is the reader's
 decision, and this section is here so that the decision is informed.
 
-The pieces it is built on are older than it. The YM5 and YM6
+The pieces it is built on are older than it. The YM3, YM5 and YM6
 register-dump formats are Arnaud Carré's, and the depacker that opens a
 distributed `.ym` is a port of the LZH code of his ST-Sound library.
 
@@ -36,7 +36,7 @@ Linux, on x64 and arm64, from the
 
 | tool | reads | writes |
 |---|---|---|
-| `ym-to-ymxs` | a YM5 or YM6 dump | the tune as JSON |
+| `ym-to-ymxs` | a YM3, YM5 or YM6 dump | the tune as JSON |
 | `ymxs-check` | a tune as JSON | the text read, and a report on standard error |
 | `ymxs-json-to-csv` | JSON | CSV |
 | `ymxs-csv-to-json` | CSV | JSON |
@@ -70,7 +70,8 @@ the pipe a stage at a time.
 | source | a name and a table of one, two or three values a row |
 | target | a procedure the player calls at a tick with one row of a source |
 | host | the program that selects a tune and calls the player once a frame |
-| YM dump | a YM5 or YM6 file: sixteen bytes a frame, one a register of the YM2149 |
+| YM5 or YM6 dump | a file of sixteen bytes a frame, one a register of the YM2149 |
+| YM3 dump | a file of fourteen bytes a frame, R0 to R13, the frames opening it |
 
 ## Reading and playback
 
@@ -189,7 +190,7 @@ Dalen. Claude (Anthropic's Claude Code) wrote the structure, the two
 trees of tools, the tests and most of the documents, under Robbert van
 Dalen's direction: he requested, read and merged every change.
 
-The YM5 and YM6 register-dump formats are by Arnaud Carré
+The YM3, YM5 and YM6 register-dump formats are by Arnaud Carré
 (Leonard/Oxygene); `ym-to-ymxs` reads them, and its LHA depacker is a
 port of the LZH code of his ST-Sound library, itself based on LZH code by
 Haruhiko Okumura (1991) and Kerwin F. Medina (1996).

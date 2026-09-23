@@ -142,7 +142,7 @@ final class ReadTest {
     void aFileThatIsNotADumpIsSaidToBeNone() {
         Dump.Unreadable no = assertThrows(Dump.Unreadable.class,
                 () -> Dump.read("not a dump at all".getBytes(StandardCharsets.US_ASCII)));
-        assertTrue(String.valueOf(no.getMessage()).contains("not a YM5! or YM6! dump"),
+        assertTrue(String.valueOf(no.getMessage()).contains("not a YM3!, YM3b, YM5! or YM6! dump"),
                 String.valueOf(no.getMessage()));
     }
 }

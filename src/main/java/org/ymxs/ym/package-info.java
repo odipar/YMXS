@@ -1,5 +1,5 @@
 /**
- * An example: a YM5!/YM6! register dump read into the structure.
+ * An example: a YM3!/YM3b/YM5!/YM6! register dump read into the structure.
  *
  * <p>{@code org.ymxs} compiles without this package. It is here as a
  * worked mapping from another format onto a {@link org.ymxs.YMXS.Tune},

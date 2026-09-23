@@ -361,8 +361,8 @@ exits with 2. Then it runs the class with `java -ea` on the classpath of
 **11.4 Parity.** `ParityTest` runs the two trees on one input and
 requires the same exit code, the same bytes on standard output and the
 same text on standard error. It skips where Go is absent, so
-`.github/workflows/test.yml`, which runs `mvn test` on a GitHub runner
-where a caller starts it, puts Go on the path:
+`.github/workflows/test.yml`, which runs `bin/suite` (11.6) on a GitHub
+runner where a caller starts it, puts Go on the path:
 
 | input | tools |
 |---|---|
@@ -400,6 +400,16 @@ trees differ, read off invocations of both.
 | `ym-to-ymxs -r-1` | an uncaught exception, exit 1 | a panic, exit 2 |
 | `ym-to-ymxs -rROW`, ROW outside 32 bits | `-rROW is not a row number`, exit 2 | writes ROW as the tune's `repeat` |
 
+
+**11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
+suite as `.github/workflows/test.yml` runs it. It writes
+`target/classpath.txt`, which `PipeTest` and `ParityTest` read and the
+test phase alone leaves unwritten, runs `mvn test`, and reads the count of
+skipped tests off the run. A skipped test is a check that did not run, so
+a count above 0 ends the script with exit 1 and the lines that report it,
+and go absent from the path ends it with exit 2 before the suite starts. A
+bare `mvn test` skips every test of `PipeTest` and `ParityTest` and
+reports a green run.
 ---
 
 ## 12. A release

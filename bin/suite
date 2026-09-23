@@ -1,0 +1,42 @@
+#!/bin/sh
+# The Java suite as .github/workflows/test.yml runs it, on this machine.
+# A test that skips is a check that did not run, so this writes what the
+# skipping tests need, runs the suite, and reads the skip count back: a
+# count above 0 ends this with exit 1 and the lines that report it.
+# doc/tools.md 11.6.
+#
+#   bin/suite [maven argument ...]
+set -e
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+# ParityTest reads the Go tree against the Java one, and skips where go is
+# absent.
+if ! command -v go >/dev/null 2>&1; then
+    echo "suite: ParityTest reads the Go tree, and go is not on the path" >&2
+    exit 2
+fi
+
+# PipeTest and ParityTest run the tools through bin/, which reads
+# target/classpath.txt; the test phase alone leaves that file unwritten.
+mvn -B --no-transfer-progress "$@" dependency:build-classpath \
+    -Dmdep.outputFile=target/classpath.txt >/dev/null
+
+log=target/suite.log
+status=target/suite.status
+( set +e; mvn -B --no-transfer-progress "$@" test 2>&1; echo $? > "$status" ) | tee "$log"
+[ "$(cat "$status")" = 0 ] || exit "$(cat "$status")"
+
+said=$(grep -oE 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' \
+    "$log" | tail -1)
+if [ -z "$said" ]; then
+    echo "suite: the run reported no count of tests" >&2
+    exit 1
+fi
+skipped=${said##*: }
+if [ "$skipped" != 0 ]; then
+    echo "suite: $skipped skipped, and a whole run reads 0" >&2
+    grep -E 'Skipped: [1-9]' "$log" >&2
+    exit 1
+fi
+echo "suite: $(echo "$said" | sed -n 's/^Tests run: \([0-9]*\).*/\1/p') tests, 0 skipped"

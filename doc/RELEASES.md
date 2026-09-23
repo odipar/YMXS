@@ -18,13 +18,45 @@ The version names every file. It is read out of `pom.xml`, or stands as
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.5` beside `v0.4.5`.
+version of it is a tag of that directory: `go/v0.4.6` beside `v0.4.6`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.6, 2026-09-23
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.6>, built from the commit
+tagged `v0.4.6`.
+
+`ym-to-ymxs` reads two formats more, so the five executables differ from
+0.4.5's. A structure reads as 0.4.5 has it, every file and every form.
+
+- **A YM3 dump reads.** `YM3!` and `YM3b` open with the frames: fourteen
+  vectors of one register each, R0 to R13, follow the four bytes of the
+  format, and under `YM3b` a long after them is the frame the dump
+  repeats to (ym.md 2.6). The frame count is the vectors' length, the
+  name and the author are empty, the sample count is 0, the rate is 50
+  Hz, and R14 and R15 are zero, so every slot of every frame is off and
+  the rows carry registers alone. A loop frame outside the rows falls
+  back to row 0, the rule 8.3 already defines for a YM5 dump. YMXR's
+  reader has read the two formats since its 0.4.14, so the same file read
+  in one repository and ended the reader here with `not a YM5! or YM6!
+  dump`. Measured on
+  `capture.ym`, a `YM3!` dump of 921 frames: the Java tree, the Go tree
+  and YMXR's reader write the same 42,968 bytes of JSON, and
+  `ymxs-check` reports every rule of SPEC.md 6 satisfied.
+- **The lines a table reports are read against both trees.** Every line a
+  table of SPEC.md, tools.md, json.md, csv.md or ym.md quotes is read
+  against the Java tree and the Go tree: the longest run of words between
+  the figures a tool writes into a line stands in both, and a table whose
+  header names the two trees is read a column a tree. A line reworded in
+  one tree and the document, or in the document alone, fails it.
+- **README.md opens with what YMXS is**, what the five tools do, the
+  release to download, a pipe to run on `packed.ym`, and the terms of
+  SPEC.md a reader meets first.
 
 ### 0.4.5, 2026-09-19
 

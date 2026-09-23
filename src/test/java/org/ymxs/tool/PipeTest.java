@@ -112,7 +112,7 @@ final class PipeTest {
         Ran ran = pipe("not a dump".getBytes(StandardCharsets.UTF_8), "ym-to-ymxs");
         assertEquals(1, ran.exit(), ran.said());
         assertEquals("", ran.out());
-        assertTrue(ran.said().contains("not a YM5! or YM6! dump"), ran.said());
+        assertTrue(ran.said().contains("not a YM3!, YM3b, YM5! or YM6! dump"), ran.said());
     }
 
     @Test

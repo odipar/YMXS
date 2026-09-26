@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -132,6 +133,28 @@ final class ParityTest {
             both("ymxs-csv-to-json", csv);
             both("ymxs-check", json);
         }
+    }
+
+    /** A count of 1 is followed by the singular noun (tools.md 1.4): a
+     *  tune of one row through the three tools that read a tune, and a
+     *  YM3! dump of one frame, 14 zero bytes after the format, through
+     *  ym-to-ymxs. */
+    @Test
+    void aCountOfOneIsSingularInBothTrees() throws Exception {
+        byte[] json = file("doc/conformance/tunes/one-row.json");
+        byte[] csv = both("ymxs-json-to-csv", json);
+        both("ymxs-csv-to-json", csv);
+        both("ymxs-check", json);
+        byte[] dump = new byte[4 + 14];
+        System.arraycopy("YM3!".getBytes(StandardCharsets.US_ASCII), 0, dump, 0, 4);
+        both("ym-to-ymxs", dump);
+        for (Ran run : List.of(ran(Path.of("bin"), "ymxs-json-to-csv", json),
+                ran(Path.of("bin"), "ymxs-csv-to-json", csv),
+                ran(Path.of("bin"), "ymxs-check", json))) {
+            assertTrue(run.said().contains(": 1 tune, 1 row, "), run.said());
+        }
+        String read = ran(Path.of("bin"), "ym-to-ymxs", dump).said();
+        assertTrue(read.contains(", 1 row at 50 Hz, 0 sources, timers []"), read);
     }
 
     @Test

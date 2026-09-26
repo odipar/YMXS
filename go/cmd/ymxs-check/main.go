@@ -14,7 +14,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/odipar/ymxs/go/text"
@@ -36,20 +35,12 @@ func main() {
 		rows += len(ymxs.Rows(tune))
 		sources += len(ymxs.Sources(tune))
 	}
-	t.Report(fmt.Sprintf("%d %s %d rows, %d %s", len(multi.Tunes),
-		plural(len(multi.Tunes), "tune,", "tunes,"), rows, sources,
-		plural(sources, "source", "sources")))
+	t.Report(tool.Count(len(multi.Tunes), "tune", "tunes") + ", " +
+		tool.Count(rows, "row", "rows") + ", " + tool.Count(sources, "source", "sources"))
 	warnings := t.Warnings(multi)
 	if warnings == 0 {
 		t.Report("every rule of SPEC.md 6 is satisfied")
 	} else {
-		t.Report(fmt.Sprintf("%d %s", warnings, plural(warnings, "warning", "warnings")))
+		t.Report(tool.Count(warnings, "warning", "warnings"))
 	}
-}
-
-func plural(count int, one, many string) string {
-	if count == 1 {
-		return one
-	}
-	return many
 }

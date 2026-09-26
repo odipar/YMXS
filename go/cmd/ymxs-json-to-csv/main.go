@@ -27,10 +27,8 @@ func main() {
 	for _, tune := range multi.Tunes {
 		rows += len(ymxs.Rows(tune))
 	}
-	tunes := "tunes, "
-	if len(multi.Tunes) == 1 {
-		tunes = "tune, "
-	}
-	t.Report(fmt.Sprintf("%d %s%d rows, %d characters in and %d out", len(multi.Tunes),
-		tunes, rows, utf8.RuneCountInString(said), utf8.RuneCountInString(written)))
+	t.Report(fmt.Sprintf("%s, %s, %s in and %d out",
+		tool.Count(len(multi.Tunes), "tune", "tunes"), tool.Count(rows, "row", "rows"),
+		tool.Count(utf8.RuneCountInString(said), "character", "characters"),
+		utf8.RuneCountInString(written)))
 }

@@ -22,7 +22,8 @@ of several lines (4.1), the lines of `bin/run` (11.2), which begin
 exception or a panic (8.5, 9.3, ym.md 2.5).
 
 **1.4** A *progress line* reports the figures of an invocation; sections
-6 to 9 define each tool's.
+6 to 9 define each tool's. A count in it is followed by its noun, singular
+for a count of 1 and plural for any other: `1 row`, `0 rows`, `2 rows`.
 
 **1.5** An *error* is a fault of the input, of the call, or of a read or
 a write, and ends the invocation; after an error of the input, standard
@@ -173,17 +174,26 @@ and written with the rest.
 **6.3** After the output, on standard error in this order: the progress
 line of 6.4, the warning lines of section 5, the count line of 6.5.
 
-**6.4** The progress line is `N tune, R rows, S source`, N the number of
+**6.4** The progress line is `N tunes, R rows, S sources`, N the number of
 tunes, R the sum of their row counts, S the sum of the counts of the
-sources their rows start; `tune` for N of 1 and `tunes` otherwise,
-`rows` for every R, `source` for S of 1 and `sources` otherwise.
+sources their rows start.
 
 **6.5** The count line is a second progress line: `every rule of SPEC.md 6
-is satisfied` where the check found zero warnings, `1 warning` for one, `W
-warnings` for W above 1.
+is satisfied` where the check found zero warnings, and `W warnings`
+otherwise.
+
+For `doc/tunes/two-tunes.json`:
 
 ```
 ymxs-check: 2 tunes, 2098 rows, 4 sources
+ymxs-check: every rule of SPEC.md 6 is satisfied
+```
+
+For `doc/conformance/tunes/one-row.json`, the tune of one row in the
+conformance kit:
+
+```
+ymxs-check: 1 tune, 1 row, 0 sources
 ymxs-check: every rule of SPEC.md 6 is satisfied
 ```
 
@@ -197,7 +207,7 @@ writes the multi as CSV as csv.md defines the writing;
 as JSON as json.md defines the writing.
 
 **7.2** On standard error, in this order: the warning lines of section
-5, then, after the output, the progress line `N tune, R rows, C
+5, then, after the output, the progress line `N tunes, R rows, C
 characters in and D out`, N and R as in 6.4, C the character count of
 the input text and D that of the output. For `doc/tunes/example.json`
 and `doc/tunes/example.csv`:
@@ -240,10 +250,8 @@ value whose multi is empty is an error of the structure (4.3).
 
 **8.4** On standard error, in this order: the warning lines of section 5
 for the merged multi, with `tune N: ` where the input had more than one
-tune in total; then, after the output, the progress line `N file with T
-tune`, N the number of values read and T the number of tunes written,
-`file` for N of 1 and `files` otherwise, `tune` for T of 1 and `tunes`
-otherwise.
+tune in total; then, after the output, the progress line `N files with T
+tunes`, N the number of values read and T the number of tunes written.
 
 ```
 ymxs-merge: 2 files with 2 tunes
@@ -289,10 +297,10 @@ both with a stack trace in place of an error line.
 dump's name and author as they are, each empty for a YM3 dump (ym.md 2.6);
 R the row count, H the rate, S the number of sources the rows start,
 `<timers>` the timers some row starts a source on, A to D, separated by
-`, `, `[]` where empty; `rows` and `sources` for every R and S.
-Three parts follow, each where its figure is above 0, in this order: `, N
-slots this does not read`, `, N frames a recording kept a square wave off
-its voice`, `, N recordings cut at the row the tune repeats to` (ym.md 9).
+`, `, `[]` where empty. Three parts follow, each where its figure is above
+0, in this order: `, N slots this does not read`, `, N frames a recording
+kept a square wave off its voice`, `, N recordings cut at the row the tune
+repeats to` (ym.md 9).
 
 ```
 ym-to-ymxs: YM5! "Circus Attractions #2" by "Mad Max", 4 rows at 50 Hz, 0 sources, timers []
@@ -368,6 +376,11 @@ runner where a caller starts it, puts Go on the path:
 | `src/test/resources/packed.ym` | `ym-to-ymxs` with no flag, with `-r`, and with `-r2` |
 | each JSON file of `doc/tunes` | `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; `ymxs-check` |
 | `doc/tunes/circus.json` and `doc/tunes/digidrum.json` concatenated | `ymxs-merge` |
+| `doc/conformance/tunes/one-row.json`, a tune of one row | `ymxs-check`; `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; each report reads `1 row` (1.4) |
+| a YM3! dump of one frame | `ym-to-ymxs`, whose report reads `1 row` |
+| a tune of version 3 in CSV and in JSON | `ymxs-csv-to-json` on the CSV; `ymxs-check` and `ymxs-json-to-csv` on the JSON |
+| that tune with a row of several values, and with a target above 13, in CSV and in JSON | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and the line of csv.md 5.1 or json.md 8.1 |
+| a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `no target 30: a tune reaches 0 to 24` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
 
 **11.5 Where the trees differ.** Each row is one input on which the two

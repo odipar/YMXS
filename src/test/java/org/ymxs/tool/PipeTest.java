@@ -195,6 +195,7 @@ final class PipeTest {
         StringBuilder said = new StringBuilder();
         for (String[] run : new String[][] {
             {"doc/tunes/two-tunes.json", "ymxs-check"},
+            {"doc/conformance/tunes/one-row.json", "ymxs-check"},
             {"doc/tunes/warnings.json", "ymxs-check"},
             {"doc/tunes/example.json", "ymxs-json-to-csv"},
             {"doc/tunes/example.csv", "ymxs-csv-to-json"},

@@ -67,19 +67,21 @@ func said(t *tool.Tool, song ym.Song, reading ym.Reading) {
 	for _, timer := range ymxs.Claimed(tune) {
 		timers = append(timers, timer.String())
 	}
-	out := fmt.Sprintf("%s %q by %q, %d rows at %d Hz, %d sources, timers [%s]",
-		song.Format, song.Name, song.Author, len(ymxs.Rows(tune)), tune.Rate,
-		len(ymxs.Sources(tune)), strings.Join(timers, ", "))
+	out := fmt.Sprintf("%s %q by %q, %s at %d Hz, %s, timers [%s]",
+		song.Format, song.Name, song.Author, tool.Count(len(ymxs.Rows(tune)), "row", "rows"),
+		tune.Rate, tool.Count(len(ymxs.Sources(tune)), "source", "sources"),
+		strings.Join(timers, ", "))
 	if reading.Said.Dropped > 0 {
-		out += fmt.Sprintf(", %d slots this does not read", reading.Said.Dropped)
+		out += ", " + tool.Count(reading.Said.Dropped, "slot", "slots") +
+			" this does not read"
 	}
 	if reading.Said.Preempted > 0 {
-		out += fmt.Sprintf(", %d frames a recording kept a square wave off its voice",
-			reading.Said.Preempted)
+		out += ", " + tool.Count(reading.Said.Preempted, "frame", "frames") +
+			" a recording kept a square wave off its voice"
 	}
 	if reading.Said.CutAtRepeat > 0 {
-		out += fmt.Sprintf(", %d recordings cut at the row the tune repeats to",
-			reading.Said.CutAtRepeat)
+		out += ", " + tool.Count(reading.Said.CutAtRepeat, "recording", "recordings") +
+			" cut at the row the tune repeats to"
 	}
 	t.Report(out)
 }

@@ -91,6 +91,12 @@ public final class Tool {
         }
     }
 
+    /** A count and its noun, {@code one} for a count of 1 and {@code many}
+     *  for any other: {@code 1 row}, {@code 0 rows}, {@code 2 rows}. */
+    public static String count(int count, String one, String many) {
+        return count + " " + (count == 1 ? one : many);
+    }
+
     /** Progress, on standard error, unless {@code -silent} was passed. */
     public void report(String said) {
         if (reports) {

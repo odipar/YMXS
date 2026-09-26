@@ -92,6 +92,15 @@ func (t *Tool) WriteBytes(file []byte) {
 	}
 }
 
+// Count is a count and its noun, one for a count of 1 and many for any
+// other: "1 row", "0 rows", "2 rows".
+func Count(count int, one, many string) string {
+	if count == 1 {
+		return fmt.Sprintf("%d %s", count, one)
+	}
+	return fmt.Sprintf("%d %s", count, many)
+}
+
 // Report puts progress on standard error, unless -silent was passed.
 func (t *Tool) Report(said string) {
 	if t.reports {

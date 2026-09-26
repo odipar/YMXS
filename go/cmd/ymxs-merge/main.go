@@ -10,7 +10,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/odipar/ymxs/go/text"
@@ -34,13 +33,6 @@ func main() {
 	multi := ymxs.Multi{Tunes: tunes}
 	t.Warnings(multi)
 	t.Write(text.Write(multi))
-	files := "files with "
-	if len(read) == 1 {
-		files = "file with "
-	}
-	named := "tunes"
-	if len(tunes) == 1 {
-		named = "tune"
-	}
-	t.Report(fmt.Sprintf("%d %s%d %s", len(read), files, len(tunes), named))
+	t.Report(tool.Count(len(read), "file", "files") + " with " +
+		tool.Count(len(tunes), "tune", "tunes"))
 }

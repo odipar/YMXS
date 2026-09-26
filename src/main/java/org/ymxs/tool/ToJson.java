@@ -36,8 +36,9 @@ public final class ToJson {
         for (Tune tune : multi.tunes()) {
             rows += Tunes.size(tune.table());
         }
-        tool.report(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
-                + rows + " rows, " + text.length() + " characters in and " + json.length()
-                + " out");
+        tool.report(Tool.count(multi.tunes().size(), "tune", "tunes") + ", "
+                + Tool.count(rows, "row", "rows") + ", "
+                + Tool.count(text.length(), "character", "characters") + " in and "
+                + json.length() + " out");
     }
 }

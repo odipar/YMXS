@@ -1,6 +1,6 @@
 # Releases
 
-What a release contains stands here, and each one published is listed
+This file defines what a release contains, and each one published is listed
 below it.
 
 ## What a release contains
@@ -14,7 +14,7 @@ below it.
 - `MANIFEST.txt`: every zip's size and sha256, what it contains, and the
   source commit the release was built from
 
-The version names every file. It is read out of `pom.xml`, or stands as
+The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
@@ -31,15 +31,15 @@ the tools rather than the format.
 <https://github.com/odipar/YMXS/releases/tag/v0.4.7>, built from the commit
 tagged `v0.4.7`.
 
-Every file a tool is built from stands as 0.4.6 has it, so the five
+Every file a tool is built from matches 0.4.6, so the five
 executables are that release's bytes and the Go module is its source. One
 test reads the line a tool reports today.
 
 - **A pipe test read the line before the four formats.** `PipeTest` runs
   the tools one into the next and read `not a YM5! or YM6! dump` from
   `ym-to-ymxs`, which 0.4.6 reworded to name YM3! and YM3b; the test now
-  reads the line as it stands. It runs where `target/classpath.txt`
-  stands, which `bin/run` and the workflow write and `mvn test` alone
+  reads the line as it is. It runs where `target/classpath.txt`
+  exists, which `bin/run` and the workflow write and `mvn test` alone
   does not, so it and eight others skip on a bare local run: 116 tests
   where the workflow runs 123. 0.4.6 was cut from such a run, and the
   workflow found this after the release was published.
@@ -69,7 +69,7 @@ tagged `v0.4.6`.
 - **The lines a table reports are read against both trees.** Every line a
   table of SPEC.md, tools.md, json.md, csv.md or ym.md quotes is read
   against the Java tree and the Go tree: the longest run of words between
-  the figures a tool writes into a line stands in both, and a table whose
+  the figures a tool writes into a line appears in both, and a table whose
   header names the two trees is read a column a tree. A line reworded in
   one tree and the document, or in the document alone, fails it.
 - **README.md opens with what YMXS is**, what the five tools do, the
@@ -89,7 +89,7 @@ against.
   reads -1 as the row that leaves the effect of a timer alone (json.md
   6.2), and the line a reader reported of another value named 0, 1 and 2
   alone. Both trees name -1 now, and json.md's row has the line as it
-  stands. The CSV form's cell is 0, 1 or 2, an empty cell being the row
+  is. The CSV form's cell is 0, 1 or 2, an empty cell being the row
   that acts on no timer, so the line of that form reads as it did.
 - **A conformance kit, and two readers of it.** doc/conformance is nine
   tunes in the JSON form, the record of one tune of each beside them, and
@@ -105,7 +105,7 @@ against.
   sources in file order and only an emitter was bound to the first.
 - **A citation of a specification lands on a clause**, which `SpecTest`
   reads over SPEC.md, json.md, csv.md and ym.md: 3.1.1 cited 2.5 for the
-  envelope period, which stands in 2.2, and a 2.6 no document has.
+  envelope period, which is in 2.2, and a 2.6 no document has.
 
 ### 0.4.4, 2026-09-18
 
@@ -113,7 +113,7 @@ against.
 tagged `v0.4.4`.
 
 An empty text is not JSON, and a quoted block keeps its words. Every file
-a tool is built from stands as 0.4.2 has it - `go/`, `bin/` and every
+a tool is built from matches 0.4.2 - `go/`, `bin/` and every
 document - so the five executables are that release's and the Go module is
 its bytes. The Java tree gains the reading of an empty text, which the Go
 tree already had.
@@ -135,7 +135,7 @@ tree already had.
   the same sentence and the check fired on a word inside it.
 - **A fenced block is quoted as a code span is.** doc/tools.md 2.1 quotes
   `bin/ymxs-check` whole, comment and all, and the check reads that script
-  where it stands in the tree, under `sources`, so the fenced copy was a
+  where it is in the tree, under `sources`, so the fenced copy was a
   second reading of a file the check already has. Over the four
   repositories that is 53 blocks, 106 fences and 188 lines.
 
@@ -144,8 +144,8 @@ tree already had.
 <https://github.com/odipar/YMXS/releases/tag/v0.4.3>, built from the commit
 tagged `v0.4.3`.
 
-The document checks are one package. Every file a tool is built from stands
-as 0.4.2 has it - `go/`, `bin/` and every document - so the five
+The document checks are one package. Every file a tool is built from matches
+0.4.2 - `go/`, `bin/` and every document - so the five
 executables are that release's and the Go module is its bytes.
 
 - **`org.ymxs.doc.Documents`** reads a link that resolves, one wrap width
@@ -191,22 +191,22 @@ the tag before writes, measured.
 tagged `v0.4.1`.
 
 The order a target writes its registers is the player's. One clause moves
-and every other file stands as 0.4.0 has it, so every file of this release
+and every other file matches 0.4.0, so every file of this release
 reads under 0.4.0 and the other way round, and the JSON and CSV the tools
 write are the bytes 0.4.0 wrote.
 
 - `3.1.1`'s table read "registers, in the order it writes them", which
   fixed an order for every target. The sound depends on two of those
   orderings alone, and the text under the table already named both: a
-  voice's fine byte before its coarse nibble, so the period standing
+  voice's fine byte before its coarse nibble, so the period in effect
   between the two writes is the new fine with the old coarse; and a
   buzzer's shape after its period, since writing the shape restarts the
-  generator on the period standing. Where a volume register stands among
+  generator on the period in effect. Where a volume register comes among
   them is unheard.
 - The table is the map from a value of the row to a register now, as its
-  column says, and those two orderings stand written out below it. A
+  column says, and those two orderings are written out below it. A
   player that writes the rest in another order plays the tune this
-  structure defines: YMXR's tick writes the column the marker stands in
+  structure defines: YMXR's tick writes the marker's column
   last, which is R8 between R0 and R1 for a voice and R6 after R8 for a
   noise.
 
@@ -255,7 +255,7 @@ way round, and the JSON and CSV the tools write are the bytes 0.3.5 wrote.
   README.md uses, so the clauses a reader follows from there were read by
   no check. The closing bracket is part of the pattern now: 75 citations
   are read where 67 were, and each resolves.
-- ST4, DTX and YMXR read a citation the same way, so one check stands in
+- ST4, DTX and YMXR read a citation the same way, so one check is in
   the four repositories of the family.
 
 ### 0.3.5, 2026-09-16
@@ -273,7 +273,7 @@ are the bytes 0.3.4 wrote.
   json.md 10.1 and csv.md 8.1 quote is the file beside it, byte for byte;
   the release the documents name is the one `pom.xml` names; and every
   clause one document cites in another is one that document defines. Each
-  failed on the text as it stood.
+  failed on the text as it was.
 - **The release the documents named was the one before this.** README.md
   fetched `github.com/odipar/ymxs/go@v0.3.3` of a module the pom had at
   0.3.4, and tools.md 12.5 and this document showed that tag beside it.
@@ -283,7 +283,7 @@ are the bytes 0.3.4 wrote.
 - **The check of SPEC.md 6.6 is read line by line.** `CheckTest` counted six
   warnings of `doc/tunes/warnings.json`; it reads the six lines the clause
   quotes.
-- **ym.md 1.4, 1.5 and 1.6 stand in a paragraph each**, as every clause
+- **ym.md 1.4, 1.5 and 1.6 are a paragraph each**, as every clause
   beside them, and README.md opens its second paragraph without a cleft.
 
 ### 0.3.4, 2026-09-15
@@ -365,7 +365,7 @@ under 0.3.0 and 0.3.1 and the other way round.
 
 - **Two sources under one name are no fault.** 0.3.1 made them an error of
   the form, on the reasoning that a reader of the form could not tell them
-  apart. An effect names its source by the number of the table it stands
+  apart. An effect names its source by the number of the table it is
   in, in JSON and in CSV alike, and neither tree looks a source up by
   name: every use of a name writes it out or puts it in a message.
   A tune with two sources named `square`, one of `[12, 0]` and one of
@@ -388,7 +388,7 @@ the other way round.
 
 - **Every tool that reads a tune reports the warnings of SPEC.md 6**, not
   `ymxs-check` alone: a fault a writer left in is named where the tune is
-  used rather than only where it is checked. A warning stands whether or
+  used rather than only where it is checked. A warning is reported whether or
   not `-silent` was passed, since that flag quiets what a tool reports of
   its work.
 - **The rows of one run of rule 1 are one line.** A row that sets a
@@ -433,7 +433,7 @@ here.** The count is the timer's data register.
   tick and 0 counts 256. The structure recorded the ticks, 1 to 256, which
   made 0 a fault and 256 a value. `count` is the register now, 0 to 255.
 - `-1` marks a value a row does not set, as it did, so 0 needed no number
-  outside the byte to stand clear of it.
+  outside the byte to keep clear of it.
 - `Chip.ticks` reads the ticks off the count for the two figures that need
   them: the rate, and the frames a source runs for.
 
@@ -476,11 +476,11 @@ reads the two against each other.
 <https://github.com/odipar/YMXS/releases/tag/v0.1.1>, built from the commit
 tagged `v0.1.1`.
 
-The columns of a table stand over the cells they name.
+The columns of a table are over the cells they name.
 
 - A table opened with its name and its column names on one line, so the
-  name took the first column's place and every name after it stood one
-  cell to the left of the cells it names. The name stands alone on the
+  name took the first column's place and every name after it was one
+  cell to the left of the cells it names. The name is alone on the
   heading line now and the column names on the line after it. The two
   tools between the forms write it and read it, doc/csv.md defines it,
   and doc/tunes/circus.csv is one tune in it.

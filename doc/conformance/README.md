@@ -92,12 +92,12 @@ changed:
 - 7.3 left the values a row of a source of several: they are the values
   the target that runs it reads (3.1.1).
 - 1.9 read source equality as values "equal in number and order", which
-  leaves a source of one value a row and one of two standing as equal. It
+  leaves a source of one value a row and one of two as equal. It
   compares a row at a time.
 
-3.1.1 cited 2.5 for the envelope period, which stands in 2.2, and a 2.6
+3.1.1 cited 2.5 for the envelope period, which is in 2.2, and a 2.6
 that no document has for the shape that every write restarts, which is
-2.5; R6 stands in 2.1's table rather than 2.2. The kit gained a ninth
+2.5; R6 is in 2.1's table rather than 2.2. The kit gained a ninth
 tune for what the run could not reach, `several`, whose three sources of
 two and three values a row run on targets of two and three registers.
 

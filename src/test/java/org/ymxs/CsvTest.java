@@ -70,7 +70,7 @@ final class CsvTest {
                 "a row of a tune is a row here, with a column a register");
     }
 
-    /** The point of the two lines: a column name stands over the cells it
+    /** The point of the two lines: a column name is over the cells it
      *  names, so a reader counts the columns of a table by reading down. */
     @Test
     void aColumnNameStandsOverTheCellsItNames() throws IOException {
@@ -268,7 +268,7 @@ final class CsvTest {
     }
 
     /** A file of the form this replaced, where the name and the columns
-     *  stood on one line, and a table whose name is its last line. */
+     *  were on one line, and a table whose name is its last line. */
     @Test
     void aHeadingThisDoesNotReadIsNamed() {
         IllegalArgumentException old = assertThrows(IllegalArgumentException.class,

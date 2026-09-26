@@ -99,7 +99,7 @@ func (t *Tool) Report(said string) {
 	}
 }
 
-// Note puts a note on standard error, indented, which stands whether the
+// Note puts a note on standard error, indented, whether the
 // report is on or off.
 func (t *Tool) Note(said string) {
 	fmt.Fprintln(t.err, "  "+said)
@@ -115,7 +115,7 @@ func (t *Tool) Reports() bool {
 //
 // Every tool that reads a tune reports these, so a fault a writer left in
 // is named where the tune is used rather than only where it is checked. A
-// warning is a tune that plays, but not as written, so it stands whether
+// warning is a tune that plays, but not as written, so it is reported whether
 // or not -silent was passed: that flag quiets what a tool reports of its
 // work, and this reports what the tune gets wrong.
 func (t *Tool) Warnings(multi ymxs.Multi) int {

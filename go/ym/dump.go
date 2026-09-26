@@ -24,7 +24,7 @@ import (
 const Registers = 16
 
 // ym3Registers is the registers a YM3 dump has, R0 to R13. R14 and R15,
-// where this format files an effect's count, stand outside YM3, and ym3Hz
+// where this format files an effect's count, are outside YM3, and ym3Hz
 // is the rate it leaves unsaid.
 const (
 	ym3Registers = 14

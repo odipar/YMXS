@@ -164,7 +164,7 @@ public final class Check {
      * dropped where the form is read.
      *
      * <p>A name reaches a reader of the form and no more: an effect
-     * names its source by the number of the table it stands in, in JSON
+     * names its source by the number of the table it is in, in JSON
      * and in CSV alike, so two sources under one name are told apart by
      * those numbers and are no fault.
      */
@@ -239,7 +239,7 @@ public final class Check {
     }
 
     /** What one timer runs: the target and the source, the row the start
-     *  stands on, the row the source ends on, and the rows that set the
+     *  is on, the row the source ends on, and the rows that set the
      *  target's register while it ran. */
     private static final class Running {
 

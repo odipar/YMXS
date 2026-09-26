@@ -81,7 +81,7 @@ public final class Json {
         return out;
     }
 
-    /** What stands in a column where the row left that value alone. It
+    /** What marks a column where the row left that value alone. It
      *  is free for this, since it fits neither a register nor a part of
      *  an effect. */
     public static final int NONE = -1;

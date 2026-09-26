@@ -204,7 +204,7 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 					// zero, so the timer's reset is set where the timer
 					// is stopped. A square wave replacing a square wave
 					// on the same register has the row count of the one
-					// before it, so the place stands and the wave keeps
+					// before it, so the place remains and the wave keeps
 					// its phase.
 					stopped := keyframe || !running[i].On() ||
 						running[i].Kind == Recording && f >= drumEnd[i]

@@ -38,7 +38,7 @@ final class SpecTest {
      * trees: a line reworded in one tree and the document, or in the
      * document alone, fails here. The letters a table writes for a
      * figure, V or N or B, and the figures a tool builds a line from
-     * stand outside the comparison, and this reads the words around
+     * are outside the comparison, and this reads the words around
      * them.
      *
      * <p>The check came from YMXR, where a release took a descriptor's
@@ -200,7 +200,7 @@ final class SpecTest {
 
     /** The listing is an entry point for the reader, and the records are
      *  the specification. A second copy of it is a second specification,
-     *  and this is where the one copy stands. */
+     *  and this is where the one copy is. */
     @Test
     void theRecordsAreListedInOneDocument() throws IOException {
         List<String> also = new ArrayList<>();
@@ -222,9 +222,9 @@ final class SpecTest {
                 + " as well as in " + SPEC + ", which is one thing said twice");
     }
 
-    /** The point of quoting the source: the block compiles as it stands.
+    /** The point of quoting the source: the block compiles as it is.
      *  A record with no body, an enum written with an ellipsis or a
-     *  missing import would not, and each of those stood here before. */
+     *  missing import would not, and each of those was here before. */
     @Test
     void theBlockIsJavaThatCompiles() throws IOException {
         String java = quoted();
@@ -249,7 +249,7 @@ final class SpecTest {
     }
 
     /** The clauses one document defines: `**N.N**` and `## N.N`, a section
-     *  number standing for itself and for the clauses under it. */
+     *  number marking itself and the clauses under it. */
     private static Set<String> clausesOf(String said) {
         Set<String> out = new HashSet<>();
         Matcher m = Pattern.compile("(?m)^(?:\\*\\*|#+ )R?(\\d+(?:\\.\\d+)*)").matcher(said);

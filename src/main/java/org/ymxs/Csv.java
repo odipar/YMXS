@@ -34,7 +34,7 @@ import org.ymxs.YMXS.Two;
  * <p>A line beginning {@link #TABLE} opens a table and names it. The line
  * after it names the columns, and every line after that is one row of the
  * table, in ordinary comma-separated values, until the next such line. The
- * column names stand over the cells they name.
+ * column names are over the cells they name.
  *
  * <pre>
  *   ### tune
@@ -514,7 +514,7 @@ public final class Csv {
     }
 
     /** One line's cells; a quoted cell is its content, and two quotes
-     *  inside one stand for a single quote. */
+     *  inside one encode a single quote. */
     static List<String> cells(String line) {
         List<String> out = new ArrayList<>();
         StringBuilder one = new StringBuilder();

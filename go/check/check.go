@@ -152,7 +152,7 @@ func rate(prescaler ymxs.Prescaler, at int) []string {
 // declare one no row starts, which is dropped where the form is read.
 //
 // A name reaches a reader of the form and no more: an effect names
-// its source by the number of the table it stands in, in JSON and in CSV
+// its source by the number of the table it is in, in JSON and in CSV
 // alike, so two sources under one name are told apart by those numbers
 // and are no fault.
 func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
@@ -217,7 +217,7 @@ func MustTune(tune ymxs.Tune) (ymxs.Tune, error) {
 
 // running records one timer's source, and the row it ends on.
 // running records one timer's run: the target and the source, the row the
-// start stands on, the row the source ends on, and the rows that set the
+// start is on, the row the source ends on, and the rows that set the
 // target's register while it ran.
 type running struct {
 	target     ymxs.Target

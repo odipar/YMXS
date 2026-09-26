@@ -10,7 +10,7 @@ import org.ymxs.YMXS.Tune;
 
 /**
  * {@code ymxs-check}: a tune on standard input, the same text on standard
- * output, and the faults on standard error. It stands in a pipe and leaves
+ * output, and the faults on standard error. It runs in a pipe and leaves
  * what passes through it unchanged.
  *
  * <p>It separates two kinds of fault.

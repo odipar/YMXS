@@ -78,7 +78,7 @@ func TestALineOfCellsReadsBackTheCellsItHasInIt(t *testing.T) {
 }
 
 // A heading line names the table alone, and the line after it names the
-// columns, so a column name stands over the cells it names.
+// columns, so a column name is over the cells it names.
 func TestAHeadingNamesTheTableAndTheLineAfterItTheColumns(t *testing.T) {
 	tables, err := os.ReadFile("../../doc/tunes/circus.csv")
 	if err != nil {

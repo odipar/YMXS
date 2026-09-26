@@ -196,7 +196,7 @@ public final class Read {
                         // zero, so the timer's reset is set where the
                         // timer is stopped. A square wave replacing a square
                         // wave on the same register has the row count of the
-                        // one before it, so the place stands and the wave
+                        // one before it, so the place remains and the wave
                         // keeps its phase.
                         boolean stopped = keyframe || !running[i].on()
                                 || running[i].kind() == Slot.RECORDING && f >= drumEnd[i];

@@ -23,7 +23,7 @@ section 7 lists them, and a line feed ending each line. In Python that is
 order, `sort_keys` left at its default.
 
 **3. The tunes.** Each is a `.json` under `tunes/`; `SOURCES.md` lists
-what each reaches and stands outside a run against this kit, since the
+what each reaches and is left out of a run against this kit, since the
 record of a tune beside it has the lines a recorder produces. A tune of
 this kit satisfies every rule of `SPEC.md` 6, and two raise a warning a
 checker reports: one sets a register an effect runs on, which 6.1 records
@@ -47,4 +47,4 @@ in the frame, and one wraps with two timers running.
   the tunes those two define and produces the record of section 7.
 - The lines a reader writes are compared with the reference whole. A line
   that differs in one byte fails the tune.
-- How fast a recorder runs, and how it is called, stand outside this kit.
+- How fast a recorder runs, and how it is called, are outside this kit.

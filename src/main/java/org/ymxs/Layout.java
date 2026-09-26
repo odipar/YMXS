@@ -9,13 +9,13 @@ import java.io.IOException;
  * Where the JSON form breaks a line. The library writes the JSON; this
  * class fixes the whitespace alone.
  *
- * <p>Its purpose is reading. A tune's fixed figures stand at the top of
- * the tune, and each column stands on one line, so a register's values are
+ * <p>Its purpose is reading. A tune's fixed figures are at the top of
+ * the tune, and each column is on one line, so a register's values are
  * read across a line and the columns are compared down the file. A long
  * column wraps at {@link #WRAP} values, within the width of a screen.
  *
  * <p>The rule is depth. The outer structures break their lines: the file,
- * a tune, its `rows`, its timers. What stands inside those is one item a
+ * a tune, its `rows`, its timers. What is inside those is one item a
  * line: a column, a source.
  */
 final class Layout implements PrettyPrinter, Instantiatable<Layout> {

@@ -143,7 +143,7 @@ source in list order, using the last line of json.md 8.1 or csv.md 5.1.
 **5.1 The line.** `ymxs-check`, `ymxs-json-to-csv`, `ymxs-csv-to-json` and
 `ymxs-merge` run the check of 5.2 on every tune of the multi read, in tune
 order, and write one line a finding on standard error, with `-silent` as
-before (3.3); where the multi has more than one tune, `tune N: ` stands
+before (3.3); where the multi has more than one tune, `tune N: ` comes
 between `warning: ` and the finding. `ym-to-ymxs` omits the check (9.5).
 
     <tool>: warning: <finding>
@@ -263,7 +263,7 @@ the reading and the errors of a dump.
 
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
 plays once. `-rROW`, ROW a decimal integer with an optional `-` or `+`,
-writes a tune that repeats to row ROW, the last ROW where several stand;
+writes a tune that repeats to row ROW, the last ROW where several are passed;
 with both `-r` and `-rROW`, in either order, the tune repeats to ROW (the Go
 tree: plays once, 11.5). With both flags absent, the tune repeats to the row
 of ym.md 8.3. A call is wrong, exit 2, before standard input is read, where
@@ -286,7 +286,7 @@ both with a stack trace in place of an error line.
     <format> "<name>" by "<author>", <R> rows at <H> Hz, <S> sources, timers [<timers>]
 
 `<format>` is `YM3!`, `YM3b`, `YM5!` or `YM6!`; `<name>` and `<author>` the
-dump's name and author as they stand, each empty for a YM3 dump (ym.md 2.6);
+dump's name and author as they are, each empty for a YM3 dump (ym.md 2.6);
 R the row count, H the rate, S the number of sources the rows start,
 `<timers>` the timers some row starts a source on, A to D, separated by
 `, `, `[]` where empty; `rows` and `sources` for every R and S.
@@ -394,7 +394,7 @@ trees differ, read off invocations of both.
 | a JSON root, tune or source that is not an object | the fault of the first key read, such as `format is null, and this form requires a text` | `this is X, and this form requires an object`, `a tune is X, and this form requires an object`, `a source is X, and this form requires an object` |
 | a fault line that prints a value's kind | the value's JSON | `null`, `an array`, `an object`, the text in quotes, the number, or `true` |
 | a text with a character outside the Basic Multilingual Plane | counts it as two characters | counts it as one |
-| a dump whose name or author has a quote, a backslash or a control character in it | the progress line prints the string as it stands | the progress line prints it with a backslash before each such character |
+| a dump whose name or author has a quote, a backslash or a control character in it | the progress line prints the string as it is | the progress line prints it with a backslash before each such character |
 | an archive with a stored member whose unpacked size exceeds the bytes after the header (ym.md 2.5) | an uncaught exception, exit 1, no error line | reads the bytes present followed by zero bytes to the unpacked size |
 | `ym-to-ymxs -r -rROW`, in either order | repeats to ROW | plays once |
 | `ym-to-ymxs -r-1` | an uncaught exception, exit 1 | a panic, exit 2 |

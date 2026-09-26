@@ -123,7 +123,7 @@ public final class Dump {
     }
 
     /** The registers a YM3 dump has, R0 to R13. R14 and R15, where this
-     *  format files an effect's count, stand outside YM3, and the rate it
+     *  format files an effect's count, are outside YM3, and the rate it
      *  leaves unsaid is 50 Hz. */
     private static final int YM3_REGISTERS = 14;
     private static final int YM3_HZ = 50;

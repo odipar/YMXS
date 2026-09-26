@@ -501,7 +501,8 @@ public final class Json {
         if (value == null || value.isNull()) {
             return OptionalInt.empty();
         }
-        if (!value.isIntegralNumber()) {
+        // a whole number fits 32 bits (1.4), and a larger one is no row number
+        if (!value.isIntegralNumber() || !value.canConvertToInt()) {
             throw new IllegalArgumentException("repeat is " + value
                     + ", and this form requires a row number or null");
         }
@@ -519,7 +520,7 @@ public final class Json {
 
     private static int number(JsonNode tree, String key) {
         JsonNode value = tree.get(key);
-        if (value == null || !value.isIntegralNumber()) {
+        if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
             throw new IllegalArgumentException(key + " is " + value
                     + ", and this form requires a whole number");
         }

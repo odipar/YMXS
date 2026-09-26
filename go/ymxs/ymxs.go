@@ -34,18 +34,20 @@ type Tune struct {
 // that is the whole difference.
 //
 // The repeat row is read through Repeat, so a table is either repeating or
-// playing once alone.
+// playing once alone. A repeat row is any int, -1 included: a check
+// reports one outside the rows (SPEC.md 1.11).
 type Table[T any] struct {
-	Rows   []T
-	repeat int // the row it repeats to, or None
+	Rows    []T
+	repeat  int  // the row it repeats to, where repeats is set
+	repeats bool // whether the table repeats
 }
 
-// None is the repeat row of a table that plays once.
+// None is the repeat row Repeat returns for a table that plays once.
 const None = -1
 
 // Repeating is a table that repeats to at.
 func Repeating[T any](rows []T, at int) Table[T] {
-	return Table[T]{Rows: rows, repeat: at}
+	return Table[T]{Rows: rows, repeat: at, repeats: true}
 }
 
 // Once is a table that plays once.
@@ -55,7 +57,7 @@ func Once[T any](rows []T) Table[T] {
 
 // Repeat is the row the table repeats to, and whether it repeats at all.
 func (t Table[T]) Repeat() (int, bool) {
-	return t.repeat, t.repeat != None
+	return t.repeat, t.repeats
 }
 
 // Row is one row: the registers it sets, and its operation on the effect

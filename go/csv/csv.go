@@ -300,8 +300,10 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	var names []string
 	var repeats []string
 	var values [][][]int
-	registers := make([]map[ymxs.Register]int, count)
-	effects := make([]map[ymxs.Timer]ymxs.Effect, count)
+	// A count below 1 is a tune of no rows, an error of the structure
+	// (SPEC.md 1.11), and a line of the form reports the count as read.
+	registers := make([]map[ymxs.Register]int, max(count, 0))
+	effects := make([]map[ymxs.Timer]ymxs.Effect, max(count, 0))
 	for at := 0; at < count; at++ {
 		registers[at] = map[ymxs.Register]int{}
 		effects[at] = map[ymxs.Timer]ymxs.Effect{}
@@ -413,7 +415,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			effects[at][timer] = effect
 		}
 	}
-	rows := make([]ymxs.Row, count)
+	rows := make([]ymxs.Row, max(count, 0))
 	for at := 0; at < count; at++ {
 		rows[at] = ymxs.Row{Registers: registers[at], Effects: effects[at]}
 	}

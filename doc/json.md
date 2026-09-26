@@ -214,7 +214,8 @@ where every step passes.
 3. Read `version`, a whole number equal to 3 or 4 (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
-5. Read `rows`, a whole number R.
+5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
+   empty table of SPEC.md 1.11, and a line of 8.1 reports R as read.
 6. Read `sources`, an array; for each element read `values` (an array of
    rows, each a whole number or an array of two or three, as 4.1 defines),
    `name` (a text), `repeat` (a whole number, `null` or absent), in that

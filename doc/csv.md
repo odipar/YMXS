@@ -201,7 +201,8 @@ where every step passes.
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
 4. Verify that the `tune` block has one row line; read its `rows` cell, a
-   whole number R.
+   whole number R. An R below 1 is a tune of no rows, the empty table of
+   SPEC.md 1.11, and a line of 5.1 reports R as read.
 5. Read the blocks of the tune in file order: a `source` block has one row
    line and opens a source with its `name` and `repeat` cells; a `value`
    block follows a `source` block of the tune, each of its row lines the

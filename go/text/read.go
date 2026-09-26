@@ -97,8 +97,10 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
-	registers := make([]map[ymxs.Register]int, rows)
-	effects := make([]map[ymxs.Timer]ymxs.Effect, rows)
+	// A count below 1 is a tune of no rows, an error of the structure
+	// (SPEC.md 1.11), and a line of the form reports the count as read.
+	registers := make([]map[ymxs.Register]int, max(rows, 0))
+	effects := make([]map[ymxs.Timer]ymxs.Effect, max(rows, 0))
 	for i := 0; i < rows; i++ {
 		registers[i] = map[ymxs.Register]int{}
 		effects[i] = map[ymxs.Timer]ymxs.Effect{}
@@ -150,7 +152,7 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 			}
 		}
 	}
-	built := make([]ymxs.Row, rows)
+	built := make([]ymxs.Row, max(rows, 0))
 	for row := 0; row < rows; row++ {
 		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row]}
 	}

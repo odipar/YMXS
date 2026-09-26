@@ -291,6 +291,40 @@ final class ParityTest {
         assertEquals(java.said(), go.said(), wrong.tool() + " reports the same");
     }
 
+    /**
+     * A row count below 1 is a tune of no rows (json.md 7.1 step 5, csv.md
+     * 4.1 step 4): a column or a row cell of the tune is the line of the
+     * form with the count as read, and a tune of no columns is the empty
+     * table of SPEC.md 1.11, the same line and exit 1 in both trees.
+     */
+    @Test
+    void aRowCountBelow1IsOneLineInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/example.json"), StandardCharsets.UTF_8);
+        String csv = new String(file("doc/tunes/example.csv"), StandardCharsets.UTF_8);
+        String rows = "\"rows\": 4,";
+        String cells = ",50,4,0\n";
+        assertTrue(json.contains(rows) && csv.contains(cells), "the example has 4 rows");
+        String bare = "{\"format\":\"ymxs\",\"version\":4,\"tunes\":[{\"title\":\"\","
+                + "\"composer\":\"\",\"writer\":\"t\",\"rate\":50,\"rows\":-1,"
+                + "\"repeat\":null,\"sources\":[]}]}";
+        String none = "### multi\nformat,version,tunes\nymxs,4,1\n\n### tune\n"
+                + "title,composer,writer,rate,rows,repeat\n,,t,50,-1,\n";
+        String empty = "tune 1: the tune has no rows: a clock reads one";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", json.replace(rows, "\"rows\": -1,"),
+                        "r0 is 4 values long, and the tune has -1 rows"),
+                new Wrong("ymxs-check", json.replace(rows, "\"rows\": -2147483648,"),
+                        "r0 is 4 values long, and the tune has -2147483648 rows"),
+                new Wrong("ymxs-check", bare, empty),
+                new Wrong("ymxs-csv-to-json", csv.replace(cells, ",50,-1,0\n"),
+                        "tune 1 sets a row at row 0, and the tune runs -1 rows"),
+                new Wrong("ymxs-csv-to-json", csv.replace(cells, ",50,-2147483648,0\n"),
+                        "tune 1 sets a row at row 0, and the tune runs -2147483648 rows"),
+                new Wrong("ymxs-csv-to-json", none, empty))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
     @Test
     void anEmptyInputIsOneFaultInBothTrees() throws Exception {
         for (String tool : TOOLS) {

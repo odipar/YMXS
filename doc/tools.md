@@ -384,6 +384,7 @@ runner where a caller starts it, puts Go on the path:
 | `doc/tunes/example.csv` with a `value` cell of `x`, empty, and of 2147483648 | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
 | a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `no target 30: a tune reaches 0 to 24` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
+| `doc/tunes/example.json` and `doc/tunes/example.csv` with `rows` of -1 and of -2,147,483,648, and a tune of no columns with `rows` of -1 in each form | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line 8.1 or 5.1 reports for R as read, or `the tune has no rows: a clock reads one` |
 
 **11.5 Where the trees differ.** Each row is one input on which the two
 trees differ, read off invocations of both.

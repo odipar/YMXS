@@ -323,8 +323,9 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 					number)
 			}
 			for _, line := range one.rows {
-				// the cell is value where the source has one value a row,
-				// and value1 where it has more (csv.md 3.6)
+				// the first value is the value cell where it is filled, and
+				// the value1 cell otherwise (csv.md 3.6), read as a whole
+				// number whether filled or empty (csv.md 5.2)
 				cell, named := one.of(line, "value"), "value"
 				if cell == "" {
 					cell, named = one.of(line, "value1"), "value1"
@@ -540,12 +541,15 @@ func rowAt(rows int, said, what string) (int, error) {
 	return at, nil
 }
 
+// whole reads a whole number as csv.md 1.7 defines it: an optional sign and
+// decimal digits, -2,147,483,648 to 2,147,483,647, with the white space
+// around it removed.
 func whole(said, what string) (int, error) {
-	at, err := strconv.Atoi(strings.TrimSpace(said))
+	at, err := strconv.ParseInt(strings.TrimSpace(said), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("%s is %q, and this form requires a whole number", what, said)
 	}
-	return at, nil
+	return int(at), nil
 }
 
 func number(said, what string) (int, error) {

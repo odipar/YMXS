@@ -319,17 +319,14 @@ public final class Csv {
                     List<List<Integer>> last = values.get(values.size() - 1);
                     for (List<String> line : block.rows()) {
                         List<Integer> row = new ArrayList<>();
-                        // the cell is value where the source has one value a
-                        // row, and value1 where it has more (3.6)
+                        // the first value is the value cell where it is
+                        // filled, and the value1 cell otherwise (3.6), read
+                        // as a whole number whether filled or empty (5.2)
                         String first = block.of(line, "value");
                         String named = "value";
                         if (first.isEmpty()) {
                             first = block.of(line, "value1");
                             named = "value1";
-                        }
-                        if (first.isEmpty()) {
-                            throw new IllegalArgumentException("tune " + number + " opens"
-                                    + " a value with neither a value cell nor a value1");
                         }
                         row.add(number(first, named));
                         for (int at = 2; at <= 3; at++) {

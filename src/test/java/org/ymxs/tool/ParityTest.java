@@ -246,6 +246,40 @@ final class ParityTest {
                 .replace("\"target\":[8,-1]", "\"target\":[30,-1]"), line));
     }
 
+    /**
+     * A source value that is not a whole number is one error of the form,
+     * the same line in both trees: in JSON for a value and for an element of
+     * a row of two (json.md 8.1), in CSV for a {@code value} cell that is a
+     * text, empty, or outside 32 bits (csv.md 1.7, 5.2).
+     */
+    @Test
+    void aSourceValueThatIsNotAWholeNumberIsOneLineInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/example.json"), StandardCharsets.UTF_8);
+        String csv = new String(file("doc/tunes/example.csv"), StandardCharsets.UTF_8);
+        String values = "\"values\": [13,0]";
+        String cells = "row,value\n0,13\n1,0\n";
+        assertTrue(json.contains(values) && csv.contains(cells),
+                "the example has one source of 13 and 0");
+        String whole = ", and this form requires a whole number";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", json.replace(values, "\"values\": [13, \"x\"]"),
+                        "square 13 at row 1 is \"x\"" + whole),
+                new Wrong("ymxs-check", json.replace(values, "\"values\": [13, 1.5]"),
+                        "square 13 at row 1 is 1.5" + whole),
+                new Wrong("ymxs-check", json.replace(values,
+                        "\"values\": [[13, \"x\"], [0, 1]]"),
+                        "square 13 at row 0 is \"x\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(cells, "row,value\n0,x\n1,0\n"),
+                        "value is \"x\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(cells, "row,value\n0,\n1,0\n"),
+                        "value1 is \"\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(cells,
+                        "row,value\n0,2147483648\n1,0\n"),
+                        "value is \"2147483648\"" + whole))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
     /** The input of {@code wrong} in both trees: exit 1, and its line. */
     private static void wrongInBothTrees(Wrong wrong) throws Exception {
         Ran java = ran(Path.of("bin"), wrong.tool(), wrong.in().getBytes());

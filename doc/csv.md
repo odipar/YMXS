@@ -103,7 +103,7 @@ after the tune's other blocks (4.1 step 6).
 |---|---|---|
 | `format` | `ymxs` | this form |
 | `version` | the whole number 4, or 3 for a file of the version before it (json.md 2.4) | the version of the structure |
-| `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader does not read it |
+| `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader skips it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
 
@@ -122,7 +122,7 @@ the source (3.6):
 
 | column | cell | meaning |
 |---|---|---|
-| `name` | text | the source's name; a report names a source by it, and a player does not read it |
+| `name` | text | the source's name; a report names a source by it, and a player skips it |
 | `repeat` | a whole number from 0 to V minus 1, or empty | the row the source repeats to; an empty cell marks a source that plays once |
 
 **3.6** A `value` block has one row line a value of the source it
@@ -132,7 +132,7 @@ file order, and V counts all of them:
 
 | column | cell | meaning |
 |---|---|---|
-| `row` | a whole number | the row number of the value within the source; an emitter emits it, and a reader does not read it |
+| `row` | a whole number | the row number of the value within the source; an emitter emits it, and a reader skips it |
 | `value` | a whole number, from 0 to the largest value that fits the register of every target the tune's rows start the source on (json.md 4.3) | the value of that row, where the source has one value a row; a source of several has `value1` to `valueU` in its place |
 | `value1` to `valueU` | a whole number in the range of register i of those targets, U the values a row of the source, 2 or 3 | value i of that row; a source of two values a row has `value1` and `value2`, and one of three has `value3` beside them |
 
@@ -196,7 +196,7 @@ where every step passes.
    line before the first heading line.
 2. Verify that the first block is named `multi` and has one row line; read
    its `format` cell, equal to `ymxs`, and its `version` cell, a whole
-   number equal to 3.
+   number equal to 3 or 4 (json.md 2.4).
 3. Verify that the block after `multi` is named `tune`. Each `tune` block
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
@@ -214,7 +214,7 @@ where every step passes.
    `timerC` or `timerD`, each row line as 3.9 and 3.10 define: `row` a whole
    number 0 to R - 1, `shape` 0, 1 or 2, then the cells the shape selects,
    each a whole number as read: for a start `source` (1 to S), `target` (0
-   to 13), `prescaler` (one of the seven divisors), `count`, `timerReset`,
+   to 24), `prescaler` (one of the seven divisors), `count`, `timerReset`,
    `placeReset`; for a retune the last four.
 7. Read the `title`, `composer` and `writer` cells of the `tune` block as
    text, `rate` as a whole number, `repeat` as empty or a whole number.
@@ -251,6 +251,7 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |
 | a `value` block before any `source` block of its tune | `tune N opens values before any source` |
+| a source whose rows have N values and K values, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | a `row` cell of a `registers` block outside 0 to R minus 1 | `tune N sets a row at row X, and the tune runs R rows` |
 | a block of a tune whose name is none of `source`, `value`, `registers` and a name beginning `timer` | `tune N opens a "### NAME" table, which this form does not have` |
 | a block whose name begins `timer` and is not `timerA` to `timerD` | `tune N opens a "### NAME" table, and a timer is timerA to timerD` |

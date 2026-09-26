@@ -44,7 +44,7 @@ public final class Merge {
         Multi multi = new Multi(tunes);
         tool.warnings(multi);
         tool.write(Text.write(multi));
-        tool.report(read.size() + (read.size() == 1 ? " file with " : " files with ")
-                + tunes.size() + (tunes.size() == 1 ? " tune" : " tunes"));
+        tool.report(Tool.count(read.size(), "file", "files") + " with "
+                + Tool.count(tunes.size(), "tune", "tunes"));
     }
 }

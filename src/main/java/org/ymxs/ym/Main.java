@@ -72,20 +72,22 @@ public final class Main {
         }
         Tune tune = reading.tune();
         StringBuilder out = new StringBuilder(song.format() + " \"" + song.name() + "\" by \""
-                + song.author() + "\", " + Tunes.size(tune.table()) + " rows at " + tune.rate()
-                + " Hz, " + Tunes.sources(tune).size() + " sources, timers "
+                + song.author() + "\", " + Tool.count(Tunes.size(tune.table()), "row", "rows")
+                + " at " + tune.rate() + " Hz, "
+                + Tool.count(Tunes.sources(tune).size(), "source", "sources") + ", timers "
                 + Tunes.timers(tune));
         Read.Said said = reading.said();
         if (said.dropped() > 0) {
-            out.append(", ").append(said.dropped()).append(" slots this does not read");
+            out.append(", ").append(Tool.count(said.dropped(), "slot", "slots"))
+                    .append(" this does not read");
         }
         if (said.preempted() > 0) {
-            out.append(", ").append(said.preempted())
-                    .append(" frames a recording kept a square wave off its voice");
+            out.append(", ").append(Tool.count(said.preempted(), "frame", "frames"))
+                    .append(" a recording kept a square wave off its voice");
         }
         if (said.cutAtRepeat() > 0) {
-            out.append(", ").append(said.cutAtRepeat())
-                    .append(" recordings cut at the row the tune repeats to");
+            out.append(", ").append(Tool.count(said.cutAtRepeat(), "recording", "recordings"))
+                    .append(" cut at the row the tune repeats to");
         }
         tool.report(out.toString());
     }

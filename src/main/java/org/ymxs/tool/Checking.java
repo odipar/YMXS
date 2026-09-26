@@ -45,10 +45,11 @@ public final class Checking {
             rows += Tunes.size(tune.table());
             sources += Tunes.sources(tune).size();
         }
-        tool.report(multi.tunes().size() + (multi.tunes().size() == 1 ? " tune, " : " tunes, ")
-                + rows + " rows, " + sources + (sources == 1 ? " source" : " sources"));
+        tool.report(Tool.count(multi.tunes().size(), "tune", "tunes") + ", "
+                + Tool.count(rows, "row", "rows") + ", "
+                + Tool.count(sources, "source", "sources"));
         int warnings = tool.warnings(multi);
         tool.report(warnings == 0 ? "every rule of SPEC.md 6 is satisfied"
-                : warnings + (warnings == 1 ? " warning" : " warnings"));
+                : Tool.count(warnings, "warning", "warnings"));
     }
 }

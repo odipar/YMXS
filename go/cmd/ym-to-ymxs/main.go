@@ -23,22 +23,23 @@ import (
 
 func main() {
 	t, rest := tool.Of("ym-to-ymxs", os.Args[1:], "-r")
+	// The last -rROW sets the repeat row, before or after -r; -r alone plays
+	// once (tools.md 9.2).
 	repeat := 0
-	repeats := true
+	repeats := false
 	chosen := false
 	for _, arg := range rest {
 		switch {
 		case arg == "-r":
 			chosen = true
-			repeats = false
 		case strings.HasPrefix(arg, "-r"):
 			chosen = true
-			at, err := strconv.Atoi(arg[2:])
+			at, err := strconv.ParseInt(arg[2:], 10, 32)
 			// rows are numbered from 0 (SPEC.md 1.4)
 			if err != nil || at < 0 {
 				t.Usage(arg + " is not a row number")
 			}
-			repeat = at
+			repeat, repeats = int(at), true
 		default:
 			t.Usage("ym-to-ymxs reads a dump on standard input and writes JSON on" +
 				" standard output. Its flags are -rROW, -r and -silent, and \"" +

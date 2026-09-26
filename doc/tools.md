@@ -270,11 +270,11 @@ archive or bare, and the output is JSON of a multi of one tune.
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
 plays once. `-rROW`, ROW a decimal integer with an optional `-` or `+`,
 writes a tune that repeats to row ROW, the last ROW where several are passed;
-with both `-r` and `-rROW`, in either order, the tune repeats to ROW (the Go
-tree: plays once, 11.5). With both flags absent, the tune repeats to the row
-of ym.md 8.3. A call is wrong, exit 2, before standard input is read, where
-an argument begins `-r` and the rest is other than a decimal integer from
-0 that fits 32 bits, or where an argument is outside the three flags, X the
+with both `-r` and `-rROW`, in either order, the tune repeats to ROW. With
+both flags absent, the tune repeats to the row of ym.md 8.3. A call is
+wrong, exit 2, before standard input is read, where an argument begins
+`-r` and the rest is other than a decimal integer from 0 that fits 32
+bits, or where an argument is outside the three flags, X the
 argument:
 
     ym-to-ymxs: X is not a row number
@@ -371,6 +371,7 @@ runner where a caller starts it, puts Go on the path:
 | input | tools |
 |---|---|
 | `src/test/resources/packed.ym` | `ym-to-ymxs` with no flag, with `-r`, and with `-r2` |
+| `src/test/resources/packed.ym` | `ym-to-ymxs` with `-r -r2`, `-r2 -r`, `-r1 -r2`, `-r2 -r -r1` and `-r2147483647`, each repeating to the last ROW; with `-r2147483648` and `-r99999999999`, exit 2 and `-rROW is not a row number` (9.2) |
 | each JSON file of `doc/tunes` | `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; `ymxs-check` |
 | `doc/tunes/circus.json` and `doc/tunes/digidrum.json` concatenated | `ymxs-merge` |
 | `doc/conformance/tunes/one-row.json`, a tune of one row | `ymxs-check`; `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output; each report reads `1 row` (1.4) |
@@ -403,8 +404,6 @@ trees differ, read off invocations of both.
 | a fault line that prints a value's kind | the value's JSON | `null`, `an array`, `an object`, the text in quotes, the number, or `true` |
 | a text with a character outside the Basic Multilingual Plane | counts it as two characters | counts it as one |
 | a dump whose name or author has a quote, a backslash or a control character in it | the progress line prints the string as it is | the progress line prints it with a backslash before each such character |
-| `ym-to-ymxs -r -rROW`, in either order | repeats to ROW | plays once |
-| `ym-to-ymxs -rROW`, ROW outside 32 bits | `-rROW is not a row number`, exit 2 | writes ROW as the tune's `repeat` |
 
 **11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
 suite as `.github/workflows/test.yml` runs it. It writes

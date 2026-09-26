@@ -101,6 +101,11 @@ func Unpack(archive []byte) ([]byte, error) {
 
 	method := string(archive[2:7])
 	if method == "-lh0-" { // stored, not compressed
+		// the unpacked size is copied from the bytes after the header, so a
+		// larger one is a truncated member (ym.md 2.5)
+		if originalSize > len(archive)-dataAt {
+			return nil, errors.New("LHA member is truncated")
+		}
 		data := make([]byte, originalSize)
 		copy(data, archive[dataAt:])
 		return data, nil

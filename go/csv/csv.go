@@ -37,16 +37,30 @@ const Table = "### "
 
 // --------------------------------------------------------------- out
 
-// Write is the multi as tables.
-func Write(multi ymxs.Multi) string {
+// Write is the multi as tables, or the error of the first text with a line
+// feed or a carriage return in it, in write order (tools.md 7.4).
+func Write(multi ymxs.Multi) (said string, err error) {
+	defer func() {
+		if wrong := recover(); wrong != nil {
+			line, ok := wrong.(unwritable)
+			if !ok {
+				panic(wrong)
+			}
+			said, err = "", errors.New(string(line))
+		}
+	}()
 	var out strings.Builder
 	table(&out, "multi", "format", "version", "tunes")
 	row(&out, text.Format, text.Version, len(multi.Tunes))
 	for _, tune := range multi.Tunes {
 		written(&out, tune)
 	}
-	return out.String()
+	return out.String(), nil
 }
+
+// unwritable is the line of a text this form cannot write. cell raises it,
+// and Write returns it as an error.
+type unwritable string
 
 // written puts one tune down: its tune table, then the tables that belong
 // to it.
@@ -176,7 +190,8 @@ func said(value any) string {
 
 func cell(value string) string {
 	if strings.ContainsAny(value, "\n\r") {
-		panic("a value with a line feed in it, which this form cannot write: " + value)
+		panic(unwritable("a value with a line feed in it, which this form cannot write: " +
+			value))
 	}
 	quote := strings.ContainsAny(value, ",\"") || value != strings.TrimSpace(value) ||
 		strings.HasPrefix(value, "#")
@@ -502,9 +517,11 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 		if err != nil {
 			return nil, err
 		}
-		return ymxs.Starting(run, sources[number-1], ymxs.Timing{Prescaler: by,
-			Count: count, TimerReset: flag(acts.of(one, "timerReset")),
-			PlaceReset: flag(acts.of(one, "placeReset"))})
+		timing, err := timingOf(acts, one, by, count)
+		if err != nil {
+			return nil, err
+		}
+		return ymxs.Starting(run, sources[number-1], timing)
 	case text.Retune:
 		by, err := prescaler(acts, one)
 		if err != nil {
@@ -514,9 +531,11 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 		if err != nil {
 			return nil, err
 		}
-		return ymxs.Retune{Timing: ymxs.Timing{Prescaler: by, Count: count,
-			TimerReset: flag(acts.of(one, "timerReset")),
-			PlaceReset: flag(acts.of(one, "placeReset"))}}, nil
+		timing, err := timingOf(acts, one, by, count)
+		if err != nil {
+			return nil, err
+		}
+		return ymxs.Retune{Timing: timing}, nil
 	case text.Stop:
 		return ymxs.Stop{}, nil
 	}
@@ -558,10 +577,26 @@ func number(said, what string) (int, error) {
 	return whole(said, what)
 }
 
-// flag reads a cell of 1 or 0, as the JSON form writes one.
-func flag(said string) bool {
-	at, err := strconv.Atoi(strings.TrimSpace(said))
-	return err == nil && at == 1
+// flag reads a cell of 1 or 0, as the JSON form writes one: a whole number
+// (csv.md 5.2), set where it is 1.
+func flag(said string) (bool, error) {
+	at, err := whole(said, "true or false")
+	return at == 1, err
+}
+
+// timingOf is the timing of a start or a retune: the divisor and the count
+// read, then timerReset and placeReset in that order.
+func timingOf(acts *block, one []string, by ymxs.Prescaler, count int) (ymxs.Timing, error) {
+	timerReset, err := flag(acts.of(one, "timerReset"))
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	placeReset, err := flag(acts.of(one, "placeReset"))
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	return ymxs.Timing{Prescaler: by, Count: count, TimerReset: timerReset,
+		PlaceReset: placeReset}, nil
 }
 
 // sections is the tables in the text, in file order.

@@ -35,7 +35,8 @@ func main() {
 		case strings.HasPrefix(arg, "-r"):
 			chosen = true
 			at, err := strconv.ParseInt(arg[2:], 10, 32)
-			if err != nil {
+			// rows are numbered from 0 (SPEC.md 1.4)
+			if err != nil || at < 0 {
 				t.Usage(arg + " is not a row number")
 			}
 			repeat, repeats = int(at), true

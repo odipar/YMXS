@@ -289,19 +289,19 @@ func SourceRows(source Source) Table[[]int] {
 		for _, value := range s.Table.Rows {
 			rows = append(rows, []int{value})
 		}
-		return Table[[]int]{Rows: rows, repeat: s.Table.repeat}
+		return Table[[]int]{Rows: rows, repeat: s.Table.repeat, repeats: s.Table.repeats}
 	case Pair:
 		var rows [][]int
 		for _, row := range s.Table.Rows {
 			rows = append(rows, []int{row.First, row.Second})
 		}
-		return Table[[]int]{Rows: rows, repeat: s.Table.repeat}
+		return Table[[]int]{Rows: rows, repeat: s.Table.repeat, repeats: s.Table.repeats}
 	case Triple:
 		var rows [][]int
 		for _, row := range s.Table.Rows {
 			rows = append(rows, []int{row.First, row.Second, row.Third})
 		}
-		return Table[[]int]{Rows: rows, repeat: s.Table.repeat}
+		return Table[[]int]{Rows: rows, repeat: s.Table.repeat, repeats: s.Table.repeats}
 	}
 	panic(fmt.Sprintf("no source %T", source))
 }
@@ -405,7 +405,8 @@ func SourceEqual(a, b Source) bool {
 		return false
 	}
 	one, two := SourceRows(a), SourceRows(b)
-	if len(one.Rows) != len(two.Rows) || one.repeat != two.repeat {
+	if len(one.Rows) != len(two.Rows) || one.repeat != two.repeat ||
+		one.repeats != two.repeats {
 		return false
 	}
 	for i, row := range one.Rows {

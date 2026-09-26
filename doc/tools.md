@@ -17,9 +17,8 @@ arguments and an input; it ends with an exit code (3.6).
 
 **1.3** A *line* on standard error ends with a line feed and begins with
 the tool's name and `: `, except the second and later lines of an error
-of several lines (4.1), the lines of `bin/run` (11.2), which begin
-`run: `, and the stack trace of an invocation ending in an uncaught
-exception or a panic (8.5, 9.3, ym.md 2.5).
+of several lines (4.1) and the lines of `bin/run` (11.2), which begin
+`run: `.
 
 **1.4** A *progress line* reports the figures of an invocation; sections
 6 to 9 define each tool's. A count in it is followed by its noun, singular
@@ -225,7 +224,7 @@ in that order, and a CSV text through the two in the other order.
 **7.4** A multi whose title, composer, writer or source name has a line
 feed or a carriage return in it is an error of `ymxs-json-to-csv`, found
 after the reading and before any warning line, exit 1, standard output
-empty (the Go tree: a panic, exit 2, 11.5):
+empty:
 
     ymxs-json-to-csv: a value with a line feed in it, which this form cannot write: <value>
 
@@ -257,9 +256,8 @@ tunes`, N the number of values read and T the number of tunes written.
 ymxs-merge: 2 files with 2 tunes
 ```
 
-**8.5** Text after a value that fails to parse as JSON ends the invocation
-in the Java tree with an uncaught exception, exit 1, and its stack trace as
-the lines (1.3, 11.5).
+**8.5** Text after a multi that fails to parse as JSON ends the reading
+with the `this is not JSON: ` error of 8.1, exit 1, standard output empty.
 
 ---
 
@@ -274,20 +272,19 @@ plays once. `-rROW`, ROW a decimal integer with an optional `-` or `+`,
 writes a tune that repeats to row ROW, the last ROW where several are passed;
 with both `-r` and `-rROW`, in either order, the tune repeats to ROW. With
 both flags absent, the tune repeats to the row of ym.md 8.3. A call is
-wrong, exit 2, before standard input is read, where
-an argument begins `-r` and the rest is other than a decimal integer that
-fits 32 bits, or where an argument is outside the three flags, X the
+wrong, exit 2, before standard input is read, where an argument begins
+`-r` and the rest is other than a decimal integer from 0 that fits 32
+bits, or where an argument is outside the three flags, X the
 argument:
 
     ym-to-ymxs: X is not a row number
     ym-to-ymxs: ym-to-ymxs reads a dump on standard input and writes JSON on standard output. Its flags are -rROW, -r and -silent, and "X" is none of them.
 
-**9.3 The range of ROW.** Every decimal integer that fits 32 bits is
-accepted. ROW at or above the row count is written as the tune's `repeat`,
-exit 0, and a tool reading the output reports the line of SPEC.md 1.11 for
-the repeat row. ROW below 0 ends the invocation in the Java tree with an
-uncaught exception and exit 1, in the Go tree with a panic and exit 2, in
-both with a stack trace in place of an error line.
+**9.3 The range of ROW.** Every decimal integer from 0 that fits 32 bits
+is accepted, and ROW below 0 is a wrong call (9.2): rows are numbered from
+0 (SPEC.md 1.4). ROW at or above the row count is written as the tune's
+`repeat`, exit 0, and a tool reading the output reports the line of
+SPEC.md 1.11 for the repeat row.
 
 **9.4 The progress line**, written after the output:
 
@@ -386,29 +383,27 @@ runner where a caller starts it, puts Go on the path:
 | a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `no target 30: a tune reaches 0 to 24` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
 | `doc/tunes/example.json` and `doc/tunes/example.csv` with `rows` of -1 and of -2,147,483,648, and a tune of no columns with `rows` of -1 in each form | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line 8.1 or 5.1 reports for R as read, or `the tune has no rows: a clock reads one` |
+| `doc/tunes/example.json` with a `version`, `rows`, `rate`, tune `repeat` or source `repeat` outside 32 bits, and a tune or source `repeat` of -1 | `ymxs-check`; exit 1 and the line of json.md 8.1 or SPEC.md 1.11 |
+| `doc/tunes/example.csv` with a `timerReset` or `placeReset` cell of `x`, empty, or `yes` on a retune | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
+| `doc/tunes/example.json` with a line feed in its writer | `ymxs-json-to-csv`; exit 1 and the line of 7.4 |
+| `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
+| a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
+| `src/test/resources/packed.ym` | `ym-to-ymxs -r-1` and `-r-2147483648`: exit 2 and `-rROW is not a row number` (9.2) |
 
 **11.5 Where the trees differ.** Each row is one input on which the two
 trees differ, read off invocations of both.
 
 | input | the Java tree | the Go tree |
 |---|---|---|
-| a JSON `version`, `rows` or `rate` outside 32 bits | reads the low 32 bits of the number | `KEY is X, and this form requires a whole number`, exit 1 |
 | a JSON start whose `source` is outside 1 to S and whose `target` column is absent | `row I starts source N, and the tune runs S`, exit 1 | `Timer T has no "target" column`, exit 1: the six columns are read before a value is verified |
 | a CSV `source` block whose `repeat` cell is not a whole number, in a tune with a later `value` cell that is not one | `repeat is "CELL", and this form requires a whole number`, exit 1, at the `source` block | `value is "CELL", and this form requires a whole number`, exit 1: the `repeat` cell is read after every block of the tune |
 | a CSV cell reported in the whole-number line with a `"`, a `\` or a control character in it | the characters of the cell as read (csv.md 5.1) | the characters with a `\` before each such character |
-| a JSON `repeat` outside 32 bits, on a tune or a source | reads the low 32 bits of the number | `repeat is X, and this form requires a row number or null`, exit 1 |
-| a JSON `repeat` of `-1`, on a tune or a source | `the tune has R rows and repeats to row -1`, or for a source `the source has R rows and repeats to row -1` prefixed as 4.3 defines, an error of the structure | reads a table that plays once |
-| a CSV `timerReset` or `placeReset` cell that is not a whole number | `true or false is "x", and this form requires a whole number`, exit 1 | reads the cell as 0 |
-| a title, composer, writer or source name with a line feed in it, through `ymxs-json-to-csv` | `a value with a line feed in it, which this form cannot write: <value>`, exit 1 (7.4) | a panic, exit 2 |
-| text after a valid multi that is not JSON, through `ymxs-merge` | an uncaught exception, exit 1, no error line | `this is not JSON: ` and the parser's message, exit 1 |
 | an input that is not JSON | `this is not JSON: ` and the message of the Java parser | `this is not JSON: ` and the message of the Go parser |
 | an input that is not JSON, through `ymxs-merge` | the line above and a second line with the parser's location (8.1) | one line |
 | a JSON root, tune or source that is not an object | the fault of the first key read, such as `format is null, and this form requires a text` | `this is X, and this form requires an object`, `a tune is X, and this form requires an object`, `a source is X, and this form requires an object` |
 | a fault line that prints a value's kind | the value's JSON | `null`, `an array`, `an object`, the text in quotes, the number, or `true` |
 | a text with a character outside the Basic Multilingual Plane | counts it as two characters | counts it as one |
 | a dump whose name or author has a quote, a backslash or a control character in it | the progress line prints the string as it is | the progress line prints it with a backslash before each such character |
-| an archive with a stored member whose unpacked size exceeds the bytes after the header (ym.md 2.5) | an uncaught exception, exit 1, no error line | reads the bytes present followed by zero bytes to the unpacked size |
-| `ym-to-ymxs -r-1` | an uncaught exception, exit 1 | a panic, exit 2 |
 
 **11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
 suite as `.github/workflows/test.yml` runs it. It writes

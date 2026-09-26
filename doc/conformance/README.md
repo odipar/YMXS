@@ -2,10 +2,10 @@
 
 **1.** The kit is nine tunes under `tunes/`, each a structure in the JSON
 form of [json.md](../json.md), and the record of one tune of each beside
-it in `records/`. The kit tests the two
-documents, [SPEC.md](../SPEC.md) and [json.md](../json.md): an implementer
-who has read them alone writes a recorder, and a record equal to the
-reference line for line shows that the documents define it.
+it in `records/`. The kit tests the two documents, [SPEC.md](../SPEC.md)
+and [json.md](../json.md): an implementer who has read them alone writes a
+recorder, and a record equal to the reference line for line shows that the
+documents define it.
 
 **2. What the kit tests.** The recorder of SPEC.md 7 reads a tune and
 reports the figures of the tune once and one line a frame, each register
@@ -26,7 +26,7 @@ nine reach the four timers, the three operations of 6.2, a source that
 repeats to row 0, one that repeats to a row above it, one that plays once,
 every register column, R7's six bits, a row that sets a register an effect
 runs on, a tune that wraps, a tune that plays once, a multi whose second
-tune runs at a rate of its, and the targets of two and three registers
+tune runs at another rate, and the targets of two and three registers
 with the sources of two and three values a row they run.
 
 **5. The exercise.** Initial condition: an implementer whose reading
@@ -63,14 +63,14 @@ them outright contradictions.
   this kit is version 4: a reader that followed the step stopped on every
   tune of it. The step reads 3 or 4.
 - SPEC.md 1.8 read that this version defines one kind of target and one
-  kind of source, which 1.1, 3.1.1 and 3.2.1 contradict. It names the
+  kind of source, which 1.1, 3.1.1 and 3.2.1 contradict. It lists the
   three of each.
 - json.md 7.1 step 6 read `values` as an array of whole numbers, where
   4.1 has a row of two or three as an array. The step reads 4.1.
 - 7.4's `source` is the number in first-start order (1.9) where a file
   numbers the sources in it in file order (json.md 1.7), and no clause
-  bound a reader to the first: four lines of `four-timers` turn on it. 7.4 and
-  json.md 3.4 name the order now.
+  bound a reader to the first: four lines of `four-timers` turn on it. 7.4
+  and json.md 3.4 define the order now.
 - 7.5 left the count where a host names none to the arithmetic of the
   sentence after it. The clause reads the count.
 - 7.3 left the shape of a source of several values a row: one list, the

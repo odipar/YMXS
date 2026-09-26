@@ -45,13 +45,13 @@ tune that plays once RR is F, past the last row.
 | 0 | 4 | `YM5!` or `YM6!` |
 | 4 | 8 | `LeOnArD!` |
 | 12 | 4 | F, the frame count |
-| 16 | 4 | the attributes: bit 0 marks frames laid out one register at a time (2.4), and bit 2 marks samples of one level a byte (2.2); the other bits are not read |
+| 16 | 4 | the attributes: bit 0 marks frames laid out one register at a time (2.4), and bit 2 marks samples of one level a byte (2.2); a reader skips the other bits |
 | 20 | 2 | D, the sample count |
-| 22 | 4 | the master clock; not read |
+| 22 | 4 | the master clock, which a reader skips |
 | 26 | 2 | H, the frequency the dump's player was called at, in Hz |
 | 28 | 4 | L, the loop frame |
 | 32 | 2 | E, the byte count of the extra data |
-| 34 | E | the extra data; not read |
+| 34 | E | the extra data, which a reader skips |
 
 **2.2 The samples** follow the extra data: for each of the D samples in
 order, 4 bytes S then S bytes. With attribute bit 2 set, a byte is one
@@ -298,9 +298,9 @@ where each is above 0:
 
 | figure | rises by one |
 |---|---|
-| slots this does not read | for each frame and slot dropped (5.2) |
-| frames a recording kept a square wave off its voice | for each frame and slot preempted (7.3) |
-| recordings cut at the row the tune repeats to | for each slot whose recording runs into the repeat row (7.4, step 1) |
+| `slots this does not read` | for each frame and slot dropped (5.2) |
+| `frames a recording kept a square wave off its voice` | for each frame and slot preempted (7.3) |
+| `recordings cut at the row the tune repeats to` | for each slot whose recording runs into the repeat row (7.4, step 1) |
 
 The end frame of a recording is reckoned (7.4 step 4): the dump marks the
 start of a recording alone, and a recording whose reckoned end is past the

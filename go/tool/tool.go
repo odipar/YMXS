@@ -92,6 +92,20 @@ func (t *Tool) WriteBytes(file []byte) {
 	}
 }
 
+// Characters is the character count of a text in UTF-16 code units
+// (tools.md 1.7): two for a character outside the Basic Multilingual Plane,
+// one for any other.
+func Characters(said string) int {
+	count := 0
+	for _, one := range said {
+		count++
+		if one > 0xFFFF {
+			count++
+		}
+	}
+	return count
+}
+
 // Count is a count and its noun, one for a count of 1 and many for any
 // other: "1 row", "0 rows", "2 rows".
 func Count(count int, one, many string) string {

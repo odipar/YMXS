@@ -34,7 +34,8 @@ the output is that of a tune free of warnings.
 
 **1.7** The *text* of an input is its bytes decoded as UTF-8, and the
 bytes of an output are its text encoded as UTF-8. A *character count*
-is in UTF-16 code units (11.5 for the Go tree).
+is in UTF-16 code units: two for a character outside the Basic
+Multilingual Plane.
 
 ---
 
@@ -389,21 +390,24 @@ runner where a caller starts it, puts Go on the path:
 | `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
 | a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
 | `src/test/resources/packed.ym` | `ym-to-ymxs -r-1` and `-r-2147483648`: exit 2 and `-rROW is not a row number` (9.2) |
+| `doc/tunes/example.json` with a start of source 5 and no `target` column, and a root, tune or source that is a number, an array, `null` or a text | `ymxs-check`; exit 1 and the line of the first value read (json.md 7.1 step 8, 8.2) |
+| `doc/tunes/example.csv` with a `repeat` cell of `x` before a `value` cell of `y`, a `count` cell with a `"`, a `\` or a control character in it, and timer tables named with them | `ymxs-csv-to-json`; exit 1 and the line of csv.md 5.1, the cell or name as read |
+| `doc/tunes/example.json` with a title of a character outside the Basic Multilingual Plane | `ymxs-json-to-csv`, then `ymxs-csv-to-json` on that output; the character counted as two (1.7) |
+| a YM6! dump whose name has a `"`, a `\` and a control character in it and whose author has bytes above 127, and 12 bytes opening with `a"\` and a control character | `ym-to-ymxs`; the name and the author as they are (9.4), and the opening bytes as ym.md 3 defines |
 
 **11.5 Where the trees differ.** Each row is one input on which the two
 trees differ, read off invocations of both.
 
 | input | the Java tree | the Go tree |
 |---|---|---|
-| a JSON start whose `source` is outside 1 to S and whose `target` column is absent | `row I starts source N, and the tune runs S`, exit 1 | `Timer T has no "target" column`, exit 1: the six columns are read before a value is verified |
-| a CSV `source` block whose `repeat` cell is not a whole number, in a tune with a later `value` cell that is not one | `repeat is "CELL", and this form requires a whole number`, exit 1, at the `source` block | `value is "CELL", and this form requires a whole number`, exit 1: the `repeat` cell is read after every block of the tune |
-| a CSV cell reported in the whole-number line with a `"`, a `\` or a control character in it | the characters of the cell as read (csv.md 5.1) | the characters with a `\` before each such character |
 | an input that is not JSON | `this is not JSON: ` and the message of the Java parser | `this is not JSON: ` and the message of the Go parser |
 | an input that is not JSON, through `ymxs-merge` | the line above and a second line with the parser's location (8.1) | one line |
-| a JSON root, tune or source that is not an object | the fault of the first key read, such as `format is null, and this form requires a text` | `this is X, and this form requires an object`, `a tune is X, and this form requires an object`, `a source is X, and this form requires an object` |
-| a fault line that prints a value's kind | the value's JSON | `null`, `an array`, `an object`, the text in quotes, the number, or `true` |
-| a text with a character outside the Basic Multilingual Plane | counts it as two characters | counts it as one |
-| a dump whose name or author has a quote, a backslash or a control character in it | the progress line prints the string as it is | the progress line prints it with a backslash before each such character |
+| a fault line that prints a value, X of json.md 8.1 | the value as the Java parser writes it: `10.0` for `1e1`, `[1,2]` for an array, an object's keys in input order | `null`, `an array`, `an object`, the text in quotes, the number as written, or `true` |
+
+The three rows come from the two JSON parsers. The messages of the two
+differ, and each keeps a value in a separate form: Jackson a number as its
+value and an object's keys in input order, Go's decoder a number as
+written and an object's keys unordered.
 
 **11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
 suite as `.github/workflows/test.yml` runs it. It writes

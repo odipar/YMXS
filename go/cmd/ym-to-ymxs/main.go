@@ -69,7 +69,7 @@ func said(t *tool.Tool, song ym.Song, reading ym.Reading) {
 	for _, timer := range ymxs.Claimed(tune) {
 		timers = append(timers, timer.String())
 	}
-	out := fmt.Sprintf("%s %q by %q, %s at %d Hz, %s, timers [%s]",
+	out := fmt.Sprintf("%s \"%s\" by \"%s\", %s at %d Hz, %s, timers [%s]",
 		song.Format, song.Name, song.Author, tool.Count(len(ymxs.Rows(tune)), "row", "rows"),
 		tune.Rate, tool.Count(len(ymxs.Sources(tune)), "source", "sources"),
 		strings.Join(timers, ", "))

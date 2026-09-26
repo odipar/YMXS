@@ -103,7 +103,7 @@ the frames (2.6) are the one error after the format.
 
 | line | where |
 |---|---|
-| `not a YM3!, YM3b, YM5! or YM6! dump: it opens with "XXXX"` | bytes 0 to 3 are none of the four, XXXX those bytes |
+| `not a YM3!, YM3b, YM5! or YM6! dump: it opens with "XXXX"` | bytes 0 to 3 are none of the four, XXXX those bytes as ASCII characters, a byte above 127 as U+FFFD |
 | `the frames of a YM3! dump are B bytes, and a frame is 14 bytes` | the bytes of a YM3 dump after byte 3, less the 4 of `YM3b`, are 0 or leave a remainder on 14, B being those bytes; `YM3b` in place of `YM3!` for that format |
 | `the check string after YM5! is not there` | bytes 4 to 11 are not `LeOnArD!`; `YM6!` in place of `YM5!` for that format |
 | `a header field declares B bytes and L are left` | the input ends inside a header field: B is 4 for the field at offset 0, 8 for the field at offset 4, and 2 for every other field of 2.1 and for the size field of a sample (2.2), each of which is read two bytes at a time; L is the bytes left before the end of the input |

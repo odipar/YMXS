@@ -18,6 +18,7 @@ package ym
 import (
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
 // Registers is the registers in the file, R0 to R15.
@@ -94,8 +95,8 @@ func (d *dump) run() (Song, error) {
 		return d.ym3(format)
 	}
 	if format != "YM6!" && format != "YM5!" {
-		return Song{}, unreadable("not a YM3!, YM3b, YM5! or YM6! dump: it opens with %q",
-			format)
+		return Song{}, unreadable("not a YM3!, YM3b, YM5! or YM6! dump: it opens with"+
+			" \"%s\"", format)
 	}
 	check, err := d.ascii(8)
 	if err != nil {
@@ -271,9 +272,16 @@ func (d *dump) ascii(bytes int) (string, error) {
 	if err := d.need(int64(bytes), "a header field"); err != nil {
 		return "", err
 	}
-	said := string(d.data[d.at : d.at+bytes])
+	// decoded as ASCII, a byte above 127 read as U+FFFD
+	runes := make([]rune, bytes)
+	for i, b := range d.data[d.at : d.at+bytes] {
+		runes[i] = rune(b)
+		if b > 127 {
+			runes[i] = utf8.RuneError
+		}
+	}
 	d.at += bytes
-	return said, nil
+	return string(runes), nil
 }
 
 // string reads a header string, which a zero byte ends. Its bytes are one

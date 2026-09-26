@@ -113,7 +113,7 @@ public interface YMXS {
 
     /** The noise period and the volume of one voice. R6 is one register
      *  for the three voices, so two of these running at once write one
-     *  period and the later tick stands. */
+     *  period and the later tick's write remains. */
     record SetNoise(Voice voice) implements TwoTarget { }
 
     /** The envelope period, fine then coarse. */

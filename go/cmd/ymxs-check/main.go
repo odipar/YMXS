@@ -1,5 +1,5 @@
 // Command ymxs-check reads a tune on standard input, writes the same text
-// on standard output, and puts the faults on standard error. It stands in
+// on standard output, and puts the faults on standard error. It runs in
 // a pipe and leaves what passes through it unchanged.
 //
 // It separates two kinds of fault.

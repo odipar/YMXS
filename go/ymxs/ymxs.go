@@ -179,7 +179,7 @@ type SetTone struct {
 
 // SetNoise is the noise period and the volume of one voice. R6 is one
 // register for the three voices, so two of these running at once write one
-// period and the later tick stands.
+// period and the later tick's write remains.
 type SetNoise struct {
 	Voice Voice
 }
@@ -339,7 +339,7 @@ const (
 // Prescalers is every prescaler, in the order they are declared.
 var Prescalers = []Prescaler{By4, By10, By16, By50, By64, By100, By200}
 
-// itoa is strconv.Itoa for a small number, so that this file stands on
+// itoa is strconv.Itoa for a small number, so that this file needs
 // the standard library alone.
 func itoa(n int) string {
 	if n < 10 {

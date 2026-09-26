@@ -7,11 +7,11 @@
 // effect, None where a row leaves it alone. Every column is as long as the
 // tune, so a row is one index across every column.
 //
-// Where the line breaks is fixed here: a tune's figures stand at the top
-// of the tune and each column stands on one line, so a register's values
+// Where the line breaks is fixed here: a tune's figures are at the top
+// of the tune and each column is on one line, so a register's values
 // are read across a line and the columns are compared down the file. A
 // long column wraps at Wrap values, within the width of a screen. The rule
-// is depth: the outer structures break their lines, and what stands inside
+// is depth: the outer structures break their lines, and what is inside
 // those is one item a line.
 package text
 
@@ -33,7 +33,7 @@ const Version = 4
 // 13, the shapes it defines (json.md 2.4).
 const Before = 3
 
-// None stands in a column where the row left that value alone. It
+// None marks a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
 // effect.
 const None = -1
@@ -74,7 +74,7 @@ func Write(multi ymxs.Multi) string {
 	return w.b.String()
 }
 
-// tune writes one tune, its object standing at that depth.
+// tune writes one tune, its object at that depth.
 func (w *writer) tune(tune ymxs.Tune, depth int) {
 	rows := ymxs.Rows(tune)
 	sources := ymxs.Sources(tune)
@@ -367,7 +367,7 @@ func tableRepeat(table any) (int, bool) {
 }
 
 // quoted is a string as JSON: the quote, the backslash and the control
-// characters escaped, and every other byte as it stands.
+// characters escaped, and every other byte as it is.
 func quoted(said string) string {
 	var b strings.Builder
 	b.WriteByte('"')

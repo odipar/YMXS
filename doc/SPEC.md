@@ -319,13 +319,13 @@ envelope target writes the sixteen bits of the envelope period (2.2), and a
 buzzer target those and the shape, which every write restarts (2.5). A noise
 target writes the noise period and one voice's volume; R6 is one register
 for the three voices (2.1), so two noise targets running at once write one
-period and the later tick stands.
+period and the later tick's write remains.
 
 The order of the writes is the player's, with the two the sound depends on
 fixed here: a voice's fine byte before its coarse nibble, so the period
-standing between the two writes is the new fine with the old coarse rather
+in effect between the two writes is the new fine with the old coarse rather
 than the other way round; and a buzzer's shape after its period, since
-writing the shape restarts the generator on the period standing.
+writing the shape restarts the generator on the period in effect.
 
 **3.1.2** A target of one register is numbered by its register, 0 to 13, and
 named `set` followed by the register's name. The targets of several

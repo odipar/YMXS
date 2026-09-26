@@ -163,7 +163,7 @@ final class PipeTest {
 
     /** Every line the document quotes of a run: a line of a fenced block
      *  or of one indented four spaces, written by a tool. A line with a
-     *  placeholder in it stands for many lines and is left out: the
+     *  placeholder in it replaces many lines and is left out: the
      *  document writes those as {@code <name>} and as X, the argument. */
     private static List<String> quoted(String document) {
         List<String> lines = new ArrayList<>();

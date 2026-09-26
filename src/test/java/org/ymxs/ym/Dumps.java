@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * A YM6 dump written here, so that a frame's bytes stand in the test
+ * A YM6 dump written here, so that a frame's bytes are in the test
  * rather than in a file.
  *
  * <p>A dump files its two effect slots in the bits the chip leaves unused:

@@ -15,8 +15,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@code pom.xml} has the version, {@code release/publish.sh} reads
  * it out of there, and three documents write it down: what a reader runs
- * {@code go get} with, and the tag a version of the Go module stands
- * under. They moved a release apart: README.md fetched 0.3.3 of a module
+ * {@code go get} with, and the tag a version of the Go module has. They moved a release apart: README.md fetched 0.3.3 of a module
  * the pom had at 0.3.4.
  */
 final class ReleaseTest {

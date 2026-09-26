@@ -110,7 +110,7 @@ public final class Tool {
      * <p>Every tool that reads a tune reports these, so a fault a writer
      * left in is named where the tune is used rather than only where it
      * is checked. A warning is a tune that plays, but not as written, so
-     * it stands whether or not {@code -silent} was passed: that flag
+     * it is reported whether or not {@code -silent} was passed: that flag
      * quiets what a tool reports of its work, and this reports what the tune
      * gets wrong.
      */

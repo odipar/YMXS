@@ -23,7 +23,7 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
 /**
- * The example against a dump built here, so that its bytes stand in the
+ * The example against a dump built here, so that its bytes are in the
  * test rather than in a file. {@link Dumps} writes the dump.
  */
 final class ReadTest {

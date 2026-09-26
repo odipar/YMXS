@@ -12,7 +12,7 @@ import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Tune;
 
 /**
- * A YM3 dump built here, so that its bytes stand in the test rather than
+ * A YM3 dump built here, so that its bytes are in the test rather than
  * in a file: the format, fourteen vectors of one register each, and under
  * YM3b a long after them (ym.md 2.6).
  */

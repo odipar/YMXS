@@ -36,7 +36,7 @@ func ReadAll(said string) ([]ymxs.Multi, error) {
 }
 
 // Read is the first multi in the text, and what follows it is left where
-// it stands.
+// it is.
 func Read(said string) (ymxs.Multi, error) {
 	decoder := json.NewDecoder(strings.NewReader(said))
 	decoder.UseNumber()

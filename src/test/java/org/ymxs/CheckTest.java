@@ -25,7 +25,7 @@ import org.ymxs.YMXS.Tune;
  * The rules a structure must satisfy, and the fault reported where it does
  * not.
  *
- * <p>The records perform no check, so a structure stands as it was built and
+ * <p>The records perform no check, so a structure is as it was built and
  * this reads it. One call reports every fault in a tune rather than the
  * first.
  */

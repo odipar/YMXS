@@ -300,8 +300,8 @@ the verdict, the whole point
 
 ## The verb that says the action
 
-The five stand-ins: `what a tune holds` is `the tune data structure`, and
-`the rate the tune states` is `the tune's rate`.
+The stand-ins: `what a tune holds` is `the tune data structure`, and `the
+rate the tune states` is `the tune's rate`.
 
 holding
     \bhold

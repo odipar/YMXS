@@ -37,16 +37,30 @@ const Table = "### "
 
 // --------------------------------------------------------------- out
 
-// Write is the multi as tables.
-func Write(multi ymxs.Multi) string {
+// Write is the multi as tables, or the error of the first text with a line
+// feed or a carriage return in it, in write order (tools.md 7.4).
+func Write(multi ymxs.Multi) (said string, err error) {
+	defer func() {
+		if wrong := recover(); wrong != nil {
+			line, ok := wrong.(unwritable)
+			if !ok {
+				panic(wrong)
+			}
+			said, err = "", errors.New(string(line))
+		}
+	}()
 	var out strings.Builder
 	table(&out, "multi", "format", "version", "tunes")
 	row(&out, text.Format, text.Version, len(multi.Tunes))
 	for _, tune := range multi.Tunes {
 		written(&out, tune)
 	}
-	return out.String()
+	return out.String(), nil
 }
+
+// unwritable is the line of a text this form cannot write. cell raises it,
+// and Write returns it as an error.
+type unwritable string
 
 // written puts one tune down: its tune table, then the tables that belong
 // to it.
@@ -176,7 +190,8 @@ func said(value any) string {
 
 func cell(value string) string {
 	if strings.ContainsAny(value, "\n\r") {
-		panic("a value with a line feed in it, which this form cannot write: " + value)
+		panic(unwritable("a value with a line feed in it, which this form cannot write: " +
+			value))
 	}
 	quote := strings.ContainsAny(value, ",\"") || value != strings.TrimSpace(value) ||
 		strings.HasPrefix(value, "#")

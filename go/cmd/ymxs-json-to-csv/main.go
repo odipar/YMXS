@@ -20,7 +20,10 @@ func main() {
 	if err != nil {
 		t.Wrong(tool.Wrong, err.Error())
 	}
-	written := csv.Write(multi)
+	written, err := csv.Write(multi)
+	if err != nil {
+		t.Wrong(tool.Wrong, err.Error())
+	}
 	t.Warnings(multi)
 	t.Write(written)
 	rows := 0

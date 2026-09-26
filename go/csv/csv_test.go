@@ -23,7 +23,11 @@ func TestATuneCrossesToTheTablesAndBack(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", named, err)
 		}
-		back, err := csv.Read(csv.Write(multi))
+		written, err := csv.Write(multi)
+		if err != nil {
+			t.Fatalf("%s: %v", named, err)
+		}
+		back, err := csv.Read(written)
 		if err != nil {
 			t.Fatalf("%s: %v", named, err)
 		}
@@ -47,7 +51,11 @@ func TestTheDocumentsTablesAreTheTablesThisWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if written := csv.Write(multi); written != string(tables) {
+	written, err := csv.Write(multi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written != string(tables) {
 		t.Errorf("the tables moved:\n%s", written)
 	}
 }
@@ -146,7 +154,10 @@ func TestASourceOfSeveralValuesCrossesTheForms(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	made := csv.Write(multi)
+	made, err := csv.Write(multi)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(made, "row,value1,value2,value3") {
 		t.Errorf("the block names the cells it has:\n%s", made)
 	}
@@ -199,6 +210,28 @@ row,shape,source,target,prescaler,count,timerReset,placeReset
 		_, err := csv.Read(strings.Replace(three, one.from, one.to, 1))
 		if err == nil || err.Error() != one.line {
 			t.Errorf("%q reports %v, and csv.md 5.1 has %q", one.to, err, one.line)
+		}
+	}
+}
+
+// A text with a line feed or a carriage return in it is an error of the
+// writing, and the error is the line of tools.md 7.4.
+func TestATextWithALineFeedIsAnErrorOfTheWriting(t *testing.T) {
+	said, err := os.ReadFile("../../doc/tunes/example.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	multi, err := text.Read(string(said))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, title := range []string{"a\nb", "a\rb"} {
+		multi.Tunes[0].Title = title
+		written, err := csv.Write(multi)
+		line := "a value with a line feed in it, which this form cannot write: " + title
+		if err == nil || err.Error() != line || written != "" {
+			t.Errorf("a title of %q writes %q and reports %v, and tools.md 7.4 has %q",
+				title, written, err, line)
 		}
 	}
 }

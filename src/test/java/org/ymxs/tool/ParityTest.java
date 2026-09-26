@@ -114,6 +114,33 @@ final class ParityTest {
         both("ym-to-ymxs", dump, "-r2");
     }
 
+    /** The flags of ym-to-ymxs read the same in both trees (tools.md 9.2):
+     *  the last -rROW sets the repeat row, before or after -r, and a ROW
+     *  outside 32 bits is a wrong call. */
+    @Test
+    void theFlagsOfYmToYmxsReadTheSameInBothTrees() throws Exception {
+        byte[] dump = file("src/test/resources/packed.ym");
+        for (List<String> flags : List.of(List.of("-r", "-r2"), List.of("-r2", "-r"),
+                List.of("-r1", "-r2"), List.of("-r2", "-r", "-r1"),
+                List.of("-r2147483647"))) {
+            String json = new String(both("ym-to-ymxs", dump, flags.toArray(String[]::new)),
+                    StandardCharsets.UTF_8);
+            String row = flags.stream().filter(one -> one.length() > 2)
+                    .reduce((one, two) -> two).orElseThrow().substring(2);
+            assertTrue(json.contains("\"repeat\": " + row + ","), flags + " repeats to row "
+                    + row + ": " + json);
+        }
+        for (String flag : List.of("-r2147483648", "-r99999999999")) {
+            Ran java = ran(Path.of("bin"), "ym-to-ymxs", dump, flag);
+            Ran go = ran(built(), "ym-to-ymxs", dump, flag);
+            assertEquals(2, java.exit(), java.said());
+            assertEquals("ym-to-ymxs: " + flag + " is not a row number", java.said().strip());
+            assertEquals(java.exit(), go.exit(), "ym-to-ymxs exits the same: " + go.said());
+            assertArrayEquals(java.out(), go.out(), "ym-to-ymxs writes the same bytes");
+            assertEquals(java.said(), go.said(), "ym-to-ymxs reports the same");
+        }
+    }
+
     /** Every JSON tune of the documents, found rather than listed: a
      *  list is a place a tune added later is not. */
     private static List<Path> tunes() throws IOException {

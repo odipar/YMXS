@@ -114,6 +114,11 @@ public final class Lha {
         String method = new String(archive, 2, 5,
                 java.nio.charset.StandardCharsets.US_ASCII);
         if (method.equals("-lh0-")) {               // stored, not compressed
+            // the unpacked size is copied from the bytes after the header,
+            // so a larger one is a truncated member (ym.md 2.5)
+            if (originalSize > archive.length - dataAt) {
+                throw new IllegalArgumentException("LHA member is truncated");
+            }
             byte[] data = new byte[originalSize];
             System.arraycopy(archive, dataAt, data, 0, originalSize);
             return data;

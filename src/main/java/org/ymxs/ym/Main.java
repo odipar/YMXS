@@ -36,11 +36,17 @@ public final class Main {
                 chosen = true;
             } else if (arg.startsWith("-r")) {
                 chosen = true;
+                int row;
                 try {
-                    repeat = OptionalInt.of(Integer.parseInt(arg.substring(2)));
+                    row = Integer.parseInt(arg.substring(2));
                 } catch (NumberFormatException wrong) {
                     throw tool.usage(arg + " is not a row number");
                 }
+                // rows are numbered from 0 (SPEC.md 1.4)
+                if (row < 0) {
+                    throw tool.usage(arg + " is not a row number");
+                }
+                repeat = OptionalInt.of(row);
             } else {
                 throw tool.usage("ym-to-ymxs reads a dump on standard input and writes"
                         + " JSON on standard output. Its flags are -rROW, -r and"

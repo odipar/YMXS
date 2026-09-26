@@ -282,13 +282,86 @@ final class ParityTest {
 
     /** The input of {@code wrong} in both trees: exit 1, and its line. */
     private static void wrongInBothTrees(Wrong wrong) throws Exception {
-        Ran java = ran(Path.of("bin"), wrong.tool(), wrong.in().getBytes());
-        Ran go = ran(built(), wrong.tool(), wrong.in().getBytes());
-        assertEquals(1, java.exit(), wrong.tool() + " reads " + wrong.in());
-        assertEquals(wrong.tool() + ": " + wrong.line(), java.said().strip(),
-                "the line of the form");
-        assertEquals(java.exit(), go.exit(), wrong.tool() + " exits the same: " + go.said());
-        assertEquals(java.said(), go.said(), wrong.tool() + " reports the same");
+        wrongInBothTrees(wrong.tool(), wrong.in().getBytes(), 1, wrong.line());
+    }
+
+    /** {@code in} through {@code tool} with {@code flags} in both trees:
+     *  exit {@code exit}, standard output empty, and {@code line}. */
+    private static void wrongInBothTrees(String tool, byte[] in, int exit, String line,
+            String... flags) throws Exception {
+        Ran java = ran(Path.of("bin"), tool, in, flags);
+        Ran go = ran(built(), tool, in, flags);
+        assertEquals(exit, java.exit(), tool + " reads " + new String(in,
+                StandardCharsets.ISO_8859_1) + ": " + java.said());
+        assertEquals(0, java.out().length, tool + " writes nothing");
+        assertEquals(tool + ": " + line, java.said().strip(), "the line");
+        assertEquals(java.exit(), go.exit(), tool + " exits the same: " + go.said());
+        assertArrayEquals(java.out(), go.out(), tool + " writes the same bytes");
+        assertEquals(java.said(), go.said(), tool + " reports the same");
+    }
+
+    /** A level-0 LHA archive of one stored member, {@code dump}, whose
+     *  header declares {@code unpacked} bytes (ym.md 2.5). */
+    private static byte[] stored(byte[] dump, int unpacked) {
+        java.io.ByteArrayOutputStream header = new java.io.ByteArrayOutputStream();
+        header.writeBytes("-lh0-".getBytes(StandardCharsets.US_ASCII));
+        for (int size : new int[] {dump.length, unpacked}) {
+            for (int at = 0; at < 4; at++) {
+                header.write(size >> (8 * at));
+            }
+        }
+        // the time, the attribute, level 0, and a name of four bytes
+        header.writeBytes(new byte[] {0, 0, 0, 0, 0x20, 0, 4});
+        header.writeBytes("a.ym".getBytes(StandardCharsets.US_ASCII));
+        header.writeBytes(new byte[] {0, 0});
+        byte[] said = header.toByteArray();
+        int sum = 0;
+        for (byte one : said) {
+            sum += one & 0xFF;
+        }
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        out.write(said.length);
+        out.write(sum);
+        out.writeBytes(said);
+        out.writeBytes(dump);
+        return out.toByteArray();
+    }
+
+    /**
+     * Four inputs that ended an invocation with an uncaught exception or a
+     * panic end it with a line in both trees: a line feed in a writer
+     * through ymxs-json-to-csv (tools.md 7.4), text after a multi through
+     * ymxs-merge (8.5), a stored LHA member whose unpacked size is above
+     * the bytes after its header (ym.md 2.5, 3.1), and a ROW below 0 (9.3).
+     */
+    @Test
+    void anInputThatCrashedEndsWithALineInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/example.json"), StandardCharsets.UTF_8);
+        String writer = "\"writer\": \"by hand\"";
+        assertTrue(json.contains(writer), "the example has a writer");
+        wrongInBothTrees(new Wrong("ymxs-json-to-csv",
+                json.replace(writer, "\"writer\": \"by\\nhand\""),
+                "a value with a line feed in it, which this form cannot write: by\nhand"));
+
+        // the two trees parse with two parsers, and share the prefix alone
+        byte[] trailing = (json + "xyz").getBytes(StandardCharsets.UTF_8);
+        for (Ran one : List.of(ran(Path.of("bin"), "ymxs-merge", trailing),
+                ran(built(), "ymxs-merge", trailing))) {
+            assertEquals(1, one.exit(), one.said());
+            assertEquals(0, one.out().length, "ymxs-merge writes nothing");
+            assertTrue(one.said().startsWith("ymxs-merge: this is not JSON: "), one.said());
+        }
+
+        byte[] dump = new byte[4 + 14];
+        System.arraycopy("YM3!".getBytes(StandardCharsets.US_ASCII), 0, dump, 0, 4);
+        both("ym-to-ymxs", stored(dump, dump.length));
+        wrongInBothTrees("ym-to-ymxs", stored(dump, dump.length + 14), 1,
+                "this is an archive with a dump inside, and it does not unpack: LHA member"
+                        + " is truncated");
+        for (String row : List.of("-r-1", "-r-2147483648")) {
+            wrongInBothTrees("ym-to-ymxs", file("src/test/resources/packed.ym"), 2,
+                    row + " is not a row number", row);
+        }
     }
 
     /**

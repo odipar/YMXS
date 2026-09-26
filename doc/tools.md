@@ -258,8 +258,8 @@ the lines (1.3, 11.5).
 ## 9. ym-to-ymxs
 
 **9.1** The input is a YM3!, YM3b, YM5! or YM6! register dump, in an LHA
-archive or bare, and the output is JSON of a multi of one tune. [ym.md](ym.md) defines
-the reading and the errors of a dump.
+archive or bare, and the output is JSON of a multi of one tune.
+[ym.md](ym.md) defines the reading and the errors of a dump.
 
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
 plays once. `-rROW`, ROW a decimal integer with an optional `-` or `+`,
@@ -313,13 +313,12 @@ error on reading it.
 bin/ym-to-ymxs < tune.ym | bin/ymxs-check | bin/ymxs-json-to-csv > tune.csv
 ```
 
-**10.2** A tool that ends with an error of the input leaves standard output
-empty, so the next tool reads an empty input and reports its error:
-`ymxs-check` and `ymxs-json-to-csv` `format is null, and this form requires
-a text` (the Go tree `this is not JSON: EOF`, 11.5), `ymxs-csv-to-json` `the
-first table is not "### multi"`, `ymxs-merge` `no tune to merge: a multi is
-one tune at least`, `ym-to-ymxs` `a header field declares 4 bytes and 0 are
-left`. The exit code of a pipe is the shell's.
+**10.2** A tool that ends with an error of the input leaves standard
+output empty, so the next tool reads an empty input and reports its error:
+`ymxs-check` and `ymxs-json-to-csv` `this is not JSON: EOF`,
+`ymxs-csv-to-json` `the first table is not "### multi"`, `ymxs-merge` `no
+tune to merge: a multi is one tune at least`, `ym-to-ymxs` `a header field
+declares 4 bytes and 0 are left`. The exit code of a pipe is the shell's.
 
 **10.3** Several JSON files concatenated are one input of `ymxs-merge`
 (8.1):
@@ -376,8 +375,7 @@ trees differ, read off invocations of both.
 
 | input | the Java tree | the Go tree |
 |---|---|---|
-| a JSON source value that is a number with a fraction, such as `13.5` | reads the integer part, 13 | `NAME at row J is 13.5, and this form requires a whole number`, exit 1 |
-| a JSON source value that is not a number, such as a text | reads 0 | `NAME at row J is X, and this form requires a whole number`, exit 1 |
+| a JSON source value that is not a whole number, such as `13.5` or a text | `source NAME has the value X, and this form requires a whole number`, exit 1 | `NAME at row J is X, and this form requires a whole number`, exit 1, the line json.md 8.1 defines |
 | a JSON `version`, `rows` or `rate` outside 32 bits | reads the low 32 bits of the number | `KEY is X, and this form requires a whole number`, exit 1 |
 | a JSON start whose `source` is outside 1 to S and whose `target` column is absent | `row I starts source N, and the tune runs S`, exit 1 | `Timer T has no "target" column`, exit 1: the six columns are read before a value is verified |
 | a CSV `source` block whose `repeat` cell is not a whole number, in a tune with a later `value` cell that is not one | `repeat is "CELL", and this form requires a whole number`, exit 1, at the `source` block | `value is "CELL", and this form requires a whole number`, exit 1: the `repeat` cell is read after every block of the tune |
@@ -390,7 +388,6 @@ trees differ, read off invocations of both.
 | text after a valid multi that is not JSON, through `ymxs-merge` | an uncaught exception, exit 1, no error line | `this is not JSON: ` and the parser's message, exit 1 |
 | an input that is not JSON | `this is not JSON: ` and the message of the Java parser | `this is not JSON: ` and the message of the Go parser |
 | an input that is not JSON, through `ymxs-merge` | the line above and a second line with the parser's location (8.1) | one line |
-| an empty input to `ymxs-check` or `ymxs-json-to-csv` | `format is null, and this form requires a text` | `this is not JSON: EOF` |
 | a JSON root, tune or source that is not an object | the fault of the first key read, such as `format is null, and this form requires a text` | `this is X, and this form requires an object`, `a tune is X, and this form requires an object`, `a source is X, and this form requires an object` |
 | a fault line that prints a value's kind | the value's JSON | `null`, `an array`, `an object`, the text in quotes, the number, or `true` |
 | a text with a character outside the Basic Multilingual Plane | counts it as two characters | counts it as one |
@@ -399,7 +396,6 @@ trees differ, read off invocations of both.
 | `ym-to-ymxs -r -rROW`, in either order | repeats to ROW | plays once |
 | `ym-to-ymxs -r-1` | an uncaught exception, exit 1 | a panic, exit 2 |
 | `ym-to-ymxs -rROW`, ROW outside 32 bits | `-rROW is not a row number`, exit 2 | writes ROW as the tune's `repeat` |
-
 
 **11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
 suite as `.github/workflows/test.yml` runs it. It writes
@@ -410,6 +406,7 @@ a count above 0 ends the script with exit 1 and the lines that report it,
 and go absent from the path ends it with exit 2 before the suite starts. A
 bare `mvn test` skips every test of `PipeTest` and `ParityTest` and
 reports a green run.
+
 ---
 
 ## 12. A release

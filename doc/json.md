@@ -108,7 +108,7 @@ reads the first-start number whichever order a file has (SPEC.md 7.4).
 
 | key | value | meaning |
 |---|---|---|
-| `name` | a text | the source's name; a report names a source by it, and a player does not read it |
+| `name` | a text | the source's name; a report names a source by it, and a player skips it |
 | `repeat` | a whole number from 0 to V minus 1, or `null` | the row the source repeats to; `null` marks a source that plays once |
 | `values` | an array of V rows, V at least 1: a row is a whole number where the source has one value a row, and an array of two or three whole numbers where it has more | the rows of the source; row j is the element at index j, and a row of several values is a value a register of the target that runs it (SPEC.md 3.1.1) |
 
@@ -265,6 +265,8 @@ the `a tree of X` line.
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |
 | `repeat` present, not `null` and not a whole number | `repeat is X, and this form requires a row number or null` |
 | an element of `values` not a whole number | `NAME at row J is X, and this form requires a whole number` |
+| a row of `values` an array of N elements, N other than 2 and 3 | `a row of N values in source NAME, and a row is a number or two or three values` |
+| rows of one source of N values and of K, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | `registers` present and not an object | `registers is X, and this form requires a column a register` |
 | `timerT` present and not an object | `timerT is X, and this form requires a column a part of an effect` |
 | register column `rN` not an array | `rN is X, and this form requires a column` |
@@ -284,8 +286,9 @@ the `a tree of X` line.
 object, so the line is that of the first key read from it: `format is null,
 and this form requires a text` for the file, `rows is null, and this form
 requires a whole number` for a tune, `values is null, and this form requires
-an array` for a source. An empty text reads as an empty file object. A
-`registers` or a `timerT` other than an object has its line in 8.1.
+an array` for a source. An empty text is not JSON, and its line is the
+first of 8.1. A `registers` or a `timerT` other than an object has its line
+in 8.1.
 
 **8.3** An error of the structure is a condition of SPEC.md 1.11. A reader
 reports every one present after step 12 of 7.1, one line each, the lines of

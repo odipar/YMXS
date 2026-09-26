@@ -264,7 +264,7 @@ the `a tree of X` line.
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |
 | `repeat` present, not `null` and not a whole number | `repeat is X, and this form requires a row number or null` |
-| an element of `values` not a whole number | `NAME at row J is X, and this form requires a whole number` |
+| an element of `values`, or an element of an array in it, not a whole number | `NAME at row J is X, and this form requires a whole number`, X that element |
 | a row of `values` an array of N elements, N other than 2 and 3 | `a row of N values in source NAME, and a row is a number or two or three values` |
 | rows of one source of N values and of K, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | `registers` present and not an object | `registers is X, and this form requires a column a register` |

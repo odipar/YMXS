@@ -204,12 +204,13 @@ where every step passes.
    whole number R.
 5. Read the blocks of the tune in file order: a `source` block has one row
    line and opens a source with its `name` and `repeat` cells; a `value`
-   block follows a `source` block of the tune, each `value` cell of its row
-   lines, a whole number, the next value of the last source opened; a
-   `registers` block is read as 3.7 and 3.8 define, its `row` cell a whole
-   number 0 to R - 1 and each filled `r0` to `r13` cell a whole number; a
-   block whose name begins `timer` is set aside for step 6; a block of any
-   other name is an error.
+   block follows a `source` block of the tune, each of its row lines the
+   next row of the last source opened: the `value` cell where filled and
+   the `value1` cell otherwise, then each filled `value2` and `value3`
+   cell, each a whole number (3.6); a `registers` block is read as 3.7 and
+   3.8 define, its `row` cell a whole number 0 to R - 1 and each filled
+   `r0` to `r13` cell a whole number; a block whose name begins `timer` is
+   set aside for step 6; a block of any other name is an error.
 6. Read the blocks set aside in file order, named `timerA`, `timerB`,
    `timerC` or `timerD`, each row line as 3.9 and 3.10 define: `row` a whole
    number 0 to R - 1, `shape` 0, 1 or 2, then the cells the shape selects,
@@ -267,19 +268,22 @@ numbers, R the row count and S the number of sources.
 | a source no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
 
 **5.2** WHAT in the whole-number line is the column name, `version`, `rows`,
-`rate`, `repeat`, `value`, `row`, `r0` to `r13`, `shape`, `source`,
-`target`, `prescaler` or `count`, and `true or false` for `timerReset` and
-`placeReset`. A reader reads as a whole number: `version`; `rows` and `rate`
-of the `tune` block; `repeat` of the `tune` block and of a `source` block
-where filled; `value`; `row` of every block that has it; each filled `r0` to
-`r13` cell; `shape`; and the cells `shape` selects (3.9). An empty cell read
-as a whole number is such an error; an empty `repeat` is a table that plays
-once, an empty `r0` to `r13` a register the row leaves unchanged. A
-`version`, `rows` or `rate` column absent from its block (2.4) is such an
-error at the block's one row line; a `row`, `value` or `shape` column
-absent, at the first row line; a `source`, `target`, `prescaler`, `count`,
-`timerReset` or `placeReset` column absent from a timer block, at the first
-row line whose shape selects it.
+`rate`, `repeat`, `value`, `value1` to `value3`, `row`, `r0` to `r13`,
+`shape`, `source`, `target`, `prescaler` or `count`, and `true or false`
+for `timerReset` and `placeReset`. A reader reads as a whole number:
+`version`; `rows` and `rate` of the `tune` block; `repeat` of the `tune`
+block and of a `source` block where filled; `value`, or `value1` where
+`value` is empty, and each filled `value2` and `value3` cell (4.1 step 5);
+`row` of every block that has it; each filled `r0` to `r13` cell; `shape`;
+and the cells `shape` selects (3.9). An empty cell read as a whole number
+is such an error, so an empty `value` and an empty `value1` report WHAT
+`value1`; an empty `repeat` is a table that plays once, an empty `r0` to
+`r13` a register the row leaves unchanged. A `version`, `rows` or `rate`
+column absent from its block (2.4) is such an error at the block's one row
+line; a `row` or `shape` column absent, or a `value` block with neither a
+`value` nor a `value1` column, at the first row line; a `source`,
+`target`, `prescaler`, `count`, `timerReset` or `placeReset` column absent
+from a timer block, at the first row line whose shape selects it.
 
 **5.3** An error of the structure is a condition of SPEC.md 1.11. A reader
 reports every one present after step 9 of 4.1, one line each, the lines of

@@ -242,29 +242,34 @@ public final class Json {
 
     /** One source out of its object: the rows of {@code values}, a number
      *  each where the source has one value a row and an array each where
-     *  it has two or three, one shape through the source (4.1, 4.2). */
+     *  it has two or three, one shape through the source (4.1, 4.2).
+     *  {@code values} is read before {@code name}, as 7.1 step 6 orders
+     *  them, and the size of a row before its values. */
     private static Source source(JsonNode one, int version) {
+        JsonNode written = array(one, "values");
         String name = text(one, "name");
         List<List<Integer>> rows = new ArrayList<>();
-        for (JsonNode row : array(one, "values")) {
+        for (int at = 0; at < written.size(); at++) {
+            JsonNode row = written.get(at);
+            String named = name + " at row " + at + " is ";
             if (row.isArray()) {
                 if (version < VERSION) {
                     throw new IllegalArgumentException("source " + name + " has a row of"
                             + " several values, and version " + version
                             + " has one value a row");
                 }
-                List<Integer> values = new ArrayList<>();
-                for (JsonNode value : row) {
-                    values.add(whole(value, "source " + name + " has the value " + value));
-                }
-                if (values.size() < 2 || values.size() > 3) {
-                    throw new IllegalArgumentException("a row of " + values.size()
+                if (row.size() < 2 || row.size() > 3) {
+                    throw new IllegalArgumentException("a row of " + row.size()
                             + " values in source " + name + ", and a row is a number"
                             + " or two or three values");
                 }
+                List<Integer> values = new ArrayList<>();
+                for (JsonNode value : row) {
+                    values.add(whole(value, named + value));
+                }
                 rows.add(values);
             } else {
-                rows.add(List.of(whole(row, "source " + name + " has the value " + row)));
+                rows.add(List.of(whole(row, named + row)));
             }
         }
         for (List<Integer> row : rows) {

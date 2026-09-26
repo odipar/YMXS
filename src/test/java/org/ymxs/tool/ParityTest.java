@@ -157,6 +157,55 @@ final class ParityTest {
         assertTrue(read.contains(", 1 row at 50 Hz, 0 sources, timers []"), read);
     }
 
+    /**
+     * Values one tree read and the other reported, now reported by both: a
+     * JSON {@code version}, {@code rows}, {@code rate} or {@code repeat}
+     * outside 32 bits (json.md 1.4), a JSON {@code repeat} of -1 on a tune
+     * or a source (SPEC.md 1.11), and a CSV {@code timerReset} or
+     * {@code placeReset} cell that is not a whole number (csv.md 5.2).
+     */
+    @Test
+    void aValueOneTreeReadIsOneLineInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/example.json"), StandardCharsets.UTF_8);
+        String csv = new String(file("doc/tunes/example.csv"), StandardCharsets.UTF_8);
+        String whole = ", and this form requires a whole number";
+        String row = ", and this form requires a row number or null";
+        String tuneRepeat = "\"repeat\": 0,\n";
+        String sourceRepeat = "\"name\": \"square 13\", \"repeat\": 0,";
+        String start = "0,0,8,1,50,60,1,1";
+        String retune = "1,1,,,50,61,0,0";
+        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 4,",
+                "\"rows\": 4,", "\"rate\": 50,")) {
+            assertTrue(json.contains(each), "the example has " + each);
+        }
+        assertTrue(csv.contains(start) && csv.contains(retune), "the example starts and retunes");
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", json.replace("\"version\": 4,",
+                        "\"version\": 4294967300,"), "version is 4294967300" + whole),
+                new Wrong("ymxs-check", json.replace("\"rows\": 4,",
+                        "\"rows\": 4294967300,"), "rows is 4294967300" + whole),
+                new Wrong("ymxs-check", json.replace("\"rate\": 50,",
+                        "\"rate\": 4294967346,"), "rate is 4294967346" + whole),
+                new Wrong("ymxs-check", json.replace(tuneRepeat,
+                        "\"repeat\": 4294967296,\n"), "repeat is 4294967296" + row),
+                new Wrong("ymxs-check", json.replace(sourceRepeat,
+                        "\"name\": \"square 13\", \"repeat\": 4294967296,"),
+                        "repeat is 4294967296" + row),
+                new Wrong("ymxs-check", json.replace(tuneRepeat, "\"repeat\": -1,\n"),
+                        "tune 1: the tune has 4 rows and repeats to row -1"),
+                new Wrong("ymxs-check", json.replace(sourceRepeat,
+                        "\"name\": \"square 13\", \"repeat\": -1,"),
+                        "tune 1: row 0: Timer A: the source has 2 rows and repeats to row -1"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,x,1"),
+                        "true or false is \"x\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,"),
+                        "true or false is \"\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(retune, "1,1,,,50,61,yes,0"),
+                        "true or false is \"yes\"" + whole))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
     @Test
     void severalTunesMergeTheSame() throws Exception {
         byte[] one = file("doc/tunes/circus.json");

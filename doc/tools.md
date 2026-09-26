@@ -382,6 +382,8 @@ runner where a caller starts it, puts Go on the path:
 | a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `no target 30: a tune reaches 0 to 24` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
 | `doc/tunes/example.json` and `doc/tunes/example.csv` with `rows` of -1 and of -2,147,483,648, and a tune of no columns with `rows` of -1 in each form | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line 8.1 or 5.1 reports for R as read, or `the tune has no rows: a clock reads one` |
+| `doc/tunes/example.json` with a `version`, `rows`, `rate`, tune `repeat` or source `repeat` outside 32 bits, and a tune or source `repeat` of -1 | `ymxs-check`; exit 1 and the line of json.md 8.1 or SPEC.md 1.11 |
+| `doc/tunes/example.csv` with a `timerReset` or `placeReset` cell of `x`, empty, or `yes` on a retune | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
 | `doc/tunes/example.json` with a line feed in its writer | `ymxs-json-to-csv`; exit 1 and the line of 7.4 |
 | `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
 | a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
@@ -392,13 +394,9 @@ trees differ, read off invocations of both.
 
 | input | the Java tree | the Go tree |
 |---|---|---|
-| a JSON `version`, `rows` or `rate` outside 32 bits | reads the low 32 bits of the number | `KEY is X, and this form requires a whole number`, exit 1 |
 | a JSON start whose `source` is outside 1 to S and whose `target` column is absent | `row I starts source N, and the tune runs S`, exit 1 | `Timer T has no "target" column`, exit 1: the six columns are read before a value is verified |
 | a CSV `source` block whose `repeat` cell is not a whole number, in a tune with a later `value` cell that is not one | `repeat is "CELL", and this form requires a whole number`, exit 1, at the `source` block | `value is "CELL", and this form requires a whole number`, exit 1: the `repeat` cell is read after every block of the tune |
 | a CSV cell reported in the whole-number line with a `"`, a `\` or a control character in it | the characters of the cell as read (csv.md 5.1) | the characters with a `\` before each such character |
-| a JSON `repeat` outside 32 bits, on a tune or a source | reads the low 32 bits of the number | `repeat is X, and this form requires a row number or null`, exit 1 |
-| a JSON `repeat` of `-1`, on a tune or a source | `the tune has R rows and repeats to row -1`, or for a source `the source has R rows and repeats to row -1` prefixed as 4.3 defines, an error of the structure | reads a table that plays once |
-| a CSV `timerReset` or `placeReset` cell that is not a whole number | `true or false is "x", and this form requires a whole number`, exit 1 | reads the cell as 0 |
 | an input that is not JSON | `this is not JSON: ` and the message of the Java parser | `this is not JSON: ` and the message of the Go parser |
 | an input that is not JSON, through `ymxs-merge` | the line above and a second line with the parser's location (8.1) | one line |
 | a JSON root, tune or source that is not an object | the fault of the first key read, such as `format is null, and this form requires a text` | `this is X, and this form requires an object`, `a tune is X, and this form requires an object`, `a source is X, and this form requires an object` |

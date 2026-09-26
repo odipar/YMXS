@@ -3,18 +3,18 @@
 Each tune of the kit, which tune of its file the record is of, and the
 lines of that record. `ConformanceTest` reads every tune and records it
 again under `mvn test`, and compares the record line for line with the
-file in `records/`, so the reader writes the kit and a change that moved a
-line of it fails there.
+file in `records/`, so a change that moves a line fails there. The test
+wrote those files: it writes a record missing from `records/`, and fails.
 
-The lines are the first line of 7.3 and the frames SPEC.md 7.5 defines
-where a host names no count: R + (R - RR) for a tune that repeats, and
+The lines are the first line of SPEC.md 7.3 and the frames 7.5 defines
+where a host omits the count: R + (R - RR) for a tune that repeats, and
 R + 1 for one that plays once, whose last line is `{"result":-1}`.
 
-`ymxs-check` reads every tune of this kit as a structure that satisfies
-every rule of SPEC.md 6, and two raise a warning it reports: `registers`
-sets R8 on the row after the one that starts an effect on it, which 6.1
-records in the frame, and `four-timers` wraps with two timers running,
-which the wrap resumes.
+`ymxs-check` reports a warning on `four-timers`, `registers` and
+`several`, and every other tune of this kit satisfies every rule of
+SPEC.md 6. `registers` sets R8 on the row after the one that starts an
+effect on it (rule 1), and the frame's line records the write (7.4);
+`four-timers` and `several` wrap with timers running (rule 1(d)).
 
 | tune | of the file | lines | what it reaches |
 |---|---|---|---|
@@ -26,4 +26,4 @@ which the wrap resumes.
 | `registers` | 1 | 7 | every register column, R7's six bits, and a row that sets a register an effect runs on (6.1) |
 | `wrap` | 1 | 9 | six rows repeating to row 4, so the record wraps |
 | `several` | 1 | 9 | targets of two and three registers, and the sources of two and three values a row they run (3.1.1, 3.2.1) |
-| `multi` | 2 | 6 | a multi of two tunes: the record is of the second, at a rate of its |
+| `multi` | 2 | 6 | a multi of two tunes: the record is of the second, at 60 Hz where the first is at 50 |

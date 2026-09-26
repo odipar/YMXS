@@ -14,7 +14,7 @@ defines the form the tunes of this kit are written in. Read both.
 It prints the record `SPEC.md` 7 defines for tune T of that file, T being
 1 for the first tune: the first line of 7.3, then one line a frame (7.4),
 ending with a line feed. The lines are as many as the table below has,
-the count 7.5 defines where a host names none.
+the count 7.5 defines where a host omits it.
 
 The output is compared with the reference byte for byte: each line as 7.2
 lays it out, integers in decimal, the keys of each object in the order
@@ -24,10 +24,12 @@ order, `sort_keys` left at its default.
 
 **3. The tunes.** Each is a `.json` under `tunes/`; `SOURCES.md` lists
 what each reaches and is left out of a run against this kit, since the
-record of a tune beside it has the lines a recorder produces. A tune of
-this kit satisfies every rule of `SPEC.md` 6, and two raise a warning a
-checker reports: one sets a register an effect runs on, which 6.1 records
-in the frame, and one wraps with two timers running.
+record of a tune beside it has the lines a recorder produces.
+`four-timers.json`, `registers.json` and `several.json` break a rule of
+`SPEC.md` 6, which a checker reports as a warning, and every other tune
+satisfies every rule: `registers.json` sets a register an effect runs on,
+and the frame's line records the write (7.4); the other two wrap with
+timers running.
 
 | file | the tune of it | lines |
 |---|---|---:|

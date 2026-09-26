@@ -5,11 +5,11 @@
 **AI wrote most of YMXS.** Claude (Anthropic's Claude Code) wrote the
 structure, the two trees of tools, the tests and most of what is written
 here, under Robbert van Dalen's direction: he requested, read and merged
-every change. [LICENSE](LICENSE) is the terms, and its attribution records
-who did what. Whether to use software written that way is the reader's
-decision, and this section is here so that the decision is informed.
+every change. [LICENSE](LICENSE) sets the terms, and its attribution
+records who did what. This section informs the reader's decision to use
+software written this way.
 
-The pieces it is built on are older than it. The YM3, YM5 and YM6
+YMXS builds on older work. The YM3, YM5 and YM6
 register-dump formats are Arnaud Carré's, and the depacker that opens a
 distributed `.ym` is a port of the LZH code of his ST-Sound library.
 

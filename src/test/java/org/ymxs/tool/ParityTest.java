@@ -474,6 +474,108 @@ final class ParityTest {
         }
     }
 
+    /** A YM6! dump of two frames of silence, with a name and an author of
+     *  one byte a character (ym.md 2.3). */
+    private static byte[] ym6(String name, String author) {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        out.writeBytes("YM6!LeOnArD!".getBytes(StandardCharsets.US_ASCII));
+        // 2 frames, attributes 0, 0 samples, a clock of 2,000,000, 50 Hz,
+        // loop 0 and extra data 0, each field most significant byte first
+        out.writeBytes(new byte[] {0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0x1E, (byte) 0x84,
+            (byte) 0x80, 0, 50, 0, 0, 0, 0, 0, 0});
+        for (String text : new String[] {name, author, ""}) {
+            out.writeBytes(text.getBytes(StandardCharsets.ISO_8859_1));
+            out.write(0);
+        }
+        for (int frame = 0; frame < 2; frame++) {
+            byte[] registers = new byte[16];
+            registers[7] = 0x3F;
+            registers[13] = (byte) 0xFF;
+            out.writeBytes(registers);
+        }
+        out.writeBytes("End!".getBytes(StandardCharsets.US_ASCII));
+        return out.toByteArray();
+    }
+
+    /**
+     * Inputs on which the Go tree departed from the documents, read the same
+     * in both trees: the columns of a JSON start in the order of json.md 7.1
+     * step 8; a root, tune or source that is not an object (json.md 8.2); a
+     * CSV {@code repeat} cell at its source block (csv.md 4.1 step 5); a
+     * cell or a table name as read (csv.md 5.1); a character outside the
+     * Basic Multilingual Plane counted as two (tools.md 1.7); and a dump's
+     * name, author and opening bytes (tools.md 9.4, ym.md 3).
+     */
+    @Test
+    void theGoTreeReadsAsTheDocumentsDefine() throws Exception {
+        String json = new String(file("doc/tunes/example.json"), StandardCharsets.UTF_8);
+        String csv = new String(file("doc/tunes/example.csv"), StandardCharsets.UTF_8);
+        String target = "\"target\": [8,-1,-1,-1],\n";
+        String source = "\"source\": [1,-1,-1,-1]";
+        String tunes = "\"tunes\": [";
+        String sources = "\"sources\": [";
+        String start = "0,0,8,1,50,60,1,1";
+        for (String each : List.of(target, source, tunes, sources)) {
+            assertTrue(json.contains(each), "the example has " + each);
+        }
+        assertTrue(csv.contains(start) && csv.contains("square 13,0")
+                && csv.contains("### timerA"), "the example starts on timerA");
+        String whole = ", and this form requires a whole number";
+        List<Wrong> wrong = new ArrayList<>(List.of(
+                new Wrong("ymxs-check", json.replace(target, "").replace(source,
+                        "\"source\": [5,-1,-1,-1]"), "row 0 starts source 5, and the tune runs 1"),
+                new Wrong("ymxs-check", json.replace(tunes, tunes + "5, "),
+                        "rows is null" + whole),
+                new Wrong("ymxs-check", json.replace(tunes, tunes + "[], "),
+                        "rows is null" + whole),
+                new Wrong("ymxs-check", json.replace(sources, sources + "null, "),
+                        "values is null, and this form requires an array"),
+                new Wrong("ymxs-check", json.replace(sources, sources + "[], "),
+                        "values is null, and this form requires an array"),
+                new Wrong("ymxs-csv-to-json", csv.replace("square 13,0", "square 13,x")
+                        .replace("row,value\n0,13\n", "row,value\n0,y\n"),
+                        "repeat is \"x\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,\"6\"\"0\",1,1"),
+                        "count is \"6\"0\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,6\\0,1,1"),
+                        "count is \"6\\0\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,6\u00010,1,1"),
+                        "count is \"6\u00010\"" + whole),
+                new Wrong("ymxs-csv-to-json", csv.replace("### timerA", "### timerQ\"\\"),
+                        "tune 1 opens a \"### timerQ\"\\\" table, and a timer is timerA to"
+                                + " timerD"),
+                new Wrong("ymxs-csv-to-json", csv.replace("### timerA", "### ti\\m\"er"),
+                        "tune 1 opens a \"### ti\\m\"er\" table, which this form does not"
+                                + " have")));
+        for (String root : List.of("[1,2]", "5", "null", "\"x\"")) {
+            wrong.add(new Wrong("ymxs-check", root, "format is null, and this form requires a"
+                    + " text"));
+        }
+        for (Wrong one : wrong) {
+            wrongInBothTrees(one);
+        }
+
+        String title = "\"title\": \"Four rows, one square\"";
+        assertTrue(json.contains(title), "the example has a title");
+        byte[] wide = json.replace(title, "\"title\": \"a \uD83C\uDFB5 tune\"")
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] tables = both("ymxs-json-to-csv", wide);
+        both("ymxs-csv-to-json", tables);
+        String said = ran(Path.of("bin"), "ymxs-json-to-csv", wide).said();
+        int counted = new String(wide, StandardCharsets.UTF_8).length();
+        assertTrue(said.contains(counted + " characters in"), "the character outside the"
+                + " plane counts two: " + said);
+
+        byte[] dump = ym6("a \"q\" \\ b\u0001", "\u00e9t\u00e9");
+        both("ym-to-ymxs", dump);
+        String read = ran(Path.of("bin"), "ym-to-ymxs", dump).said();
+        assertTrue(read.contains("YM6! \"a \"q\" \\ b\u0001\" by \"\u00e9t\u00e9\", 2 rows"),
+                read);
+        byte[] opening = "a\"\\\u0001\u00ffxyz0123".getBytes(StandardCharsets.ISO_8859_1);
+        wrongInBothTrees("ym-to-ymxs", opening, 1, "not a YM3!, YM3b, YM5! or YM6! dump: it"
+                + " opens with \"a\"\\\u0001\"");
+    }
+
     @Test
     void anEmptyInputIsOneFaultInBothTrees() throws Exception {
         for (String tool : TOOLS) {

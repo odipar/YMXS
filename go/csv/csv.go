@@ -256,7 +256,7 @@ func Read(said string) (ymxs.Multi, error) {
 		return ymxs.Multi{}, err
 	}
 	if len(sections) == 0 || sections[0].name != "multi" {
-		return ymxs.Multi{}, fmt.Errorf("the first table is not %q", Table+"multi")
+		return ymxs.Multi{}, fmt.Errorf("the first table is not \"%s\"", Table+"multi")
 	}
 	multi := sections[0]
 	if len(multi.rows) != 1 {
@@ -280,7 +280,7 @@ func Read(said string) (ymxs.Multi, error) {
 	at := 1
 	for at < len(sections) {
 		if sections[at].name != "tune" {
-			return ymxs.Multi{}, fmt.Errorf("a %q table before any tune opens",
+			return ymxs.Multi{}, fmt.Errorf("a \"%s\" table before any tune opens",
 				Table+sections[at].name)
 		}
 		from := at
@@ -313,7 +313,8 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 		return ymxs.Tune{}, err
 	}
 	var names []string
-	var repeats []string
+	var repeats []int
+	var repeating []bool
 	var values [][][]int
 	// A count below 1 is a tune of no rows, an error of the structure
 	// (SPEC.md 1.11), and a line of the form reports the count as read.
@@ -332,7 +333,17 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 					" one row opens it", number, len(one.rows))
 			}
 			names = append(names, one.of(one.rows[0], "name"))
-			repeats = append(repeats, one.of(one.rows[0], "repeat"))
+			// the repeat cell is read at its source block (csv.md 4.1 step 5)
+			repeat, set := 0, false
+			if said := one.of(one.rows[0], "repeat"); said != "" {
+				read, err := whole(said, "repeat")
+				if err != nil {
+					return ymxs.Tune{}, err
+				}
+				repeat, set = read, true
+			}
+			repeats = append(repeats, repeat)
+			repeating = append(repeating, set)
 			values = append(values, [][]int{})
 		case "value":
 			if len(values) == 0 {
@@ -387,7 +398,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			}
 		default:
 			if !strings.HasPrefix(one.name, "timer") {
-				return ymxs.Tune{}, fmt.Errorf("tune %d opens a %q table, which this form"+
+				return ymxs.Tune{}, fmt.Errorf("tune %d opens a \"%s\" table, which this form"+
 					" does not have", number, Table+one.name)
 			}
 			acts = append(acts, one)
@@ -395,18 +406,10 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	}
 	var sources []ymxs.Source
 	for at, name := range names {
-		repeat, repeating := 0, repeats[at] != ""
-		if repeating {
-			read, err := whole(repeats[at], "repeat")
-			if err != nil {
-				return ymxs.Tune{}, err
-			}
-			repeat = read
-		}
 		if err := shaped(name, values[at], version); err != nil {
 			return ymxs.Tune{}, err
 		}
-		made, err := ymxs.SourceOf(name, values[at], repeat, repeating)
+		made, err := ymxs.SourceOf(name, values[at], repeats[at], repeating[at])
 		if err != nil {
 			return ymxs.Tune{}, err
 		}
@@ -479,7 +482,7 @@ func timerOf(table string, tune int) (ymxs.Timer, error) {
 			return timer, nil
 		}
 	}
-	return 0, fmt.Errorf("tune %d opens a %q table, and a timer is timerA to timer%s",
+	return 0, fmt.Errorf("tune %d opens a \"%s\" table, and a timer is timerA to timer%s",
 		tune, Table+table, ymxs.Timers[len(ymxs.Timers)-1])
 }
 
@@ -568,7 +571,7 @@ func rowAt(rows int, said, what string) (int, error) {
 func whole(said, what string) (int, error) {
 	at, err := strconv.ParseInt(strings.TrimSpace(said), 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("%s is %q, and this form requires a whole number", what, said)
+		return 0, fmt.Errorf("%s is \"%s\", and this form requires a whole number", what, said)
 	}
 	return int(at), nil
 }
@@ -619,7 +622,7 @@ func sections(said string) ([]*block, error) {
 				return nil, fmt.Errorf("a table with no name: %s", line)
 			}
 			if strings.Contains(name, ",") {
-				return nil, fmt.Errorf("the table name %q has a comma in it: a name"+
+				return nil, fmt.Errorf("the table name \"%s\" has a comma in it: a name"+
 					" stands alone on its line, and the column names on the line"+
 					" after it", name)
 			}
@@ -646,7 +649,7 @@ func sections(said string) ([]*block, error) {
 
 // unnamed is a table whose name is the last line of it.
 func unnamed(name string) error {
-	return fmt.Errorf("the %q table names no columns: the line after the name is the"+
+	return fmt.Errorf("the \"%s\" table names no columns: the line after the name is the"+
 		" column names", strings.TrimSpace(Table)+" "+name)
 }
 

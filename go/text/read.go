@@ -49,10 +49,7 @@ func Read(said string) (ymxs.Multi, error) {
 
 // multiOf is the multi in a JSON tree.
 func multiOf(tree any) (ymxs.Multi, error) {
-	at, ok := tree.(map[string]any)
-	if !ok {
-		return ymxs.Multi{}, fmt.Errorf("this is %s, and this form requires an object", kind(tree))
-	}
+	at := object(tree)
 	format, err := text(at, "format")
 	if err != nil {
 		return ymxs.Multi{}, err
@@ -85,10 +82,7 @@ func multiOf(tree any) (ymxs.Multi, error) {
 
 // tuneOf is one tune out of a JSON tree.
 func tuneOf(tree any, version int) (ymxs.Tune, error) {
-	at, ok := tree.(map[string]any)
-	if !ok {
-		return ymxs.Tune{}, fmt.Errorf("a tune is %s, and this form requires an object", kind(tree))
-	}
+	at := object(tree)
 	rows, err := number(at, "rows")
 	if err != nil {
 		return ymxs.Tune{}, err
@@ -195,10 +189,7 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 	}
 	var out []ymxs.Source
 	for _, one := range written {
-		source, ok := one.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("a source is %s, and this form requires an object", kind(one))
-		}
+		source := object(one)
 		written, err := array(source, "values")
 		if err != nil {
 			return nil, err
@@ -257,29 +248,18 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 }
 
 // effectOf is one row's operation on the effect of one timer, and whether
-// the row acts on it at all.
+// the row acts on it at all. Each column is read and verified before the
+// next, in the order of json.md 7.1 step 8: source, target, prescaler,
+// count, timerReset, placeReset.
 func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.Timer,
 	rows int, version int) (ymxs.Effect, bool, error) {
 	shape, err := column(columns, "shape", at, timer, rows)
 	if err != nil || shape == None {
 		return nil, false, err
 	}
-	read := func(named string) int {
-		if err != nil {
-			return 0
-		}
-		var value int
-		value, err = column(columns, named, at, timer, rows)
-		return value
-	}
 	switch shape {
 	case Start:
-		source := read("source")
-		target := read("target")
-		prescaler := read("prescaler")
-		count := read("count")
-		timerReset := read("timerReset")
-		placeReset := read("placeReset")
+		source, err := column(columns, "source", at, timer, rows)
 		if err != nil {
 			return nil, false, err
 		}
@@ -287,39 +267,62 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 			return nil, false, fmt.Errorf("row %d starts source %d, and the tune runs %d",
 				at, source, len(sources))
 		}
+		target, err := column(columns, "target", at, timer, rows)
+		if err != nil {
+			return nil, false, err
+		}
 		run, err := TargetOf(target, version)
 		if err != nil {
 			return nil, false, err
 		}
-		by, err := ymxs.PrescalerBy(prescaler)
+		timing, err := timingOf(columns, at, timer, rows)
 		if err != nil {
 			return nil, false, err
 		}
-		made, err := ymxs.Starting(run, sources[source-1], ymxs.Timing{Prescaler: by,
-			Count: count, TimerReset: timerReset == 1, PlaceReset: placeReset == 1})
+		made, err := ymxs.Starting(run, sources[source-1], timing)
 		if err != nil {
 			return nil, false, err
 		}
 		return made, true, nil
 	case Retune:
-		prescaler := read("prescaler")
-		count := read("count")
-		timerReset := read("timerReset")
-		placeReset := read("placeReset")
+		timing, err := timingOf(columns, at, timer, rows)
 		if err != nil {
 			return nil, false, err
 		}
-		by, err := ymxs.PrescalerBy(prescaler)
-		if err != nil {
-			return nil, false, err
-		}
-		return ymxs.Retune{Timing: ymxs.Timing{Prescaler: by, Count: count,
-			TimerReset: timerReset == 1, PlaceReset: placeReset == 1}}, true, nil
+		return ymxs.Retune{Timing: timing}, true, nil
 	case Stop:
 		return ymxs.Stop{}, true, nil
 	}
 	return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is"+
 		" %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop)
+}
+
+// timingOf is the timing of a start or a retune: prescaler, count,
+// timerReset and placeReset, each read and verified before the next.
+func timingOf(columns map[string]any, at int, timer ymxs.Timer, rows int) (ymxs.Timing,
+	error) {
+	prescaler, err := column(columns, "prescaler", at, timer, rows)
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	by, err := ymxs.PrescalerBy(prescaler)
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	count, err := column(columns, "count", at, timer, rows)
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	timerReset, err := column(columns, "timerReset", at, timer, rows)
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	placeReset, err := column(columns, "placeReset", at, timer, rows)
+	if err != nil {
+		return ymxs.Timing{}, err
+	}
+	return ymxs.Timing{Prescaler: by, Count: count, TimerReset: timerReset == 1,
+		PlaceReset: placeReset == 1}, nil
 }
 
 // TargetOf is the target of a number, read against the version: a file of
@@ -420,6 +423,15 @@ func repeatOf(tree map[string]any) (int, bool, error) {
 			kind(value))
 	}
 	return at, true, nil
+}
+
+// object is the object a value is, and an empty one where the value is
+// another kind: its line is then that of the first key read (json.md 8.2).
+func object(value any) map[string]any {
+	if at, ok := value.(map[string]any); ok {
+		return at
+	}
+	return map[string]any{}
 }
 
 // kind is the kind of a value, for a fault message.

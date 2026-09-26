@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"unicode/utf8"
 
 	"github.com/odipar/ymxs/go/csv"
 	"github.com/odipar/ymxs/go/text"
@@ -29,6 +28,6 @@ func main() {
 	}
 	t.Report(fmt.Sprintf("%s, %s, %s in and %d out",
 		tool.Count(len(multi.Tunes), "tune", "tunes"), tool.Count(rows, "row", "rows"),
-		tool.Count(utf8.RuneCountInString(said), "character", "characters"),
-		utf8.RuneCountInString(json)))
+		tool.Count(tool.Characters(said), "character", "characters"),
+		tool.Characters(json)))
 }

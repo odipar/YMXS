@@ -384,8 +384,9 @@ public final class Json {
     }
 
     /** The target of a number, read against the version: a file of the
-     *  version before this one reaches 0 to 13 (2.4). */
-    private static Target target(int number, int version) {
+     *  version before this one reaches 0 to 13 (2.4). The CSV reader calls
+     *  it too. */
+    static Target target(int number, int version) {
         if (version < VERSION && number > 13) {
             throw new IllegalArgumentException("target " + number + ", and version "
                     + version + " reaches 0 to 13");

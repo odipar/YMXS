@@ -2,6 +2,7 @@ package text_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/odipar/ymxs/go/text"
@@ -41,5 +42,25 @@ func TestATextThatIsNotThisFormIsRefused(t *testing.T) {
 		if _, err := text.Read(said); err == nil {
 			t.Errorf("%q reads as a multi", said)
 		}
+	}
+}
+
+// A file of version 3 reaches the targets 0 to 13 (json.md 2.4): such a
+// file reads, and a target above 13 in one is an error of the form, one
+// line of json.md 8.1.
+func TestAFileOfTheVersionBeforeThisOneReachesTargets0To13(t *testing.T) {
+	three := `{"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
+		"writer":"t","rate":50,"rows":2,"repeat":0,
+		"sources":[{"name":"a tone","repeat":0,"values":[13,0]}],
+		"timerA":{"shape":[0,-1],"target":[8,-1],"source":[1,-1],
+		"prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],"placeReset":[1,-1]}}]}`
+	if _, err := text.Read(three); err != nil {
+		t.Fatalf("a file of version 3 reads: %v", err)
+	}
+	line := "target 14, and version 3 reaches 0 to 13"
+	_, err := text.Read(strings.Replace(three, `"target":[8,-1]`, `"target":[14,-1]`, 1))
+	if err == nil || err.Error() != line {
+		t.Errorf("a target of 14 in version 3 reports %v, and json.md 8.1 has %q", err,
+			line)
 	}
 }

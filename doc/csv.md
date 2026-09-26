@@ -233,9 +233,10 @@ cell, a table that plays once.
 **5.1** An error of the form is a condition of the text that ends the
 reading (4.1), reported as one line, except the last condition below,
 reported once for each unstarted source, in `source` block order, one line
-each. LINE is the line read, NAME a block's name, CELL the characters of a
-cell as 2.3 reads them, a `"` among them as it is, WHAT a column name, N and
-K numbers, I and X row numbers, R the row count and S the number of sources.
+each. LINE is the line read, NAME a block's name or, in a line beginning
+`source`, a source's name, CELL the characters of a cell as 2.3 reads them,
+a `"` among them as it is, WHAT a column name, N and K numbers, I and X row
+numbers, R the row count and S the number of sources.
 
 | condition | the line |
 |---|---|
@@ -247,6 +248,7 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
 | a `version` cell other than 3 or 4 | `version N, and this reads 3 or 4` |
+| a row of several values in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |
@@ -257,7 +259,8 @@ K numbers, I and X row numbers, R the row count and S the number of sources.
 | a `row` cell of a timer block outside 0 to R minus 1 | `tune N sets an effect at row X, and the tune runs R rows` |
 | a `shape` cell other than 0, 1 and 2 | `row I sets shape N of an effect, and a shape is 0, 1 or 2` |
 | a `source` cell outside 1 to S | `row I starts source N, and the tune runs S` |
-| a `target` cell outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
+| a `target` cell above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
+| any other `target` cell outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | a `prescaler` cell other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a cell read as a whole number that is not one | `WHAT is "CELL", and this form requires a whole number` |
 | a source no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |

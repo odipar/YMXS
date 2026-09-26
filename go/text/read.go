@@ -141,7 +141,7 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 				" column a part of an effect", timer, kind(written))
 		}
 		for row := 0; row < rows; row++ {
-			effect, on, err := effectOf(columns, row, sources, timer, rows)
+			effect, on, err := effectOf(columns, row, sources, timer, rows, version)
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
@@ -257,7 +257,7 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 // effectOf is one row's operation on the effect of one timer, and whether
 // the row acts on it at all.
 func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.Timer,
-	rows int) (ymxs.Effect, bool, error) {
+	rows int, version int) (ymxs.Effect, bool, error) {
 	shape, err := column(columns, "shape", at, timer, rows)
 	if err != nil || shape == None {
 		return nil, false, err
@@ -285,7 +285,7 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 			return nil, false, fmt.Errorf("row %d starts source %d, and the tune runs %d",
 				at, source, len(sources))
 		}
-		run, err := ymxs.TargetAt(target)
+		run, err := TargetOf(target, version)
 		if err != nil {
 			return nil, false, err
 		}
@@ -318,6 +318,17 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 	}
 	return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is"+
 		" %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop)
+}
+
+// TargetOf is the target of a number, read against the version: a file of
+// the version before this one reaches 0 to 13 (json.md 2.4). The CSV
+// reader calls it too.
+func TargetOf(number, version int) (ymxs.Target, error) {
+	if version < Version && number > 13 {
+		return nil, fmt.Errorf("target %d, and version %d reaches 0 to 13", number,
+			version)
+	}
+	return ymxs.TargetAt(number)
 }
 
 // column is one value of one of a timer's columns.

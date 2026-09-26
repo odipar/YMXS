@@ -48,8 +48,10 @@ public final class Text {
         try (com.fasterxml.jackson.databind.MappingIterator<com.fasterxml.jackson.databind
                 .JsonNode> trees = MAPPER.readerFor(
                         com.fasterxml.jackson.databind.JsonNode.class).readValues(text)) {
-            while (trees.hasNext()) {
-                out.add(Json.multi(trees.next()));
+            // hasNextValue and nextValue throw a parse error as it is;
+            // hasNext and next wrap it in an unchecked exception
+            while (trees.hasNextValue()) {
+                out.add(Json.multi(trees.nextValue()));
             }
         } catch (java.io.IOException wrong) {
             throw new IllegalArgumentException("this is not JSON: " + wrong.getMessage(),

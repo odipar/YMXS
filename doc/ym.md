@@ -79,9 +79,8 @@ defined by LHA: a dictionary of 8,192 bytes, a longest match of 256 bytes
 and a shortest of 3, and Huffman-coded blocks, each opening with a 16-bit
 code count and three code-length tables of 19, 510 and 14 symbols; the
 header's unpacked size is the byte count decoded. Bytes after the first
-member are skipped. For a stored member the unpacked size is trusted; where
-it exceeds the bytes after the header, the reading is left to the
-implementation (tools.md 11.5).
+member are skipped. For a stored member, an unpacked size above the bytes
+after the header is an archive that fails to unpack (3.1).
 
 **2.6 A YM3 dump.** Bytes 0 to 3 are `YM3!` or `YM3b`, and fourteen vectors
 of F bytes follow, vector r being register r of frames 0 to F - 1; under
@@ -120,8 +119,9 @@ the frames (2.6) are the one error after the format.
 the file`, the header size plus 2 above the input's length; `LHA header
 level N; YM archives use level 0`, byte 20 being N; `LHA header checksum
 mismatch`; `LHA member is truncated`, the packed size below 0 or above the
-bytes after the header; `LHA member claims a negative size`; `unsupported
-LHA method <method>`, other than `-lh0-` and `-lh5-`.
+bytes after the header, or for a stored member the unpacked size above
+them; `LHA member claims a negative size`; `unsupported LHA method
+<method>`, other than `-lh0-` and `-lh5-`.
 
 ---
 

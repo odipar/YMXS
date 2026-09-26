@@ -238,7 +238,8 @@ public final class Tunes {
             case 20 -> new SetEnvelope();
             case 21 -> new SetBuzzer();
             case 22, 23, 24 -> new SetNoise(voice(number - 22));
-            default -> throw new IllegalArgumentException("no target " + number);
+            default -> throw new IllegalArgumentException("no target " + number
+                    + ": a tune reaches 0 to 24");
         };
     }
 

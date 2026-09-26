@@ -175,8 +175,8 @@ func TargetRegisters(target Target) []Register {
 	panic(fmt.Sprintf("no target %T", target))
 }
 
-// TargetAt is the target numbered. The error says where this version
-// defines none.
+// TargetAt is the target numbered, and an error for a number outside 0 to
+// 24.
 func TargetAt(number int) (Target, error) {
 	if number >= 0 && number <= 13 {
 		register, err := RegisterAt(number)
@@ -197,7 +197,7 @@ func TargetAt(number int) (Target, error) {
 	case 22, 23, 24:
 		return SetNoise{Voice: Voice(number - 22)}, nil
 	}
-	return nil, fmt.Errorf("no target %d", number)
+	return nil, fmt.Errorf("no target %d: a tune reaches 0 to 24", number)
 }
 
 // TargetNumber is the number of this target, within the 0 to 127 the

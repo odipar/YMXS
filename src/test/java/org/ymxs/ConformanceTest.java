@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -52,7 +53,8 @@ class ConformanceTest {
                     "targets of two and three registers, and the sources of two and"
                             + " three values a row they run (3.1.1, 3.2.1)"),
             new Source("multi", 2, 6,
-                    "a multi of two tunes: the record is of the second, at a rate of its"));
+                    "a multi of two tunes: the record is of the second, at 60 Hz where the"
+                            + " first is at 50"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {
@@ -102,5 +104,41 @@ class ConformanceTest {
                 + ", and this run wrote it");
         assertTrue(sources.contains(said), "SOURCES.md has another table than this run"
                 + " writes: SOURCES.generated.md beside the kit has the rows");
+    }
+
+    /** The tunes a check reports a warning on, as SOURCES.md and TASK.md
+     *  list them. */
+    @Test
+    void theKitListsTheTunesWithAWarning() throws IOException {
+        List<String> warned = new ArrayList<>();
+        for (Source source : KIT) {
+            Multi multi = Text.read(Files.readString(
+                    KIT_AT.resolve("tunes").resolve(source.name() + ".json")));
+            if (multi.tunes().stream().anyMatch(tune -> !Check.writing(tune).isEmpty())) {
+                warned.add(source.name());
+            }
+        }
+        String sources = prose("SOURCES.md");
+        String listed = listed(warned, "`%s`");
+        assertTrue(sources.contains("reports a warning on " + listed + ", and every other"),
+                "SOURCES.md has another list than " + listed);
+        String task = prose("TASK.md");
+        listed = listed(warned, "`%s.json`");
+        assertTrue(task.contains(listed + " break a rule"),
+                "TASK.md has another list than " + listed);
+    }
+
+    /** A document of the kit, each run of white space one space. */
+    private static String prose(String name) throws IOException {
+        return Files.readString(KIT_AT.resolve(name), StandardCharsets.UTF_8)
+                .replaceAll("\\s+", " ");
+    }
+
+    /** The names as a list in prose: a, b and c. */
+    private static String listed(List<String> names, String format) {
+        List<String> each = names.stream().map(format::formatted).toList();
+        return each.size() < 2 ? String.join("", each)
+                : String.join(", ", each.subList(0, each.size() - 1))
+                        + " and " + each.get(each.size() - 1);
     }
 }

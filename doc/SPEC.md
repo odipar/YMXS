@@ -179,11 +179,10 @@ empty list: read the rows from row 0 to the last, within a row the timers A,
 B, C, D; where the operation is a `Start` whose source is new to the list,
 append it. The order is the *first-start order*; the sources are numbered
 from 1 in it, and a source is selected by number. Two sources are equal
-where their names are equal, their values equal in number and order a row
-at a time, and
-their repeat rows both absent or both present and equal; two `Start`s of
-equal sources start one source of the tune, and equal values under two names
-are two sources.
+where their names are equal, their values equal in number and order a row at
+a time, and their repeat rows both absent or both present and equal; two
+`Start`s of equal sources start one source of the tune, and equal values
+under two names are two sources.
 
 **1.10 The timers of a tune.** The timers on which some row performs a
 `Start`, in the order A, B, C, D; a timer with only a `Retune` or a
@@ -591,7 +590,7 @@ order.**
   whether a source that plays once has run out at the start row, either
   value is correct: a stopped timer begins a whole period with the reset set
   or clear (3.4.1).
-- 4(b) No check reads this rule.
+- 4(b) A check skips this rule (6.3).
 
 **Rule 5: a `Retune` on a timer follows a `Start` on it whose effect
 runs.**
@@ -767,7 +766,7 @@ resets (3.4), each B `true` or `false`.
 **7.5 The length.** The first line and the lines of as many frames as the
 host requires, from frame 0, except that the record of a tune that plays
 once ends with its `{"result":-1}` line, produced for the first frame after
-the end, where the record ends. Where the host names no count, it is one
+the end, where the record ends. Where the host omits the count, it is one
 pass and one loop of a tune that repeats and one pass and the frame after
 it of a tune that plays once. One pass and one loop of a tune of R rows
 repeating to RR is R + (R - RR) frames; one pass of a tune of R rows that

@@ -385,6 +385,9 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			}
 			repeat = read
 		}
+		if err := shaped(name, values[at], version); err != nil {
+			return ymxs.Tune{}, err
+		}
 		made, err := ymxs.SourceOf(name, values[at], repeat, repeating)
 		if err != nil {
 			return ymxs.Tune{}, err
@@ -402,7 +405,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
-			effect, err := effectOf(one, line, sources, at)
+			effect, err := effectOf(one, line, sources, at, version)
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
@@ -433,6 +436,23 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	return tune, nil
 }
 
+// shaped reads the rows of a source against one another and against the
+// version: every row has as many values as the first, and a file of the
+// version before this one has one value a row (json.md 2.4).
+func shaped(name string, rows [][]int, version int) error {
+	for _, row := range rows {
+		if len(row) != len(rows[0]) {
+			return fmt.Errorf("source %s has rows of %d and of %d values, and a source"+
+				" has one shape", name, len(rows[0]), len(row))
+		}
+		if len(row) > 1 && version < text.Version {
+			return fmt.Errorf("source %s has a row of several values, and version %d"+
+				" has one value a row", name, version)
+		}
+	}
+	return nil
+}
+
 // timerOf is the timer a table of that name is for.
 func timerOf(table string, tune int) (ymxs.Timer, error) {
 	said := strings.TrimPrefix(table, "timer")
@@ -445,7 +465,10 @@ func timerOf(table string, tune int) (ymxs.Timer, error) {
 		tune, Table+table, ymxs.Timers[len(ymxs.Timers)-1])
 }
 
-func effectOf(acts *block, one []string, sources []ymxs.Source, at int) (ymxs.Effect, error) {
+// effectOf is one row's operation on the effect of one timer, its target
+// read against the version (json.md 2.4).
+func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
+	version int) (ymxs.Effect, error) {
 	shape, err := whole(acts.of(one, "shape"), "shape")
 	if err != nil {
 		return nil, err
@@ -464,7 +487,7 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int) (ymxs.Ef
 		if err != nil {
 			return nil, err
 		}
-		run, err := ymxs.TargetAt(target)
+		run, err := text.TargetOf(target, version)
 		if err != nil {
 			return nil, err
 		}

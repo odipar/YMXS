@@ -252,9 +252,6 @@ public final class Csv {
         return Check.must(new Multi(tunes));
     }
 
-    /** One tune, from the table that opens it and the tables after it. A
-     *  source opens a `source` table, and the values after it belong to
-     *  that source. */
     /** One source out of its name, its rows and its repeat: a row of one
      *  value where the value block has the `value` cell alone, and of two
      *  or three where it has `value2` and `value3` (3.6). A file of the
@@ -286,6 +283,9 @@ public final class Csv {
                 repeat));
     }
 
+    /** One tune, from the table that opens it and the tables after it. A
+     *  source opens a `source` table, and the values after it belong to
+     *  that source. */
     private static Tune tune(Block told, List<Block> mine, int number, int version) {
         if (told.rows().size() != 1) {
             throw new IllegalArgumentException("tune " + number + " is opened by "
@@ -374,7 +374,7 @@ public final class Csv {
             for (List<String> line : block.rows()) {
                 int at = row(count, block.of(line, "row"), "tune " + number
                         + " sets an effect");
-                effects.get(at).put(timer, effect(block, line, sources, at));
+                effects.get(at).put(timer, effect(block, line, sources, at, version));
             }
         }
         List<Row> rows = new ArrayList<>();
@@ -404,7 +404,10 @@ public final class Csv {
                 + Timer.values()[Timer.values().length - 1]);
     }
 
-    private static Effect effect(Block acts, List<String> one, List<Source> sources, int at) {
+    /** One row's operation on the effect of one timer, its target read
+     *  against the version (json.md 2.4). */
+    private static Effect effect(Block acts, List<String> one, List<Source> sources, int at,
+            int version) {
         int shape = number(acts.of(one, "shape"), "shape");
         return switch (shape) {
             case Json.START -> {
@@ -413,7 +416,8 @@ public final class Csv {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + number + ", and the tune runs " + sources.size());
                 }
-                yield Tunes.starting(Tunes.target(number(acts.of(one, "target"), "target")),
+                yield Tunes.starting(Json.target(number(acts.of(one, "target"), "target"),
+                                version),
                         sources.get(number - 1),
                         Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                         number(acts.of(one, "count"), "count"),

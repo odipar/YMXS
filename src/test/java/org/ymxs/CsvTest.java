@@ -340,6 +340,39 @@ final class CsvTest {
         assertTrue(said.contains("version 3 has one value a row"), said);
     }
 
+    /** A file of version 3 reaches the targets 0 to 13, and a target above
+     *  13 in one is an error of the form (json.md 2.4, csv.md 5.1). */
+    @Test
+    void aFileOfVersion3ReachesTargets0To13() {
+        String three = """
+                ### multi
+                format,version,tunes
+                ymxs,3,1
+
+                ### tune
+                title,composer,writer,rate,rows,repeat
+                ,,t,50,2,0
+
+                ### source
+                name,repeat
+                a tone,0
+
+                ### value
+                row,value
+                0,13
+                1,0
+
+                ### timerA
+                row,shape,source,target,prescaler,count,timerReset,placeReset
+                0,0,1,8,50,60,1,1
+                """;
+        assertEquals(1, Csv.read(three).tunes().size(), "a file of version 3 reads");
+        String wide = three.replace("0,0,1,8,", "0,0,1,14,");
+        assertEquals("target 14, and version 3 reaches 0 to 13",
+                assertThrows(IllegalArgumentException.class, () -> Csv.read(wide))
+                        .getMessage());
+    }
+
     @Test
     void aColumnIsFoundByItsNameAndNotItsPlace() {
         String csv = """

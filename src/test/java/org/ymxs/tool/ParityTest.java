@@ -145,6 +145,95 @@ final class ParityTest {
         assertTrue(merged.length > one.length, "two tunes in one multi");
     }
 
+    /** A tune of version 3 in CSV: one value a row, and R8 its target. */
+    private static final String THREE_CSV = """
+            ### multi
+            format,version,tunes
+            ymxs,3,1
+
+            ### tune
+            title,composer,writer,rate,rows,repeat
+            ,,t,50,2,0
+
+            ### source
+            name,repeat
+            a tone,0
+
+            ### value
+            row,value
+            0,13
+            1,0
+
+            ### timerA
+            row,shape,source,target,prescaler,count,timerReset,placeReset
+            0,0,1,8,50,60,1,1
+            """;
+
+    /** The same tune in JSON. */
+    private static final String THREE_JSON = """
+            {"format":"ymxs","version":3,"tunes":[{"title":"","composer":"",
+            "writer":"t","rate":50,"rows":2,"repeat":0,
+            "sources":[{"name":"a tone","repeat":0,"values":[13,0]}],
+            "timerA":{"shape":[0,-1],"target":[8,-1],"source":[1,-1],
+            "prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],"placeReset":[1,-1]}}]}
+            """;
+
+    /** One input of version 3 in another shape, and the line a tool
+     *  reports for it. */
+    private record Wrong(String tool, String in, String line) { }
+
+    /**
+     * A file of version 3 has one value a row in every source and a target
+     * of 0 to 13 (json.md 2.4). Such a file reads the same in both trees, in
+     * both forms, and a row of several values or a target above 13 is one
+     * error of the form, the same line and exit in both trees (json.md 8.1,
+     * csv.md 5.1).
+     */
+    @Test
+    void aFileOfVersion3IsReadTheSameInBothTrees() throws Exception {
+        both("ymxs-csv-to-json", THREE_CSV.getBytes());
+        both("ymxs-check", THREE_JSON.getBytes());
+        both("ymxs-json-to-csv", THREE_JSON.getBytes());
+        String several = "source a tone has a row of several values, and version 3 has"
+                + " one value a row";
+        String target = "target 14, and version 3 reaches 0 to 13";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-csv-to-json", THREE_CSV.replace("row,value\n0,13\n1,0",
+                        "row,value1,value2\n0,13,1\n1,0,1"), several),
+                new Wrong("ymxs-csv-to-json", THREE_CSV.replace("0,0,1,8,", "0,0,1,14,"),
+                        target),
+                new Wrong("ymxs-check", THREE_JSON.replace("\"values\":[13,0]",
+                        "\"values\":[[13,1],[0,1]]"), several),
+                new Wrong("ymxs-check", THREE_JSON.replace("\"target\":[8,-1]",
+                        "\"target\":[14,-1]"), target))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
+    /** A target outside 0 to 24 in a file of version 4 is one error of the
+     *  form, the same line in both trees and both forms (json.md 8.1,
+     *  csv.md 5.1). */
+    @Test
+    void aTargetOutside0To24IsOneLineInBothTrees() throws Exception {
+        String line = "no target 30: a tune reaches 0 to 24";
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", THREE_CSV
+                .replace("ymxs,3,1", "ymxs,4,1").replace("0,0,1,8,", "0,0,1,30,"), line));
+        wrongInBothTrees(new Wrong("ymxs-check", THREE_JSON
+                .replace("\"version\":3", "\"version\":4")
+                .replace("\"target\":[8,-1]", "\"target\":[30,-1]"), line));
+    }
+
+    /** The input of {@code wrong} in both trees: exit 1, and its line. */
+    private static void wrongInBothTrees(Wrong wrong) throws Exception {
+        Ran java = ran(Path.of("bin"), wrong.tool(), wrong.in().getBytes());
+        Ran go = ran(built(), wrong.tool(), wrong.in().getBytes());
+        assertEquals(1, java.exit(), wrong.tool() + " reads " + wrong.in());
+        assertEquals(wrong.tool() + ": " + wrong.line(), java.said().strip(),
+                "the line of the form");
+        assertEquals(java.exit(), go.exit(), wrong.tool() + " exits the same: " + go.said());
+        assertEquals(java.said(), go.said(), wrong.tool() + " reports the same");
+    }
+
     @Test
     void anEmptyInputIsOneFaultInBothTrees() throws Exception {
         for (String tool : TOOLS) {

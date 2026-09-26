@@ -162,3 +162,43 @@ func TestASourceOfSeveralValuesCrossesTheForms(t *testing.T) {
 			text.Write(multi), text.Write(back))
 	}
 }
+
+// A file of version 3 has one value a row in every source and a target of
+// 0 to 13 (json.md 2.4): such a file reads, and a row of several values or
+// a target above 13 in one is an error of the form, one line of csv.md 5.1.
+func TestAFileOfTheVersionBeforeThisOneReadsItsShapes(t *testing.T) {
+	three := `### multi
+format,version,tunes
+ymxs,3,1
+
+### tune
+title,composer,writer,rate,rows,repeat
+,,t,50,2,0
+
+### source
+name,repeat
+a tone,0
+
+### value
+row,value
+0,13
+1,0
+
+### timerA
+row,shape,source,target,prescaler,count,timerReset,placeReset
+0,0,1,8,50,60,1,1
+`
+	if _, err := csv.Read(three); err != nil {
+		t.Fatalf("a file of version 3 reads: %v", err)
+	}
+	for _, one := range []struct{ from, to, line string }{
+		{"row,value\n0,13\n1,0", "row,value1,value2\n0,13,1\n1,0,1",
+			"source a tone has a row of several values, and version 3 has one value a row"},
+		{"0,0,1,8,", "0,0,1,14,", "target 14, and version 3 reaches 0 to 13"},
+	} {
+		_, err := csv.Read(strings.Replace(three, one.from, one.to, 1))
+		if err == nil || err.Error() != one.line {
+			t.Errorf("%q reports %v, and csv.md 5.1 has %q", one.to, err, one.line)
+		}
+	}
+}

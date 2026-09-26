@@ -259,7 +259,7 @@ the `a tree of X` line.
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
 | `version` other than 3 or 4 | `version N, and this reads 3 or 4` |
-| a row of several values, or a `target` above 13, in a file of version 3 | `source X has a row of several values, and version 3 has one value a row`, `target N, and version 3 reaches 0 to 13` |
+| a row of several values in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |
@@ -278,7 +278,8 @@ the `a tree of X` line.
 | a value of a timer column not a whole number | `Timer T's COL at row I is X, and this form requires a whole number` |
 | `shape` other than -1, 0, 1 and 2 | `row I sets shape N on Timer T, and a shape is -1, 0, 1 or 2` |
 | `source` outside 1 to S | `row I starts source N, and the tune runs S` |
-| `target` outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
+| `target` above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
+| any other `target` outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a source of `sources` that no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
 

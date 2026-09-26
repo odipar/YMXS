@@ -286,8 +286,9 @@ the `a tree of X` line.
 object, so the line is that of the first key read from it: `format is null,
 and this form requires a text` for the file, `rows is null, and this form
 requires a whole number` for a tune, `values is null, and this form requires
-an array` for a source. An empty text reads as an empty file object. A
-`registers` or a `timerT` other than an object has its line in 8.1.
+an array` for a source. An empty text is not JSON, and its line is the
+first of 8.1. A `registers` or a `timerT` other than an object has its line
+in 8.1.
 
 **8.3** An error of the structure is a condition of SPEC.md 1.11. A reader
 reports every one present after step 12 of 7.1, one line each, the lines of

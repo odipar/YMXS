@@ -101,6 +101,30 @@ that no document has for the shape that every write restarts, which is
 tune for what the run could not reach, `several`, whose three sources of
 two and three values a row run on targets of two and three registers.
 
+**The third run**, 2026-09-27, against the kit at nine tunes with the
+clauses of the first two in it and a third implementer. The recorder was
+502 lines and produced all nine records line for line. Its notes had 21
+entries with 2 marked *decides output*, and both clauses changed:
+
+- 3.1.2 numbered five of the eleven targets of several registers and left
+  the other six to the order of the table above it; `several` starts one
+  of the six, `setVoiceC`. The clause lists the eleven.
+- 7.3 read `rows` as one list of the values in row order, which a reader
+  of a source of two or three values a row could also read as a list of
+  rows. The clause reads one flat list, with an example.
+
+Six entries that left output as it is changed clauses too, each to what
+both trees do: SPEC.md read that a reader reads the version first, where
+json.md 7.1 reads `format` before it; json.md 2.2 skipped the unknown keys
+of the file object alone; 7.1 step 6 read `values` before `name`, where a
+line of `values` includes the name, and left the order of a row's checks;
+8.1's legend had `an object` for two keys whose value is an object; 8.1's
+version 3 line reads for an array of any length; and an empty `values` is
+the empty table of SPEC.md 1.11.
+
+`TASK.md` gained its section 5, `READ.md` and `NOTES.md`, which the
+exercise (5) names and `TASK.md` lacked.
+
 **8. How the kit is kept true.** `ConformanceTest` reads every tune under
 `mvn test` and records it again, and compares the record with the file
 line for line; a record the tree does not have is written, and

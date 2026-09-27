@@ -250,7 +250,7 @@ numbers, R the row count and S the number of sources.
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
 | a `version` cell other than 3 or 4 | `version N, and this reads 3 or 4` |
-| a row of several values in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
+| a row line of a `value` block with its `value2` or `value3` cell filled, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |

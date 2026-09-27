@@ -51,7 +51,8 @@ object has that member and *absent* otherwise.
 | `version` | the whole number 4, or 3 for a file of the version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
-**2.2** A reader reads the listed keys and skips unknown keys. An emitter
+**2.2** A reader reads the listed keys of each object of this form and
+skips unknown keys. An emitter
 emits only the listed keys, each once, in the order of its section.
 
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
@@ -116,7 +117,9 @@ reads the first-start number whichever order a file has (SPEC.md 7.4).
 reads as `null`. Every row of one source has one shape: a whole number in
 each, or an array of one length, two or three, in each. An element of
 `values` other than a whole number or such an array, and an array of another
-length or of an element other than a whole number, are errors (8.1).
+length or of an element other than a whole number, are errors (8.1). An
+empty `values` is a source of no rows, an error of the structure (SPEC.md
+1.11, 8.3).
 
 **4.3** Value i of every row is 0 to the most of register i of every target
 the rows start the source on (SPEC.md 3.2.2; ranges in 5.1); outside that is
@@ -216,10 +219,15 @@ where every step passes.
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
    empty table of SPEC.md 1.11, and a line of 8.1 reports R as read.
-6. Read `sources`, an array; for each element read `values` (an array of
-   rows, each a whole number or an array of two or three, as 4.1 defines),
-   `name` (a text), `repeat` (a whole number, `null` or absent), in that
-   order.
+6. Read `sources`, an array; for each element read `values` (an array),
+   `name` (a text), each row of `values` in order, and `repeat` (a whole
+   number, `null` or absent), in that order. Of a row, the first of these
+   met is its line of 8.1: an array in a file of version 3; an array of a
+   length other than 2 and 3; an element of an array other than a whole
+   number; a row other than an array or a whole number. After the last
+   row, a row whose count of values is other than row 0's is the shape
+   line of 8.1, N the count of row 0 and K that of the first row that
+   differs.
 7. Read `registers` where present, an object; for each key `r0` to
    `r13` present, in that order, verify an array of length R and read
    index 0 to R - 1, each a whole number, each other than -1 the value
@@ -249,9 +257,9 @@ reported once for each unstarted source, in `sources` order, one line each.
 KEY is the key; N, L, S and R numbers, R as read, 0 or below included; T a
 timer letter; COL a column name; I a row number; J a row number within a
 source; NAME a source's name; X the value read as JSON text, or `null` where
-the key is absent, except `an array` or `an object` in the `registers is X`
-and `timerT is X` lines, and the text with its quotation marks removed in
-the `a tree of X` line.
+the key is absent, except `an array` where the value of `registers` or of a
+`timerT` is an array, and the text with its quotation marks removed in the
+`a tree of X` line.
 
 | condition | the line |
 |---|---|
@@ -260,7 +268,7 @@ the `a tree of X` line.
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
 | `version` other than 3 or 4 | `version N, and this reads 3 or 4` |
-| a row of several values in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
+| a row of `values` that is an array, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or `name` absent or not a text | `KEY is X, and this form requires a text` |

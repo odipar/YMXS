@@ -8,14 +8,15 @@ A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
 A file includes its version beside the structure: a writer writes 4, and a
 reader reads 4 and the version before it (json.md 2.4). A reader reads the
-version first; another version is an error of the form.
+version before the structure; another version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
 section 6 as rule 1, a condition of one as rule 1(a). `Note:` begins an
 informative sentence. A range includes both ends. Integer division
-discards the remainder. In a reported text, `Rn`, `setRn` and `setRm`
-are a register and two targets, and each other capital letter is a
-decimal figure defined beside the text.
+discards the remainder. In a reported text, `Rn` is a register, `setRn`
+and `setRm` are two targets by their names of 3.1.2, `setToneA` among
+them, and each other capital letter is a decimal figure defined beside the
+text.
 
 **Roles.** A player performs sections 4 and 5 on the two chips. A recorder
 performs section 4 with every register write and every timer operation
@@ -328,9 +329,11 @@ writing the shape restarts the generator on the period in effect.
 
 **3.1.2** A target of one register is numbered by its register, 0 to 13, and
 named `set` followed by the register's name. The targets of several
-registers are numbered 14 to 24, in the order of the table above: `setToneA`
-is 14, `setVoiceA` 17, `setEnvelope` 20, `setBuzzer` 21 and `setNoiseA` 22.
-A later version numbers further targets 25 to 127 (8.2).
+registers are numbered 14 to 24, in the order of the table above:
+`setToneA` 14, `setToneB` 15, `setToneC` 16, `setVoiceA` 17, `setVoiceB`
+18, `setVoiceC` 19, `setEnvelope` 20, `setBuzzer` 21, `setNoiseA` 22,
+`setNoiseB` 23 and `setNoiseC` 24. A later version numbers further targets
+25 to 127 (8.2).
 
 ### 3.2 The sources
 
@@ -735,11 +738,12 @@ feed, byte 10, ending every line. The first line is the figures of the tune
 `rate` the rate of the tune H; `timers` the timers of the tune (1.10),
 each as its letter `"A"` to `"D"`, in that order, `[]` where empty;
 `sources` the sources of the tune (1.9) in number order, each
-`{"rows":[...],"repeat":RR}` with `rows` one list of its values in row
-order, the values of row 0 then those of row 1 and so on, a row being one,
-two or three values as the target that runs the source reads (3.1.1), and
-RR its repeat row, or `null` for a source that plays once, `[]` where
-empty.
+`{"rows":[...],"repeat":RR}` with `rows` one flat list of its values in
+row order, the values of row 0 then those of row 1 and so on, a row being
+one, two or three values as the target that runs the source reads (3.1.1):
+a source of the two rows (200, 1) and (100, 2) has `"rows":[200,1,100,2]`;
+and RR its repeat row, or `null` for a source that plays once; `[]` where
+the tune has no sources.
 
 **7.4 A frame's line.** For a frame that reads a row,
 `{"result":0,"w":{...},"e":{...}}`: `w` the registers the frame writes

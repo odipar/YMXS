@@ -18,13 +18,64 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.7` beside `v0.4.7`.
+version of it is a tag of that directory: `go/v0.4.8` beside `v0.4.8`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.8, 2026-09-27
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.8>, built from the commit
+tagged `v0.4.8`.
+
+The two trees read alike every input tools.md 11.5 listed, but the three
+that come from their JSON parsers, and a tool that crashed on an input
+reports a line instead. The structure's version is 4 as before. A file
+that json.md or csv.md defines reads here as it read in 0.4.7; several
+files outside them, which the Go tools of 0.4.7 read, are errors now.
+
+- **Inputs the Go tools of 0.4.7 read.** Each reports the line of json.md
+  8.1, csv.md 5.1 or ym.md 3 now, as the Java tools did: a CSV file of
+  version 3 with a row of several values; a JSON `repeat` of -1 on a tune
+  or a source, read as a table that plays once; a CSV `timerReset` or
+  `placeReset` that is not a whole number, read as 0; a stored LHA member
+  whose unpacked size is above the bytes after its header, read with zero
+  bytes after them, `LHA member is truncated` now.
+- **Lines where a tool crashed.** In the Go tools of 0.4.7: a title,
+  composer, writer or source name with a line feed in it, through
+  `ymxs-json-to-csv`; a `rows` below 0, in either form. In the Java tools:
+  text after a multi through `ymxs-merge`; the stored LHA member above. In
+  both: `ym-to-ymxs -r-1`, a wrong call with exit 2 now.
+- **The flags of `ym-to-ymxs`.** With `-r` and `-rROW` in either order the
+  tune repeats to ROW, the last ROW where several are passed; the Go tool
+  of 0.4.7 wrote a tune that plays once. A ROW outside 32 bits is a wrong
+  call, where the Go tool wrote it as the tune's `repeat`.
+- **Other lines.** A target above 13 in a file of version 3 reports
+  `target N, and version 3 reaches 0 to 13` in both forms, where the CSV
+  readers and the Go JSON reader of 0.4.7 reported the shape of its
+  source; a target outside 0 to 24 reports `no
+  target N: a tune reaches 0 to 24`. A CSV whole number outside 32 bits
+  is the whole-number line, where the Go tools read it as a 64-bit number
+  and reported a later line. A JSON root, tune or source that is not an
+  object reports the line of the first key read; a JSON start reads its
+  columns one after another, and a CSV `repeat` cell is read at its
+  source block, so a file with two errors reports the first in the order
+  json.md 7.1 and csv.md 4.1 define. A source value that is not a whole
+  number reports `NAME at row J is X` in the Java tree too.
+- **Report lines.** A count of 1 reads in the singular, `1 tune, 1 row, 0
+  sources`. A character count is in UTF-16 code units. A dump's name and
+  author, a CSV cell and a table name print as read.
+- **The Go module.** `csv.Write` returns `(string, error)`: a text with a
+  line feed in it is an error of the writing, where 0.4.7 panicked, and a
+  caller of `csv.Write` changes with it. `text.TargetOf`, `tool.Count`
+  and `tool.Characters` are new.
+- **The documents.** SPEC.md, json.md, csv.md and tools.md read what both
+  trees do. A third implementer read the conformance kit and produced
+  every record (conformance/README.md 7), and tools.md 11.4 lists the
+  inputs `ParityTest` runs on both trees.
 
 ### 0.4.7, 2026-09-23
 

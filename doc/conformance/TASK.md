@@ -50,3 +50,11 @@ timers running.
 - The lines a reader writes are compared with the reference whole. A line
   that differs in one byte fails the tune.
 - How fast a recorder runs, and how it is called, are outside this kit.
+
+**5. Also produce.** `READ.md`: every file and page read, listed; where
+an implementation of anything was read, the list names it.
+
+`NOTES.md`: every place the specification left a choice. For each, the
+section, what it omits, what was assumed, and the wording proposed. Mark
+each entry **decides output** or **leaves output as it is**, by whether
+the assumption changed a byte emitted.

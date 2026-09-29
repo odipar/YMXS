@@ -56,7 +56,7 @@ final class Ym3Test {
         }
         for (int r = 14; r < 16; r++) {
             for (int f = 0; f < 8; f++) {
-                assertEquals(0, song.registers()[r][f], "R" + r + " stands outside YM3");
+                assertEquals(0, song.registers()[r][f], "R" + r + " is outside YM3");
             }
         }
     }

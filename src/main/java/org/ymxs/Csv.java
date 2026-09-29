@@ -484,7 +484,7 @@ public final class Csv {
                 }
                 if (name.indexOf(',') >= 0) {
                     throw new IllegalArgumentException("the table name \"" + name
-                            + "\" has a comma in it: a name stands alone on its line, and"
+                            + "\" has a comma in it: a name is alone on its line, and"
                             + " the column names on the line after it");
                 }
                 here = new Block(name, new ArrayList<>(), new ArrayList<>());

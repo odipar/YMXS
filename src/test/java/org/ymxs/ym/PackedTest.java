@@ -48,7 +48,7 @@ final class PackedTest {
     void aDumpThatIsNotPackedReadsToo() throws IOException {
         byte[] dump = Lha.unpack(Files.readAllBytes(PACKED));
         assertTrue(!Lha.isArchive(dump), "what comes out is not an archive");
-        assertEquals(4, Dump.read(dump).frames(), "and it reads as it stands");
+        assertEquals(4, Dump.read(dump).frames(), "and it reads as it is");
     }
 
     @Test

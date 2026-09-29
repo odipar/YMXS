@@ -623,7 +623,7 @@ func sections(said string) ([]*block, error) {
 			}
 			if strings.Contains(name, ",") {
 				return nil, fmt.Errorf("the table name \"%s\" has a comma in it: a name"+
-					" stands alone on its line, and the column names on the line"+
+					" is alone on its line, and the column names on the line"+
 					" after it", name)
 			}
 			here = &block{name: name}

@@ -254,7 +254,7 @@ final class TextTest {
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.contains("\"rows\": 3"), text);
         assertTrue(text.contains("\"r0\": [1,-1,3]"),
-                "a column stands one value a row, and -1 where the row sets none");
+                "a column is one value a row, and -1 where the row sets none");
         assertTrue(!text.contains("\"r1\""), "a register no row sets has no column");
         assertEquals(Tunes.multi(tune), Text.read(text));
     }

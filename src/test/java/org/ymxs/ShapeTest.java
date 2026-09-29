@@ -48,7 +48,7 @@ final class ShapeTest {
                 + " documents read; the check is asleep");
         List<String> wide = Documents.wide(documents, 78);
         assertTrue(wide.isEmpty(), () -> String.join("\n", wide)
-                + "\nAGENTS.md gives one wrap width, and a document keeps it.");
+                + "\nAGENTS.md sets one wrap width, and a document keeps it.");
     }
 
     /** The clause numbers a document defines: its numbered headings and

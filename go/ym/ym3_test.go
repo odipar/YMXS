@@ -51,7 +51,7 @@ func TestAYm3DumpIsFourteenVectorsAndNoHeader(t *testing.T) {
 	for r := 14; r < 16; r++ {
 		for f := 0; f < 8; f++ {
 			if song.Values[r][f] != 0 {
-				t.Errorf("R%d stands outside YM3 and frame %d is %d", r, f, song.Values[r][f])
+				t.Errorf("R%d is outside YM3 and frame %d is %d", r, f, song.Values[r][f])
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func TestALoopFramePastTheLastRowRepeatsToRowZero(t *testing.T) {
 		t.Fatal(err)
 	}
 	if at, does := ym.Of(song, "a test").Table.Repeat(); !does || at != 0 {
-		t.Errorf("the rule of ym.md 8.3 gives %d, %v", at, does)
+		t.Errorf("the rule of ym.md 8.3 returns %d, %v", at, does)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestAYm3DumpRunsNoEffect(t *testing.T) {
 		t.Fatalf("%d rows at %d Hz", ymxs.Size(tune.Table), tune.Rate)
 	}
 	if sources := ymxs.Sources(tune); len(sources) != 0 {
-		t.Errorf("R14 and R15 are zero, so every slot is off, and %d sources stand",
+		t.Errorf("R14 and R15 are zero, so every slot is off, and %d sources remain",
 			len(sources))
 	}
 	if value := ymxs.Rows(tune)[1].Registers[ymxs.R0]; value != 1 {

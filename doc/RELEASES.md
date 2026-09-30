@@ -18,13 +18,32 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.8` beside `v0.4.8`.
+version of it is a tag of that directory: `go/v0.4.9` beside `v0.4.9`.
 
 A player pins a version of this format: the structure's version is 4, a
 writer writes 4 and a reader reads 4 and 3, and a release's number names
 the tools rather than the format.
 
 ## Published
+
+### 0.4.9, 2026-09-30
+
+<https://github.com/odipar/YMXS/releases/tag/v0.4.9>, built from the commit
+tagged `v0.4.9`.
+
+The style check reads strings now, so a line a tool reports reads the
+plain verb. A CSV heading line whose table name has a comma in it reports
+`the table name "NAME" has a comma in it: a name is alone on its line,
+and the column names on the line after it` in both trees, where 0.4.8
+read `a name stands alone`, and csv.md's row reads the new text.
+
+Every other output is as it was. Over the conformance kit, `ymxs-check`,
+`ymxs-json-to-csv` and `ymxs-csv-to-json` of this release and of 0.4.8
+agree in exit, output and report in 18 runs of 18, and `ym-to-ymxs` in
+12 dumps of 12: the one here and the eleven under YMXR's `ym/test`. The
+structure's version is 4 as before, and the Go module's API is as it was.
+
+Checks: `bin/suite` green, 135 tests and 0 skipped.
 
 ### 0.4.8, 2026-09-27
 

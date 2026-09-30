@@ -68,7 +68,7 @@ final class ExampleTest {
                 said.append(lines.get(line)).append('\n');
             }
         }
-        throw new AssertionError(at + " quotes nothing under " + clause);
+        throw new AssertionError(at + " lacks a quote under " + clause);
     }
 
     @Test

@@ -369,7 +369,7 @@ final class ParityTest {
         Ran go = ran(built(), tool, in, flags);
         assertEquals(exit, java.exit(), tool + " reads " + new String(in,
                 StandardCharsets.ISO_8859_1) + ": " + java.said());
-        assertEquals(0, java.out().length, tool + " writes nothing");
+        assertEquals(0, java.out().length, tool + " leaves standard output empty");
         assertEquals(tool + ": " + line, java.said().strip(), "the line");
         assertEquals(java.exit(), go.exit(), tool + " exits the same: " + go.said());
         assertArrayEquals(java.out(), go.out(), tool + " writes the same bytes");
@@ -424,7 +424,7 @@ final class ParityTest {
         for (Ran one : List.of(ran(Path.of("bin"), "ymxs-merge", trailing),
                 ran(built(), "ymxs-merge", trailing))) {
             assertEquals(1, one.exit(), one.said());
-            assertEquals(0, one.out().length, "ymxs-merge writes nothing");
+            assertEquals(0, one.out().length, "ymxs-merge leaves standard output empty");
             assertTrue(one.said().startsWith("ymxs-merge: this is not JSON: "), one.said());
         }
 

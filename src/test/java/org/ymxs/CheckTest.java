@@ -247,7 +247,7 @@ final class CheckTest {
                 "the row the tune repeats to stops every effect, started or not");
         assertEquals(List.of(), Check.writing(of(Tunes.EMPTY,
                 new Row(Map.of(), Map.of(Timer.A, new StartOne(Tunes.setting(Register.R8), DRUM, new Timing(Prescaler.BY_4, 100, true, true)))), Tunes.EMPTY, stop)),
-                "a source that has run out by the reckoning is stopped where rule 4 stands");
+                "a source that has run out by the reckoning is stopped by rule 4");
     }
 
     @Test
@@ -265,7 +265,7 @@ final class CheckTest {
         Tune tune = of(starts(SQUARE, true),
                 new Row(Map.of(), Map.of(Timer.B, new StartOne(Tunes.setting(Register.R9), twin, new Timing(Chip.prescaler(4), 100, true, true)))));
         assertEquals(List.of(), Check.declared(List.of(SQUARE, twin), tune),
-                "an effect names its source by a number, so a name tells nothing apart");
+                "an effect names its source by a number, so two sources may share a name");
     }
 
     /** The lines SPEC.md 6.6 quotes of the check of that tune, in the

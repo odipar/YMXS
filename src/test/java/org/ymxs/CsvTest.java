@@ -160,7 +160,7 @@ final class CsvTest {
 
         Multi back = Csv.read(Csv.write(multi));
         assertEquals(one, Tunes.sources(back.tunes().get(0)).get(0),
-                "a source belongs to the tune whose tables it stands under, not to its name");
+                "a source belongs to the tune whose tables it is under, not to its name");
         assertEquals(two, Tunes.sources(back.tunes().get(1)).get(0));
     }
 
@@ -328,7 +328,7 @@ final class CsvTest {
         Source source = Tunes.sources(read.tunes().get(0)).get(0);
         assertEquals(3, Tunes.columns(source), "the source is three values a row");
         assertEquals(List.of(List.of(46, 1, 15), List.of(32, 1, 13)),
-                Tunes.rows(source).rows(), "the rows read as the cells stand");
+                Tunes.rows(source).rows(), "the rows read as the cells are");
         String written = Csv.write(read);
         assertTrue(written.contains("row,value1,value2,value3"),
                 "the block names the cells it has: " + written);

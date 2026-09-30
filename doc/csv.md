@@ -243,7 +243,7 @@ numbers, R the row count and S the number of sources.
 | condition | the line |
 |---|---|
 | a heading line with no name | `a table with no name: LINE` |
-| a heading line whose name has a `,` in it | `the table name "NAME" has a comma in it: a name stands alone on its line, and the column names on the line after it` |
+| a heading line whose name has a `,` in it | `the table name "NAME" has a comma in it: a name is alone on its line, and the column names on the line after it` |
 | a heading line followed by a heading line or by the end of the text | `the "### NAME" table names no columns: the line after the name is the column names` |
 | a line that is not blank before the first heading line | `a row before any table opens: LINE` |
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |

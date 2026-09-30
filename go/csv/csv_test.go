@@ -134,7 +134,7 @@ func TestAHeadingThisDoesNotReadIsNamed(t *testing.T) {
 			continue
 		}
 		if !strings.Contains(err.Error(), one.of) {
-			t.Errorf("%q reports %q, and %q is what is wrong with it", one.said,
+			t.Errorf("%q reports %q, and the fault is %q", one.said,
 				err, one.of)
 		}
 	}

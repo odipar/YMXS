@@ -26,12 +26,24 @@ import (
 const Format = "ymxs"
 
 // Version is the version of the structure this maps.
-const Version = 4
+const Version = 5
 
-// Before is the version before it, which a reader reads beside it: a file
-// of that version has one value a row in every source and a target of 0 to
-// 13, the shapes it defines (json.md 2.4).
-const Before = 3
+// Deferred is the first version with a start's deferred: in a file of a
+// version before it every start reads with it clear (json.md 2.4).
+const Deferred = 5
+
+// Several is the first version with sources of several values a row and
+// targets of several registers: a file of a version before it has one value
+// a row in every source and a target of 0 to 13 (json.md 2.4).
+const Several = 4
+
+// Oldest is the oldest version a reader reads; it reads every version from
+// this one to Version (json.md 2.4).
+const Oldest = 3
+
+// Reads is the versions a reader reads, as its report lists them.
+var Reads = strconv.Itoa(Oldest) + ", " + strconv.Itoa(Several) + " or " +
+	strconv.Itoa(Version)
 
 // None marks a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
@@ -130,12 +142,13 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 	count := make([]int, len(rows))
 	timerReset := make([]int, len(rows))
 	placeReset := make([]int, len(rows))
+	deferred := make([]int, len(rows))
 	for at, row := range rows {
 		effect, on := row.Effects[timer]
 		if !on {
 			shape[at], target[at], source[at] = None, None, None
 			prescaler[at], count[at] = None, None
-			timerReset[at], placeReset[at] = None, None
+			timerReset[at], placeReset[at], deferred[at] = None, None, None
 			continue
 		}
 		switch e := effect.(type) {
@@ -147,6 +160,7 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 			count[at] = ymxs.StartTiming(e).Count
 			timerReset[at] = flag(ymxs.StartTiming(e).TimerReset)
 			placeReset[at] = flag(ymxs.StartTiming(e).PlaceReset)
+			deferred[at] = flag(ymxs.StartDeferred(e))
 		case ymxs.Retune:
 			shape[at] = Retune
 			target[at], source[at] = None, None
@@ -154,11 +168,12 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 			count[at] = e.Timing.Count
 			timerReset[at] = flag(e.Timing.TimerReset)
 			placeReset[at] = flag(e.Timing.PlaceReset)
+			deferred[at] = None
 		case ymxs.Stop:
 			shape[at] = Stop
 			target[at], source[at] = None, None
 			prescaler[at], count[at] = None, None
-			timerReset[at], placeReset[at] = None, None
+			timerReset[at], placeReset[at], deferred[at] = None, None, None
 		}
 	}
 	w.object(depth, func(o *entries) {
@@ -169,6 +184,7 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 			{"shape", shape}, {"target", target}, {"source", source},
 			{"prescaler", prescaler}, {"count", count},
 			{"timerReset", timerReset}, {"placeReset", placeReset},
+			{"deferred", deferred},
 		} {
 			o.field(one.named, func() {
 				w.values(depth+1, one.column)

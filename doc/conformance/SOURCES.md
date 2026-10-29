@@ -27,3 +27,4 @@ effect on it (rule 1), and the frame's line records the write (7.4);
 | `wrap` | 1 | 9 | six rows repeating to row 4, so the record wraps |
 | `several` | 1 | 9 | targets of two and three registers, and the sources of two and three values a row they run (3.1.1, 3.2.1) |
 | `multi` | 2 | 6 | a multi of two tunes: the record is of the second, at 60 Hz where the first is at 50 |
+| `deferred` | 1 | 17 | a deferred start, recorded at the frame of its row (3.5, 7.4) |

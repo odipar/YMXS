@@ -2,8 +2,10 @@ package org.ymxs;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Multi;
@@ -238,24 +240,36 @@ public final class Check {
         return new Writing(tune).run();
     }
 
-    /** What one timer runs: the target and the source, the row the start
-     *  is on, the row the source ends on, and the rows that set the
-     *  target's register while it ran. */
+    /** What one timer runs: the start, the row its effect begins on, the
+     *  row its source ends on, and the rows that set the target's register
+     *  while it ran. */
     private static final class Running {
 
-        private final Target target;
-        private final Source source;
+        private final Start start;
         private final int from;
-        private final int until;
+        private int until;
+        private final boolean begun;
         private int first = -1;
         private int last = -1;
         private int collisions;
 
-        Running(Target target, Source source, int from, int until) {
-            this.target = target;
-            this.source = source;
+        /** {@code begun} is set where the effect begins at a row reckoned
+         *  for the end of the one before it, a deferred start's. */
+        Running(Start start, int from, int until, boolean begun) {
+            this.start = start;
             this.from = from;
             this.until = until;
+            this.begun = begun;
+        }
+
+        Target target() {
+            return Tunes.target(start);
+        }
+
+        /** Whether a reading of this run rests on the reckoning: its end is
+         *  reckoned, or its first row is (6.3). */
+        boolean reckoned() {
+            return until != Integer.MAX_VALUE || begun;
         }
 
         void collides(int at) {
@@ -279,8 +293,8 @@ public final class Check {
         private final Tune tune;
         private final List<String> said = new ArrayList<>();
         private final Map<Timer, Running> running = new EnumMap<>(Timer.class);
-        private final Map<Timer, Source> lastSource = new EnumMap<>(Timer.class);
-        private final Map<Timer, Target> lastTarget = new EnumMap<>(Timer.class);
+        private final Map<Timer, Start> pending = new EnumMap<>(Timer.class);
+        private final Set<Timer> started = EnumSet.noneOf(Timer.class);
 
         Writing(Tune tune) {
             this.tune = tune;
@@ -289,6 +303,7 @@ public final class Check {
         List<String> run() {
             List<Row> rows = tune.table().rows();
             for (int at = 0; at < rows.size(); at++) {
+                begin(at);
                 Map<Timer, Effect> here = Tunes.effects(rows.get(at));
                 for (Map.Entry<Timer, Effect> one : here.entrySet()) {
                     effect(at, one.getKey(), one.getValue());
@@ -302,20 +317,34 @@ public final class Check {
             return said;
         }
 
+        /** A pending start begins at the row the effect before it has run
+         *  out by, ahead of the row's operations (6.3 step 1). */
+        private void begin(int at) {
+            for (Timer timer : Timer.values()) {
+                Start start = pending.get(timer);
+                if (start == null || runs(timer, at) != null) {
+                    continue;
+                }
+                pending.remove(timer);
+                starts(at, timer, start, true);
+            }
+        }
+
         /** The effects come first, in the order a frame writes them. */
         private void effect(int at, Timer timer, Effect effect) {
             switch (effect) {
                 case Start start -> {
                     place(at, timer, start);
-                    shared(at, timer, Tunes.target(start));
-                    Running before = running.get(timer);
-                    if (before != null) {
-                        collided(timer, before);
+                    Running runs = runs(timer, at);
+                    if (Tunes.deferred(start) && runs != null) {
+                        // the effect plays its source once from here, and
+                        // the start follows it
+                        runs.until = Math.min(runs.until, at + frames(runs.start));
+                        pending.put(timer, start);
+                        return;
                     }
-                    running.put(timer, new Running(Tunes.target(start), Tunes.source(start), at,
-                            until(at, start)));
-                    lastSource.put(timer, Tunes.source(start));
-                    lastTarget.put(timer, Tunes.target(start));
+                    pending.remove(timer);
+                    starts(at, timer, start, false);
                 }
                 case Retune ignored -> {
                     Running runs = runs(timer, at);
@@ -326,6 +355,7 @@ public final class Check {
                     }
                 }
                 case Stop ignored -> {
+                    pending.remove(timer);
                     Running runs = running.remove(timer);
                     // A stop of a source that has run out by the reckoning
                     // is a writer settling rule 4, and the row a tune
@@ -343,6 +373,19 @@ public final class Check {
             }
         }
 
+        /** The effect of a start in the model from this row, replacing the
+         *  one before it; {@code begun} where a pending start begins at a
+         *  reckoned row. */
+        private void starts(int at, Timer timer, Start start, boolean begun) {
+            shared(at, timer, Tunes.target(start), begun);
+            Running before = running.get(timer);
+            if (before != null) {
+                collided(timer, before);
+            }
+            running.put(timer, new Running(start, at, until(at, start), begun));
+            started.add(timer);
+        }
+
         /** Whether this is the row the tune repeats to, where a writer
          *  stops every effect so that the wrap resumes from a known
          *  setting. */
@@ -354,20 +397,20 @@ public final class Check {
         /** Rule 2: where two timers write one register, the writer fixes
          *  the order. The rule is the writer's to settle, and the row
          *  where the second starts is where it arises. */
-        private void shared(int at, Timer timer, Target target) {
+        private void shared(int at, Timer timer, Target target, boolean begun) {
             List<Register> registers = written(target);
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
                 if (one.getKey() == timer || at >= one.getValue().until) {
                     continue;
                 }
                 Register register = registers.stream()
-                        .filter(written(one.getValue().target)::contains)
+                        .filter(written(one.getValue().target())::contains)
                         .findFirst().orElse(null);
                 if (register != null) {
                     say(at, timer, "starts on " + register + ", where Timer "
                             + one.getKey() + " runs: rule 2 leaves the order of two"
                             + " timers writing one register to the writer",
-                            one.getValue().until != Integer.MAX_VALUE);
+                            one.getValue().reckoned() || begun);
                 }
             }
         }
@@ -387,10 +430,10 @@ public final class Check {
                     continue;
                 }
                 said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
-                        + " runs on " + written(one.getValue().target).get(0) + " when its last"
-                        + " row has played: the wrap resumes with the timer running from"
+                        + " runs on " + written(one.getValue().target()).get(0) + " when its"
+                        + " last row has played: the wrap resumes with the timer running from"
                         + " the pass before"
-                        + (one.getValue().until != Integer.MAX_VALUE ? RECKONED : ""));
+                        + (one.getValue().reckoned() ? RECKONED : ""));
             }
         }
 
@@ -400,46 +443,29 @@ public final class Check {
             if (runs.collisions == 0) {
                 return;
             }
-            Register register = written(runs.target).get(0);
+            Register register = written(runs.target()).get(0);
             if (runs.collisions == 1) {
                 say(runs.first, timer, "runs on " + register + ", and this row sets it",
-                        runs.until != Integer.MAX_VALUE);
+                        runs.reckoned());
                 runs.collisions = 0;
                 return;
             }
             said.add("rows " + runs.first + " to " + runs.last + ": Timer " + timer
                     + " runs on " + register + " from row " + runs.from + ", and "
                     + runs.collisions + " of them set it"
-                    + (runs.until != Integer.MAX_VALUE ? RECKONED : ""));
+                    + (runs.reckoned() ? RECKONED : ""));
             runs.collisions = 0;
         }
 
-        /** Rule 3: a start sets the place's reset, unless the source it
-         *  starts has the row count of the one this effect last ran on the
-         *  same target. */
+        /** Rule 3: a start on a timer that has run none sets the place's
+         *  reset. After a start, the place keeps its number modulo the row
+         *  count of the source a start connects (3.4.3). */
         private void place(int at, Timer timer, Start start) {
-            if (Tunes.placeReset(start)) {
+            if (Tunes.placeReset(start) || started.contains(timer)) {
                 return;
             }
-            Source before = lastSource.get(timer);
-            if (before == null) {
-                say(at, timer, "starts a source without the place's reset, and this timer"
-                        + " has run none: the place is where the player left it", false);
-                return;
-            }
-            Target last = lastTarget.get(timer);
-            if (last == null || !Tunes.target(start).equals(last)) {
-                say(at, timer, "starts a source on " + Tunes.name(Tunes.target(start))
-                        + " without the place's reset, and this timer last ran on "
-                        + (last == null ? "no target" : Tunes.name(last)), false);
-                return;
-            }
-            int now = Tunes.size(Tunes.rows(Tunes.source(start)));
-            int then = Tunes.size(Tunes.rows(before));
-            if (now != then) {
-                say(at, timer, "starts a source of " + now + " rows without the place's"
-                        + " reset, and the one before it had " + then, false);
-            }
+            say(at, timer, "starts a source without the place's reset, and this timer"
+                    + " has run none: the place is where the player left it", false);
         }
 
         /** Rule 1: while an effect runs on a register, a row does not set
@@ -452,7 +478,7 @@ public final class Check {
                 if (at >= runs.until) {
                     continue;
                 }
-                if (written(runs.target).stream().noneMatch(written ->
+                if (written(runs.target()).stream().noneMatch(written ->
                         written != Register.R13 && row.registers().containsKey(written))) {
                     continue;
                 }
@@ -479,7 +505,13 @@ public final class Check {
             if (Tunes.rows(Tunes.source(start)).repeat().isPresent()) {
                 return Integer.MAX_VALUE;
             }
-            return at + Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start))),
+            return at + frames(start);
+        }
+
+        /** The frames a start's source runs for, played once at its
+         *  rate (6.4). */
+        private int frames(Start start) {
+            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start))),
                     Tunes.prescaler(start), Tunes.count(start), tune.rate());
         }
 

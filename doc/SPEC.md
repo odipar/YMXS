@@ -1,14 +1,15 @@
 # The YMXS format
 
-Version 4 defines tune data and playback on the Atari ST's YM2149 and
+Version 5 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file includes its version beside the structure: a writer writes 4, and a
-reader reads 4 and the version before it (json.md 2.4). A reader reads the
-version before the structure; another version is an error of the form.
+A file includes its version beside the structure: a writer writes 5, and a
+reader reads 5 and the two versions before it, 4 and 3 (json.md 2.4). A
+reader reads the version before the structure; another version is an
+error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
 section 6 as rule 1, a condition of one as rule 1(a). `Note:` begins an
@@ -78,11 +79,14 @@ public interface YMXS {
     record Timing(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) { }
 
-    record StartOne(OneTarget target, Single source, Timing timing) implements Start { }
+    record StartOne(OneTarget target, Single source, Timing timing,
+                    boolean deferred) implements Start { }
 
-    record StartPair(TwoTarget target, Pair source, Timing timing) implements Start { }
+    record StartPair(TwoTarget target, Pair source, Timing timing,
+                     boolean deferred) implements Start { }
 
-    record StartTriple(ThreeTarget target, Triple source, Timing timing) implements Start { }
+    record StartTriple(ThreeTarget target, Triple source, Timing timing,
+                       boolean deferred) implements Start { }
 
     record Retune(Timing timing) implements Effect { }
 
@@ -164,9 +168,11 @@ identifies the effect. An operation is a value of the type `Effect`
 (1.1): a `Start` connects `source` to `target` on the timer and sets
 `prescaler` and `count`; a `Retune` sets `prescaler` and `count` of the
 effect the timer runs; a `Stop` stops the timer. A `Start` and a
-`Retune` have the resets `timerReset` and `placeReset` (3.4). A `Start`
-on a timer running an effect ends it and begins another. Section 4
-defines each operation as steps.
+`Retune` have the resets `timerReset` and `placeReset` (3.4), and a
+`Start` has `deferred` (3.5). A `Start` on a timer running an effect ends
+it and begins another: at its frame where `deferred` is clear, and where
+it is set at the tick that reads the last row of the source of that
+effect. Section 4 defines each operation as steps.
 
 **1.8 Targets and sources.** This version defines three kinds of target:
 `SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
@@ -406,27 +412,56 @@ a running timer continues its period, and the writes apply as 3.3.5
 defines. On a stopped timer the outcome is the same either way.
 
 **3.4.2 The place.** Each timer has a place: the number of the row of its
-source that the next tick reads. A tick moves it (5.2) and a reset of it
-(3.4.3), those two alone. Before the first `Start` or `Retune` with
-`placeReset` set on a timer, its place is left to a later version (8.4).
+source that the next tick reads. A tick (5.2) and step 4 of a `Start` or a
+`Retune` (4.3) move it, those two alone. Before the first `Start` or
+`Retune` with `placeReset` set on a timer, its place is left to a later
+version (8.4).
 
 **3.4.3 `placeReset`.** Set: the player sets the place to 0 (4.3), and the
-next tick reads the first row of the source. Clear: the place keeps its row
-number through a `Retune` and a `Start`, and the next tick reads the row of
-that number in the source then connected; two ticks of a two-row source are
-one period apart across such a `Start`. A `Stop` leaves the place unchanged.
-Where the place is outside the rows of the source connected, what the next
-tick reads is left to a later version (8.4); a `Start` under rule 3 leaves
-the place at a row of the source it starts.
+next tick reads the first row of the source. Clear: the player sets the
+place to its number modulo the row count of the source connected (4.3),
+and the next tick reads the row of that number. Where that source has the
+row count of the one before it, the place keeps its number: a `Retune`
+leaves it as it was, and two ticks of a two-row source are one period
+apart across such a `Start`. Across a `Start` of a source of four rows,
+place 5 becomes place 1. A `Stop` leaves the place unchanged.
+
+### 3.5 A deferred start
+
+**3.5.1** A `Start` with `deferred` set is *deferred*. A deferred `Start`
+on a timer running with its source connected is *pending* on that timer
+from its frame (4.3) until a tick performs it (5.2) or an operation
+discards it (4.3). One `Start` at most is pending on a timer.
+
+**3.5.2** While a `Start` is pending on a timer, the last row of the
+source connected to it has no row after it (1.5) on that timer: the
+source ends at its last row, a source that repeats included, and the tick
+that reads that row performs the pending `Start` (5.2 step 4). An effect
+whose place is at row P of a source of R rows plays the rows P to R - 1
+before the pending `Start` begins.
+
+**3.5.3** The tick performs the pending `Start` as a `Start` with
+`deferred` clear (4.3), with its resets as 3.4 defines them: with
+`placeReset` clear, the place, at the last row's number R - 1, becomes
+R - 1 modulo the row count of the source it connects.
+
+**3.5.4** A deferred `Start` on a timer that is stopped, or running with
+its source disconnected (4.3), is performed at its frame as a `Start`
+with `deferred` clear.
+
+**3.5.5** At a frame, a `Stop` and a `Start` performed at it discard the
+pending `Start`, and a deferred `Start` that becomes pending replaces it.
+A `Retune` sets the rate of the effect the timer runs, and the `Start`
+stays pending. The wrap (4.5) and the end (4.6) leave it pending.
 
 ---
 
 ## 4. What a frame does
 
 **4.1 Before the first frame**, in order: claim the timers of the tune
-(1.10) from the host, those alone; stop each, so that each is idle; set the
-current row to row 0; leave every register at the value the chip has, until
-a row sets it.
+(1.10) from the host, those alone; stop each, so that each is idle with no
+`Start` pending on it (3.5); set the current row to row 0; leave every
+register at the value the chip has, until a row sets it.
 
 Note: a tune whose timers exclude Timer C can be hosted from the 200 Hz
 clock of the operating system, which runs on Timer C.
@@ -447,22 +482,30 @@ tune (1.10) alone: an operation on another timer leaves that timer and its
 registers as they are. A `Retune` on such a timer breaks rule 5, a `Stop`
 rule 6, except a `Stop` at the repeat row (rule 6(a)).
 
-A `Stop`: stop the timer. It is idle, its source disconnected, and it raises
-its next tick after a later `Start` or `Retune`; the place is unchanged
-(3.4.3).
+A `Stop`: stop the timer, and discard the `Start` pending on it (3.5). It
+is idle, its source disconnected, and it raises its next tick after a later
+`Start` or `Retune`; the place is unchanged (3.4.3).
 
-A `Start`, in order:
+A deferred `Start` on a timer running with its source connected: the
+`Start` is pending on the timer (3.5), and replaces the `Start` pending
+there, where one is. The operation leaves the timer, its source, its rate
+and its place as they were; a tick performs the `Start` (5.2 step 4).
+
+Every other `Start`, and a pending `Start` a tick performs: discard the
+`Start` pending on the timer, where one is, then in order:
 
 1. If `timerReset` is set, stop the timer.
 2. Connect the source to the target on this timer. From this step, its
    ticks read this source and call this target (5).
 3. Write the prescaler and count. A stopped timer starts a whole period
    at the count; a running timer continues its period (3.3.5).
-4. If `placeReset` is set, set the place to 0.
+4. If `placeReset` is set, set the place to 0; otherwise set it to its
+   number modulo the row count of the source connected (3.4.3).
 
-A `Retune`: steps 1, 3 and 4 of a `Start`. On an idle timer step 3 starts
-the timer with its source disconnected (rule 5), and what the player
-performs at its ticks is left to a later version (5.4).
+A `Retune`: steps 1, 3 and 4 of a `Start`, and a `Start` pending on the
+timer stays pending (3.5.5). On an idle timer step 3 starts the timer with
+its source disconnected (rule 5), and what the player performs at its
+ticks is left to a later version (5.4).
 
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
@@ -481,16 +524,17 @@ with running effects (rule 1).
 
 **4.5 The wrap.** Where a tune repeats, the row after its last row is its
 repeat row (1.5), performed as any row. A timer running when the last row is
-read runs on: the wrap leaves every timer and every place as they are. Rule
-1(d) and rule 6(a) define what the repeat row performs on it.
+read runs on: the wrap leaves every timer, every place and every pending
+`Start` as they are. Rule 1(d) and rule 6(a) define what the repeat row
+performs on it.
 
 **4.6 The end.** A tune that plays once ends with its last row: the frame
 that reads it reports 0, and every frame after leaves the row, the timers
 and the registers as they are and reports -1; R rows are read in frames 0 to
 R - 1, and frame R on reports -1. Each timer keeps the condition the last
-row left it in; what a host does with a timer running after the end is left
-to a later version (8.7). A tune of R rows repeating to RR reads R rows in
-its first pass and R - RR in every loop.
+row left it in, a pending `Start` included; what a host does with a timer
+running after the end is left to a later version (8.7). A tune of R rows
+repeating to RR reads R rows in its first pass and R - RR in every loop.
 
 ---
 
@@ -506,12 +550,16 @@ tick alone.
 2. Call the target with it; the target writes the row's values to its
    registers, value i to register i (3.1.1).
 3. Where the source has a row after the row read (1.5), the place is that
-   row.
-4. Where the source has ended (1.5), stop the timer: the source has run out,
-   the timer is idle, the place stays at the last row's number, and the
-   register keeps the last value until a row of the tune sets it. A later
-   `Start` on the timer with `placeReset` clear, under rule 3, connects a
-   source of that row count, and the next tick reads its last row.
+   row. While a `Start` is pending on the timer, the last row has no row
+   after it (3.5.2).
+4. Where the source has ended (1.5) and a `Start` is pending on the timer,
+   perform it (4.3), the place at the last row's number until its step 4.
+   Where the source has ended and none is pending, stop the timer: the
+   source has run out, the timer is idle, the place stays at the last
+   row's number, and the register keeps the last value until a row of the
+   tune sets it. A later `Start` on the timer with `placeReset` clear sets
+   the place to that number modulo the row count of the source it
+   connects (3.4.3).
 
 **5.3** A tick reads its source alone; the tune's table is read at a frame
 (4). A tick leaves the registers of the timer as they are: the timer counts
@@ -535,15 +583,18 @@ a structure with one is outside the check.
 **6.2 Terms of the rules.**
 
 - (a) An effect runs from step 2 of its `Start` (4.3) until the first of: a
-      `Stop` on that timer; a later `Start` on that timer, which replaces
-      it; for a source that plays once, the tick that reads its last row
-      (5.2 step 4), after which the source has run out.
+      `Stop` on that timer; step 2 of a later `Start` on that timer, which
+      replaces it; for a source that plays once, the tick that reads its
+      last row (5.2 step 4), after which the source has run out. While a
+      `Start` is pending on the timer, its source plays once (3.5.2).
 - (b) An effect runs on the register its target writes.
 - (c) A timer is idle from the end of its effect (a) to its next `Start`.
 - (d) An effect started on a row runs at step 4 of that row's frame (4.2);
-      an effect stopped on a row has ended by step 4 of that frame.
+      an effect stopped on a row has ended by step 4 of that frame. A
+      pending `Start` begins its effect at a tick (5.2 step 4).
 - (e) The row of a `Start` is the start row of the effect, the row of a
-      `Stop` its stop row.
+      `Stop` its stop row. The start row of the effect of a pending
+      `Start` is the first row read after the tick that performs it.
 
 **Rule 1: while an effect runs on a register its target writes, every
 row leaves that register alone.**
@@ -573,19 +624,15 @@ order.**
 - 2(b) The writer settles what the two write and in what order. A check
   reports the row where the second starts (6.5); the order is the writer's.
 
-**Rule 3: a `Start` sets `placeReset`, with one exception.**
+**Rule 3: a `Start` on a timer that has run no `Start` sets `placeReset`.**
 
-- 3(a) A `Start` may clear `placeReset` where a `Start` has been performed
-  on the timer before, the last had the same target, and the source of the
-  last has the row count of the source this one starts; the place then keeps
-  its number (3.4.3).
-- 3(b) The last `Start` is the last in row order on the timer, its effect
-  running or stopped; a `Stop` between leaves the place unchanged (3.4.3),
-  so the exception applies across a `Stop`.
-- 3(c) A `Start` with `placeReset` clear outside the exception leaves the
-  place at a number a row has yet to set (3.4.2), or one outside the rows of
-  the source, and what the next tick reads is left to a later version
-  (3.4.3).
+- 3(a) Before the first `Start` or `Retune` with `placeReset` set on a
+  timer, its place is left to a later version (3.4.2), and so is the row
+  the next tick reads after a `Start` with it clear.
+- 3(b) After a `Start` in row order on the timer, its effect running or
+  stopped, a `Start` may clear `placeReset`: the place keeps its number
+  modulo the row count of the source this one starts (3.4.3), with any
+  target, and a `Stop` between leaves the place unchanged.
 
 **Rule 4: a `Start` on a stopped timer sets `timerReset`.**
 
@@ -615,40 +662,52 @@ resumes from a setting that row defines.
 
 **6.3 The check.** A check reads rules 1, 2, 3, 5 and 6 across the rows
 in one pass with a model of each timer: the effect in the model, present
-or absent, and the last `Start` on the timer, present or absent. The
-effect in the model is its target, its source, the row S of its `Start`,
-and the row U from which its source has run out by the reckoning (6.4),
-unbounded for a source that repeats. At row N the effect in the model
-runs where N is below U; otherwise the timer is idle. A *run* is one
-effect of the model from its `Start` row to the row of the `Stop` or
-`Start` that removes it, or to the last row; the rows of a run that set
-its register are those step 2 counts. Closing a run reports its rule 1
-line (6.5) where step 2 counted one row or more.
+or absent; whether a `Start` has been performed on the timer; and the
+pending `Start` (3.5), present or absent. The effect in the model is its
+target, its source, its start row S, and the row U from which its source
+has run out by the reckoning (6.4), unbounded for a source that repeats
+until a deferred `Start` bounds it. At row N the effect in the model runs
+where N is below U; otherwise the timer is idle. An effect is *reckoned*
+where its U is bounded or step 1 set its S. A *run* is one effect of the
+model from its start row to the row of the `Stop` or `Start` that removes
+it, or to the last row; the rows of a run that set its register are those
+step 3 counts. Closing a run reports its rule 1 line (6.5) where step 3
+counted one row or more.
 
 Initial condition: the model of every timer is empty, its effect and its
-last `Start` absent. For each row N from 0 to the last:
+pending `Start` absent, and no `Start` performed on it. For each row N
+from 0 to the last:
 
-1. For each timer the row acts on, in the order A, B, C, D:
-   - (a) a `Start`: report the rule 3 line where the `Start` meets a
-     condition of rule 3 (6.5); report a rule 2 line for each other
-     timer, A to D, whose effect in the model runs at N on the register
-     the target writes; where the timer has an effect in the model,
-     close its run and remove it; put the effect of the `Start` in the
-     model, S = N, U as 6.4 defines; set the timer's last `Start` to it.
+1. For each timer, A to D, with a pending `Start` whose effect in the
+   model has run out at N: remove the pending `Start`, and perform step
+   2(a) on it from its rule 2 lines on, S = N.
+2. For each timer the row acts on, in the order A, B, C, D:
+   - (a) a `Start`: report the rule 3 line where the `Start` meets the
+     condition of rule 3 (6.5). Where it is deferred and the effect of
+     the timer in the model runs at N, it is the pending `Start` of the
+     timer now, in place of the one before it, the effect's U is bounded
+     as 6.4 defines, and this step ends there. Otherwise: remove the
+     pending `Start`; report a rule 2 line for each other timer, A to D,
+     whose effect in the model runs at N on the register the target
+     writes; where the timer has an effect in the model, close its run
+     and remove it; put the effect of the `Start` in the model, S = N, U
+     as 6.4 defines; record that a `Start` has been performed on the
+     timer.
    - (b) a `Retune`: report the rule 5 line where the effect of the
      timer is absent from the model or has run out at N.
-   - (c) a `Stop`: report the rule 6 line where the effect of the timer
-     is absent from the model and N is other than the repeat row; where
-     it is present, close its run and remove it.
-2. For each timer with an effect in the model running at N, A to D: where
+   - (c) a `Stop`: remove the pending `Start`; report the rule 6 line
+     where the effect of the timer is absent from the model and N is
+     other than the repeat row; where it is present, close its run and
+     remove it.
+3. For each timer with an effect in the model running at N, A to D: where
    the target's register is among R0 to R12 and row N sets it, count row N
    among the run's rows.
 
 After the last row:
 
-3. For each timer with an effect in the model, A to D: close its run; the
-   effect stays for step 4.
-4. Where the tune repeats: for each timer with an effect in the model
+4. For each timer with an effect in the model, A to D: close its run; the
+   effect stays for step 5, and a pending `Start` stays pending.
+5. Where the tune repeats: for each timer with an effect in the model
    running at the last row, A to D, report the rule 1(d) line where the
    repeat row leaves the timer alone.
 
@@ -664,31 +723,33 @@ exact. The reckoning reads the prescaler and count of the `Start`; a
 suffix `, which rests on how long a source that plays once runs, reckoned
 from its rate`.
 
+A deferred `Start` at row N on a timer whose effect in the model runs at N
+bounds that effect: its source plays once from N (3.5.2), and U becomes
+the lesser of U and N + F, F reckoned as above for the R rows of that
+source at the prescaler and count of the effect's `Start`.
+
 Note: 153,600 is a sixteenth of 2,457,600, allowed for a start inside
-its frame; the division rounds a partial frame up.
+its frame; the division rounds a partial frame up. The place at row N is a
+row of the source, so the source plays R rows at most from it, and the
+reckoning reads R.
 
 **6.5 What a check reports.** Each warning is one line of the table. X
 and Y are timer letters; N the row of the operation, S the start row, F
 and L the first and last row of a run that set the register, K how many
-did, T the repeat row, J the row count of the source started, I that of
-the source of the last `Start` on the timer. Where the third column
-names the suffix, the line ends with the suffix of 6.4 under the
-condition named.
+did, T the repeat row. Where the third column names the suffix, the line
+ends with the suffix of 6.4 under the condition named.
 
 | rule | condition | reported as |
 |---|---|---|
-| 1 | one row of the run, row F, sets the register while the effect runs (6.3), alone among the rows of the run | `row F: Timer X runs on Rn, and this row sets it`, with the suffix where the source plays once |
-| 1 | several rows of the run set the register while the effect runs (6.3), the first at row F, the last at row L, K of them | `rows F to L: Timer X runs on Rn from row S, and K of them set it`, with the suffix where the source plays once |
-| 1(d) | the tune repeats to row T, the effect of Timer X runs when the last row has been read, and row T leaves Timer X alone | `the tune repeats to row T, and Timer X runs on Rn when its last row has played: the wrap resumes with the timer running from the pass before`, with the suffix where the source plays once |
-| 2 | a `Start` on Timer X at row N has a target writing Rn, on which the effect of Timer Y runs | `row N: Timer X starts on Rn, where Timer Y runs: rule 2 leaves the order of two timers writing one register to the writer`, with the suffix where the source of Timer Y plays once |
+| 1 | one row of the run, row F, sets the register while the effect runs (6.3), alone among the rows of the run | `row F: Timer X runs on Rn, and this row sets it`, with the suffix where the effect is reckoned |
+| 1 | several rows of the run set the register while the effect runs (6.3), the first at row F, the last at row L, K of them | `rows F to L: Timer X runs on Rn from row S, and K of them set it`, with the suffix where the effect is reckoned |
+| 1(d) | the tune repeats to row T, the effect of Timer X runs when the last row has been read, and row T leaves Timer X alone | `the tune repeats to row T, and Timer X runs on Rn when its last row has played: the wrap resumes with the timer running from the pass before`, with the suffix where the effect is reckoned |
+| 2 | a `Start` on Timer X at row N has a target writing Rn, on which the effect of Timer Y runs | `row N: Timer X starts on Rn, where Timer Y runs: rule 2 leaves the order of two timers writing one register to the writer`, with the suffix where the effect of Timer Y is reckoned or step 1 of 6.3 performs the `Start` |
 | 3 | a `Start` at row N with `placeReset` clear on a timer before any `Start` on it | `row N: Timer X starts a source without the place's reset, and this timer has run none: the place is where the player left it` |
-| 3 | a `Start` at row N with `placeReset` clear on target `setRn`, where the last `Start` on the timer had target `setRm`, m other than n | `row N: Timer X starts a source on setRn without the place's reset, and this timer last ran on setRm` |
-| 3 | a `Start` at row N with `placeReset` clear of a source of J rows on the target of the last `Start` on the timer, whose source has I rows, I other than J | `row N: Timer X starts a source of J rows without the place's reset, and the one before it had I` |
-| 5 | a `Retune` at row N on an idle timer | `row N: Timer X retunes an effect that is idle: a rate written to a timer with no source on it starts that timer with no source to run`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a source that plays once and N is at or above U (6.3), run out by the reckoning |
+| 5 | a `Retune` at row N on an idle timer | `row N: Timer X retunes an effect that is idle: a rate written to a timer with no source on it starts that timer with no source to run`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a bounded U and N is at or above U (6.3), run out by the reckoning |
 | 6 | a `Stop` at row N on a timer whose effect is absent from the model, N other than the repeat row | `row N: Timer X stops an effect this timer has not started` |
 
-A `Start` yields at most one rule 3 line, the first condition met in table
-order. Rules 1, 2 and 5 are read with the effect running until U (6.3); rule
+Rules 1, 2 and 5 are read with the effect running until U (6.3); rule
 6 with the effect in the model until a `Stop` or `Start` removes it, so a
 `Stop` of a source run out by the reckoning is within rule 6 (6(b)). The
 rows of one run are one line, reported where the run closes, so after lines
@@ -757,7 +818,7 @@ empty. For the first frame after the end (4.6), `{"result":-1}`.
 
 | operation | object |
 |---|---|
-| a `Start` | `{"start":{"target":"setRn","source":S,"prescaler":P,"count":C,"timerReset":B,"placeReset":B}}` |
+| a `Start` | `{"start":{"target":"setRn","source":S,"prescaler":P,"count":C,"timerReset":B,"placeReset":B,"deferred":B}}` |
 | a `Retune` | `{"retune":{"prescaler":P,"count":C,"timerReset":B,"placeReset":B}}` |
 | a `Stop` | `{"stop":{}}` |
 
@@ -765,7 +826,9 @@ empty. For the first frame after the end (4.6), `{"result":-1}`.
 source in first-start order (1.9), which the numbering of a file matches
 where a writer emitted it (json.md 3.4), `prescaler` the divisor P
 (3.3.2), `count` the count C (3.3.3), `timerReset` and `placeReset` the
-resets (3.4), each B `true` or `false`.
+resets (3.4), `deferred` the deferral (3.5), each B `true` or `false`. A
+deferred `Start` is recorded at the frame of its row, as every operation
+is; the tick that performs it is outside the record (7.1).
 
 **7.5 The length.** The first line and the lines of as many frames as the
 host requires, from frame 0, except that the record of a tune that plays
@@ -784,7 +847,7 @@ csv.md 8): four rows at 50 Hz repeating to row 0, one source `square
 at row 3, whose stop row sets R8 to 12 within rule 1(a):
 
     {"rate":50,"timers":["A"],"sources":[{"rows":[13,0],"repeat":0}]}
-    {"result":0,"w":{"0":163,"1":2,"2":238,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true}}}}
+    {"result":0,"w":{"0":163,"1":2,"2":238,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true,"deferred":false}}}}
     {"result":0,"w":{"0":142,"1":12,"7":49},"e":{"A":{"retune":{"prescaler":50,"count":61,"timerReset":false,"placeReset":false}}}}
     {"result":0,"w":{"0":251,"1":4},"e":{}}
     {"result":0,"w":{"0":89,"1":2,"7":56,"8":12},"e":{"A":{"stop":{}}}}
@@ -798,8 +861,8 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3 or 4,
-beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
+**8.1** What a reader does with a file whose version is other than 3, 4
+or 5, beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
 **8.2** Targets past the twenty-five: a procedure writing a register of the
 MC68901, one writing other registers of the YM2149 together, and one reading
@@ -808,8 +871,7 @@ a row wider than a byte, numbered 25 to 127 (3.1.2).
 **8.3** Sources of more than three values a row (3.2.1).
 
 **8.4** The place of a timer before the first `Start` or `Retune` with
-`placeReset` set on it, and the row a tick reads where the place is outside
-the rows of the source connected (3.4.2, 3.4.3).
+`placeReset` set on it (3.4.2).
 
 **8.5** The mapping of the steps of 4.3 to the registers of the MC68901,
 the order of the count and the prescaler within one step, and what

@@ -55,12 +55,23 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
 
-    /** The version before it, which a reader reads beside it: a file of
-     *  this version has one value a row in every source and a target of
-     *  0 to 13, the shapes that version defines (2.4). */
-    public static final int BEFORE = 3;
+    /** The first version with a start's {@code deferred}: in a file of a
+     *  version before it every start reads with it clear (2.4). */
+    public static final int DEFERRED = 5;
+
+    /** The first version with sources of several values a row and targets
+     *  of several registers: a file of a version before it has one value a
+     *  row in every source and a target of 0 to 13 (2.4). */
+    public static final int SEVERAL = 4;
+
+    /** The oldest version a reader reads; it reads every version from this
+     *  one to {@link #VERSION} (2.4). */
+    public static final int OLDEST = 3;
+
+    /** The versions a reader reads, as its report lists them. */
+    static final String READS = OLDEST + ", " + SEVERAL + " or " + VERSION;
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 
@@ -171,6 +182,7 @@ public final class Json {
         ArrayNode count = into.putArray("count");
         ArrayNode timerReset = into.putArray("timerReset");
         ArrayNode placeReset = into.putArray("placeReset");
+        ArrayNode deferred = into.putArray("deferred");
         for (Row row : rows) {
             Effect effect = row.effects().get(timer);
             if (effect == null) {
@@ -181,6 +193,7 @@ public final class Json {
                 count.add(NONE);
                 timerReset.add(NONE);
                 placeReset.add(NONE);
+                deferred.add(NONE);
                 continue;
             }
             switch (effect) {
@@ -192,6 +205,7 @@ public final class Json {
                     count.add(Tunes.count(start));
                     timerReset.add(Tunes.timerReset(start) ? 1 : 0);
                     placeReset.add(Tunes.placeReset(start) ? 1 : 0);
+                    deferred.add(Tunes.deferred(start) ? 1 : 0);
                 }
                 case Retune retune -> {
                     shape.add(RETUNE);
@@ -201,6 +215,7 @@ public final class Json {
                     count.add(retune.timing().count());
                     timerReset.add(retune.timing().timerReset() ? 1 : 0);
                     placeReset.add(retune.timing().placeReset() ? 1 : 0);
+                    deferred.add(NONE);
                 }
                 case Stop ignored -> {
                     shape.add(STOP);
@@ -210,6 +225,7 @@ public final class Json {
                     count.add(NONE);
                     timerReset.add(NONE);
                     placeReset.add(NONE);
+                    deferred.add(NONE);
                 }
             }
         }
@@ -229,9 +245,9 @@ public final class Json {
                     + FORMAT);
         }
         int version = number(tree, "version");
-        if (version != VERSION && version != BEFORE) {
+        if (version < OLDEST || version > VERSION) {
             throw new IllegalArgumentException("version " + version + ", and this reads "
-                    + BEFORE + " or " + VERSION);
+                    + READS);
         }
         List<Tune> tunes = new ArrayList<>();
         for (JsonNode one : array(tree, "tunes")) {
@@ -253,7 +269,7 @@ public final class Json {
             JsonNode row = written.get(at);
             String named = name + " at row " + at + " is ";
             if (row.isArray()) {
-                if (version < VERSION) {
+                if (version < SEVERAL) {
                     throw new IllegalArgumentException("source " + name + " has a row of"
                             + " several values, and version " + version
                             + " has one value a row");
@@ -299,9 +315,10 @@ public final class Json {
         return tune(tree, VERSION);
     }
 
-    /** One tune out of a JSON tree of {@code version}: a file of the
-     *  version before this one has one value a row and a target of 0 to
-     *  13, and another shape in it is an error of the form (2.4). */
+    /** One tune out of a JSON tree of {@code version}: a file of version 3
+     *  has one value a row and a target of 0 to 13, and another shape in it
+     *  is an error of the form; a file of version 4 or 3 has every start
+     *  with {@code deferred} clear (2.4). */
     public static Tune tune(JsonNode tree, int version) {
         int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
@@ -388,11 +405,10 @@ public final class Json {
         }
     }
 
-    /** The target of a number, read against the version: a file of the
-     *  version before this one reaches 0 to 13 (2.4). The CSV reader calls
-     *  it too. */
+    /** The target of a number, read against the version: a file of
+     *  version 3 reaches 0 to 13 (2.4). The CSV reader calls it too. */
     static Target target(int number, int version) {
-        if (version < VERSION && number > 13) {
+        if (version < SEVERAL && number > 13) {
             throw new IllegalArgumentException("target " + number + ", and version "
                     + version + " reaches 0 to 13");
         }
@@ -420,7 +436,9 @@ public final class Json {
                         Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
                         column(columns, "count", at, timer, rows),
                         column(columns, "timerReset", at, timer, rows) == 1,
-                        column(columns, "placeReset", at, timer, rows) == 1);
+                        column(columns, "placeReset", at, timer, rows) == 1,
+                        version >= DEFERRED
+                                && column(columns, "deferred", at, timer, rows) == 1);
             }
             case RETUNE -> new Retune(new Timing(Chip.prescaler(column(columns, "prescaler", at, timer, rows)), column(columns, "count", at, timer, rows), column(columns, "timerReset", at, timer, rows) == 1, column(columns, "placeReset", at, timer, rows) == 1));
             case STOP -> Tunes.STOP;

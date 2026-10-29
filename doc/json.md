@@ -1,6 +1,6 @@
 # JSON
 
-JSON encodes version 4 of the structure in [SPEC.md](SPEC.md) 1.
+JSON encodes version 5 of the structure in [SPEC.md](SPEC.md) 1.
 [csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
 normative except sentences beginning `Note:` and section 10.
 
@@ -48,7 +48,7 @@ object has that member and *absent* otherwise.
 | key | value | meaning |
 |---|---|---|
 | `format` | the text `ymxs` | this form |
-| `version` | the whole number 4, or 3 for a file of the version before it (2.4) | the version of the structure |
+| `version` | the whole number 5, or 4 or 3 for a file of a version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
 **2.2** A reader reads the listed keys of each object of this form and
@@ -58,12 +58,13 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A writer writes version 4. A reader reads version 4 and the version
-before it: a file of version 3 has one value a row in every source and a
-`target` of 0 to 13, the shapes that version defines, and reads as the
-structure those make. A row of several values or a `target` above 13 in a
-file of version 3 is an error of the form (8.1), as is any other version
-(SPEC.md 8).
+**2.4** A writer writes version 5. A reader reads version 5 and the two
+versions before it. In a file of version 4 or 3 a reader skips a
+`deferred` column (6.1) and reads every start with `deferred` clear. A
+file of version 3 has one value a row in every source and a `target` of 0
+to 13, the shapes that version defines, and reads as the structure those
+make. A row of several values or a `target` above 13 in a file of version
+3 is an error of the form (8.1), as is any other version (SPEC.md 8).
 
 ---
 
@@ -161,7 +162,7 @@ as a value, so one below -1 or above the range is an error of the structure
 
 ## 6. The effects
 
-**6.1** `timerA` to `timerD` are each an object of the seven keys below,
+**6.1** `timerA` to `timerD` are each an object of the eight keys below,
 each a column; T is the timer's letter, S the length of `sources`.
 `shape` has a value at every row; each other column has a value where
 the row's operation has that part (6.2) and -1 elsewhere.
@@ -175,6 +176,7 @@ the row's operation has that part (6.2) and -1 elsewhere.
 | `count` | 0 to 255 | the count, the value of the timer's data register |
 | `timerReset` | 1 or 0 | `timerReset` of the operation: 1 is true and 0 is false |
 | `placeReset` | 1 or 0 | `placeReset` of the operation: 1 is true and 0 is false |
+| `deferred` | 1 or 0 | `deferred` of a start (SPEC.md 3.5): 1 is true and 0 is false |
 
 **6.2** `shape` at index i selects the operation of row i on Timer T,
 the columns with a part of it at index i, in read order, and the columns
@@ -182,10 +184,10 @@ that are -1 there:
 
 | `shape` | operation | the columns with a part of it, in read order | the columns that are -1 |
 |---|---|---|---|
-| -1 | none: the row leaves the effect of Timer T as it was | none | the other six |
-| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset` | none |
-| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target` |
-| 2 | a stop | none | the other six |
+| -1 | none: the row leaves the effect of Timer T as it was | none | the other seven |
+| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred` | none |
+| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target`, `deferred` |
+| 2 | a stop | none | the other seven |
 
 **6.3** At each row a reader reads `shape`, then the columns 6.2 lists in
 that order, verifying each as read (6.6), those columns alone. An emitter
@@ -195,9 +197,9 @@ emits -1 in every column 6.2 lists as -1.
 error (8.1). Note: a timer object whose every `shape` is -1 or 2 needs
 `shape` alone.
 
-**6.5** `timerReset` and `placeReset`: an emitter emits 1 for true and 0
-for false; a reader reads 1 as true and every other whole number as
-false.
+**6.5** `timerReset`, `placeReset` and `deferred`: an emitter emits 1 for
+true and 0 for false; a reader reads 1 as true and every other whole
+number as false.
 
 **6.6** `target` outside 0 to 24, `source` outside 1 to S, and
 `prescaler` other than the seven divisors are errors (8.1). `count`
@@ -214,7 +216,7 @@ where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
-3. Read `version`, a whole number equal to 3 or 4 (2.4).
+3. Read `version`, a whole number equal to 3, 4 or 5 (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
@@ -236,9 +238,10 @@ where every step passes.
    each; for each row i from 0 to R - 1 read `shape` at index i, one of
    -1, 0, 1, 2, then for a start `source` (1 to S), `target` (0 to 24),
    `prescaler` (one of the seven divisors), `count`, `timerReset`,
-   `placeReset`, and for a retune the last four. A column is verified
-   present, an array of length R and a whole number at index i as it is
-   read, before its value.
+   `placeReset` and, in a file of version 5, `deferred`, and for a retune
+   `prescaler`, `count`, `timerReset` and `placeReset`. A column is
+   verified present, an array of length R and a whole number at index i as
+   it is read, before its value.
 9. Read `title`, `composer`, `writer` (a text each), `rate` (a whole
    number), `repeat` (a whole number, `null` or absent), in that order.
 10. Verify that every source is started by some row (4.4).
@@ -267,7 +270,7 @@ the key is absent, except `an array` where the value of `registers` or of a
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 3 or 4 | `version N, and this reads 3 or 4` |
+| `version` other than 3, 4 and 5 | `version N, and this reads 3, 4 or 5` |
 | a row of `values` that is an array, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
@@ -376,7 +379,7 @@ retuned at row 1, stopped at row 3.
 ```json
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 5,
   "tunes": [
     {
       "title": "Four rows, one square",
@@ -402,7 +405,8 @@ retuned at row 1, stopped at row 3.
         "prescaler": [50,50,-1,-1],
         "count": [60,61,-1,-1],
         "timerReset": [1,0,-1,-1],
-        "placeReset": [1,0,-1,-1]
+        "placeReset": [1,0,-1,-1],
+        "deferred": [0,-1,-1,-1]
       }
     }
   ]
@@ -410,7 +414,8 @@ retuned at row 1, stopped at row 3.
 ```
 
 **10.2** Five register columns of fourteen, one timer object of four.
-Row 1 is a retune, so `target` and `source` are -1 there; row 2 leaves
-Timer A alone, so every column of `timerA` is -1 there; row 3 is a stop,
-so every column but `shape` is -1 there. `doc/tunes/example.csv` is the
-same tune in the CSV form (csv.md 8).
+Row 0 is a start with `deferred` clear. Row 1 is a retune, so `target`,
+`source` and `deferred` are -1 there; row 2 leaves Timer A alone, so every
+column of `timerA` is -1 there; row 3 is a stop, so every column but
+`shape` is -1 there. `doc/tunes/example.csv` is the same tune in the CSV
+form (csv.md 8).

@@ -54,7 +54,9 @@ class ConformanceTest {
                             + " three values a row they run (3.1.1, 3.2.1)"),
             new Source("multi", 2, 6,
                     "a multi of two tunes: the record is of the second, at 60 Hz where the"
-                            + " first is at 50"));
+                            + " first is at 50"),
+            new Source("deferred", 1, 17,
+                    "a deferred start, recorded at the frame of its row (3.5, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

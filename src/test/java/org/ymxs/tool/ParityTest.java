@@ -201,13 +201,13 @@ final class ParityTest {
         String sourceRepeat = "\"name\": \"square 13\", \"repeat\": 0,";
         String start = "0,0,8,1,50,60,1,1";
         String retune = "1,1,,,50,61,0,0";
-        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 4,",
+        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 5,",
                 "\"rows\": 4,", "\"rate\": 50,")) {
             assertTrue(json.contains(each), "the example has " + each);
         }
         assertTrue(csv.contains(start) && csv.contains(retune), "the example starts and retunes");
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\": 4,",
+                new Wrong("ymxs-check", json.replace("\"version\": 5,",
                         "\"version\": 4294967300,"), "version is 4294967300" + whole),
                 new Wrong("ymxs-check", json.replace("\"rows\": 4,",
                         "\"rows\": 4294967300,"), "rows is 4294967300" + whole),
@@ -320,6 +320,41 @@ final class ParityTest {
         wrongInBothTrees(new Wrong("ymxs-check", THREE_JSON
                 .replace("\"version\":3", "\"version\":4")
                 .replace("\"target\":[8,-1]", "\"target\":[30,-1]"), line));
+    }
+
+    /**
+     * A deferred start reads the same in both trees (SPEC.md 3.5): the
+     * check of {@code doc/tunes/deferred.json} with R8 set at rows 5 and 6
+     * reports the square's run to row 6 by the reckoning and the fall's
+     * from there (6.3, 6.4); a file of version 4 skips the
+     * {@code deferred} column, and a start of version 5 without it is one
+     * error of the form (json.md 2.4, 8.1; csv.md 5.2).
+     */
+    @Test
+    void aDeferredStartReadsTheSameInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/deferred.json"), StandardCharsets.UTF_8);
+        String csv = new String(both("ymxs-json-to-csv", json.getBytes()),
+                StandardCharsets.UTF_8);
+        String r7 = "\"r7\": [62,-1,-1,-1,-1,-1,-1,-1]";
+        String deferred = "\"deferred\": [0,-1,-1,-1,1,-1,-1,-1]";
+        String cells = ",placeReset,deferred\n";
+        assertTrue(json.contains(r7) && json.contains(deferred) && csv.contains(cells),
+                "the example sets R7 alone and defers the start at row 4");
+        byte[] sets = json.replace(r7, r7 + ",\n        \"r8\": [-1,-1,-1,-1,-1,12,12,-1]")
+                .getBytes();
+        both("ymxs-check", sets);
+        String said = ran(Path.of("bin"), "ymxs-check", sets).said();
+        String reckoned = ", which rests on how long a source that plays once runs,"
+                + " reckoned from its rate";
+        assertTrue(said.contains("row 5: Timer A runs on R8, and this row sets it" + reckoned)
+                && said.contains("row 6: Timer A runs on R8, and this row sets it" + reckoned),
+                said);
+        both("ymxs-check", json.replace("\"version\": 5", "\"version\": 4").getBytes());
+        both("ymxs-csv-to-json", csv.replace("ymxs,5,1", "ymxs,4,1").getBytes());
+        wrongInBothTrees(new Wrong("ymxs-check", json.replace(",\n        " + deferred, ""),
+                "Timer A has no \"deferred\" column"));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(cells, ",placeReset\n"),
+                "true or false is \"\", and this form requires a whole number"));
     }
 
     /**

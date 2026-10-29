@@ -1,6 +1,6 @@
 # CSV
 
-CSV encodes version 4 of the structure in [SPEC.md](SPEC.md) 1 as
+CSV encodes version 5 of the structure in [SPEC.md](SPEC.md) 1 as
 blocks of comma-separated values for reading in a spreadsheet. Section
 7 maps [JSON](json.md) values to cells. Every clause is normative
 except sentences beginning `Note:` and section 8.
@@ -102,7 +102,7 @@ after the tune's other blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 4, or 3 for a file of the version before it (json.md 2.4) | the version of the structure |
+| `version` | the whole number 5, or 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader skips it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -165,22 +165,24 @@ each row that acts on the timer (6.2):
 | `count` | a whole number from 0 to 255 | the count, the value of the timer's data register |
 | `timerReset` | 1 or 0 | `timerReset` of the operation: 1 is true and 0 is false |
 | `placeReset` | 1 or 0 | `placeReset` of the operation: 1 is true and 0 is false |
+| `deferred` | 1 or 0 | `deferred` of a start (SPEC.md 3.5): 1 is true and 0 is false |
 
 The `shape` cell selects the cells with a part of the operation, in read
 order, and the cells that are empty:
 
 | `shape` | operation | the cells with a part of it, in read order | the cells that are empty |
 |---|---|---|---|
-| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset` | none |
-| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target` |
-| 2 | a stop | none | the other six |
+| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred` | none |
+| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target`, `deferred` |
+| 2 | a stop | none | the other seven |
 
 **3.10** A reader reads the `shape` cell of a row line and then the cells
 the shape selects, in the order 3.9 lists them, each verified as read (4.1
-step 6), those cells alone; it reads 1 in `timerReset` and `placeReset` as
-true and every other whole number as false. Where two row lines of the
-blocks of one timer name one row, the later in file order replaces the
-earlier.
+step 6), those cells alone; it reads 1 in `timerReset`, `placeReset` and
+`deferred` as true and every other whole number as false. In a file of
+version 4 or 3 a reader skips a `deferred` column and reads every start
+with `deferred` clear (json.md 2.4). Where two row lines of the blocks of
+one timer name one row, the later in file order replaces the earlier.
 
 ---
 
@@ -196,7 +198,7 @@ where every step passes.
    line before the first heading line.
 2. Verify that the first block is named `multi` and has one row line; read
    its `format` cell, equal to `ymxs`, and its `version` cell, a whole
-   number equal to 3 or 4 (json.md 2.4).
+   number equal to 3, 4 or 5 (json.md 2.4).
 3. Verify that the block after `multi` is named `tune`. Each `tune` block
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
@@ -217,7 +219,8 @@ where every step passes.
    number 0 to R - 1, `shape` 0, 1 or 2, then the cells the shape selects,
    each a whole number as read: for a start `source` (1 to S), `target` (0
    to 24), `prescaler` (one of the seven divisors), `count`, `timerReset`,
-   `placeReset`; for a retune the last four.
+   `placeReset` and, in a file of version 5, `deferred`; for a retune
+   `prescaler`, `count`, `timerReset` and `placeReset`.
 7. Read the `title`, `composer` and `writer` cells of the `tune` block as
    text, `rate` as a whole number, `repeat` as empty or a whole number.
 8. Verify that every source the `source` blocks open is started by some row
@@ -249,7 +252,7 @@ numbers, R the row count and S the number of sources.
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 3 or 4 | `version N, and this reads 3 or 4` |
+| a `version` cell other than 3, 4 and 5 | `version N, and this reads 3, 4 or 5` |
 | a row line of a `value` block with its `value2` or `value3` cell filled, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
@@ -270,20 +273,20 @@ numbers, R the row count and S the number of sources.
 
 **5.2** WHAT in the whole-number line is the column name, `version`, `rows`,
 `rate`, `repeat`, `value`, `value1` to `value3`, `row`, `r0` to `r13`,
-`shape`, `source`, `target`, `prescaler` or `count`, and `true or false`
-for `timerReset` and `placeReset`. A reader reads as a whole number:
+`shape`, `source`, `target`, `prescaler` or `count`, and `true or false` for
+`timerReset`, `placeReset` and `deferred`. A reader reads as a whole number:
 `version`; `rows` and `rate` of the `tune` block; `repeat` of the `tune`
 block and of a `source` block where filled; `value`, or `value1` where
 `value` is empty, and each filled `value2` and `value3` cell (4.1 step 5);
 `row` of every block that has it; each filled `r0` to `r13` cell; `shape`;
-and the cells `shape` selects (3.9). An empty cell read as a whole number
-is such an error, so an empty `value` and an empty `value1` report WHAT
+and the cells `shape` selects (3.9). An empty cell read as a whole number is
+such an error, so an empty `value` and an empty `value1` report WHAT
 `value1`; an empty `repeat` is a table that plays once, an empty `r0` to
 `r13` a register the row leaves unchanged. A `version`, `rows` or `rate`
 column absent from its block (2.4) is such an error at the block's one row
 line; a `row` or `shape` column absent, or a `value` block with neither a
-`value` nor a `value1` column, at the first row line; a `source`,
-`target`, `prescaler`, `count`, `timerReset` or `placeReset` column absent
+`value` nor a `value1` column, at the first row line; a `source`, `target`,
+`prescaler`, `count`, `timerReset`, `placeReset` or `deferred` column absent
 from a timer block, at the first row line whose shape selects it.
 
 **5.3** An error of the structure is a condition of SPEC.md 1.11. A reader
@@ -320,8 +323,8 @@ acts on it.
 **6.3** An emitter emits a number in decimal, `-` before one below 0 and the
 one sign; an empty cell for the `repeat` of a table that plays once, for a
 register the row leaves unchanged, and for a part outside the shape's
-selection (3.9); and 1 or 0 in `timerReset` and `placeReset`. A cell is
-quoted as 2.5 defines.
+selection (3.9); and 1 or 0 in `timerReset`, `placeReset` and
+`deferred`. A cell is quoted as 2.5 defines.
 
 **6.4** A file an emitter emits reads into the structure and is emitted
 again as identical text.
@@ -367,7 +370,7 @@ this form.
 ```
 ### multi
 format,version,tunes
-ymxs,4,1
+ymxs,5,1
 
 ### tune
 title,composer,writer,rate,rows,repeat
@@ -390,14 +393,14 @@ row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 3,89,2,,,,,,56,12,,,,,
 
 ### timerA
-row,shape,target,source,prescaler,count,timerReset,placeReset
-0,0,8,1,50,60,1,1
-1,1,,,50,61,0,0
-3,2,,,,,,
+row,shape,target,source,prescaler,count,timerReset,placeReset,deferred
+0,0,8,1,50,60,1,1,0
+1,1,,,50,61,0,0,
+3,2,,,,,,,
 ```
 
 **8.2** The `title` cell is quoted for the `,` in it. Row 2 sets R0 and R1
 and leaves every timer alone, so it has a row line in `registers` and its
-row number is absent from `timerA`. Row 1 is a retune, so its `target` and
-`source` cells are empty; row 3 is a stop, so every cell but `row` and
-`shape` is empty.
+row number is absent from `timerA`. Row 1 is a retune, so its `target`,
+`source` and `deferred` cells are empty; row 3 is a stop, so every cell
+but `row` and `shape` is empty.

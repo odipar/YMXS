@@ -42,6 +42,7 @@ timers running.
 | `wrap.json` | 1 | 9 |
 | `several.json` | 1 | 9 |
 | `multi.json` | 2 | 6 |
+| `deferred.json` | 1 | 17 |
 
 **4. The rules.**
 

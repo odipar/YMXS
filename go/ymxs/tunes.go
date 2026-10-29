@@ -470,26 +470,42 @@ func StartTiming(start Start) Timing {
 	panic(fmt.Sprintf("no start %T", start))
 }
 
+// StartDeferred is the deferral: on a timer running an effect, the start
+// is pending until that effect's source has played its last row (SPEC.md
+// 3.5).
+func StartDeferred(start Start) bool {
+	switch s := start.(type) {
+	case StartOne:
+		return s.Deferred
+	case StartPair:
+		return s.Deferred
+	case StartTriple:
+		return s.Deferred
+	}
+	panic(fmt.Sprintf("no start %T", start))
+}
+
 // Starting is the start of the source on the target, the shape of the
 // width they share. A reader of a form builds a start this way, where the
 // two come off text; code that names the shapes builds the value. The
 // error says where the source has other values a row than the target
 // reads.
-func Starting(target Target, source Source, timing Timing) (Start, error) {
+func Starting(target Target, source Source, timing Timing, deferred bool) (Start, error) {
 	one, okTarget := target.(OneTarget)
 	single, okSource := source.(Single)
 	if okTarget && okSource {
-		return StartOne{Target: one, Source: single, Timing: timing}, nil
+		return StartOne{Target: one, Source: single, Timing: timing, Deferred: deferred}, nil
 	}
 	two, okTarget := target.(TwoTarget)
 	pair, okSource := source.(Pair)
 	if okTarget && okSource {
-		return StartPair{Target: two, Source: pair, Timing: timing}, nil
+		return StartPair{Target: two, Source: pair, Timing: timing, Deferred: deferred}, nil
 	}
 	three, okTarget := target.(ThreeTarget)
 	triple, okSource := source.(Triple)
 	if okTarget && okSource {
-		return StartTriple{Target: three, Source: triple, Timing: timing}, nil
+		return StartTriple{Target: three, Source: triple, Timing: timing,
+			Deferred: deferred}, nil
 	}
 	return nil, fmt.Errorf("a source of %d values a row on %s, which reads %d",
 		SourceColumns(source), TargetName(target), TargetColumns(target))
@@ -524,7 +540,7 @@ func PlaceReset(effect Effect) bool {
 }
 
 // Struck is a struck note: the source from its first row, the timer from a
-// whole period.
+// whole period, at the row.
 func Struck(target OneTarget, source Single, prescaler Prescaler, count int) Start {
 	return StartOne{Target: target, Source: source, Timing: Timing{
 		Prescaler: prescaler, Count: count, TimerReset: true, PlaceReset: true}}

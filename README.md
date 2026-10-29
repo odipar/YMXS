@@ -96,10 +96,11 @@ flowchart TD
 ```
 
 A frame performs timer operations before register writes. A tick
-advances its timer's source position, the *place*, or stops the timer
-when the source ends. Each table repeats from its repeat row or plays
-once. [SPEC.md](doc/SPEC.md) sections 4 and 5 define the procedures;
-section 8.6 leaves the timing of ticks within a frame to a later version.
+advances its timer's source position, the *place*, or, where the source
+ends, stops the timer or performs the deferred start pending on it. Each
+table repeats from its repeat row or plays once. [SPEC.md](doc/SPEC.md)
+sections 4 and 5 define the procedures; section 8.6 leaves the timing of
+ticks within a frame to a later version.
 
 ## Implementing a player or a reader
 
@@ -131,7 +132,7 @@ written against, and the runs against it.
 | [`Csv`](src/main/java/org/ymxs/Csv.java) | CSV, defined in [csv.md](doc/csv.md) |
 | [`tool/`](src/main/java/org/ymxs/tool) [`bin/`](bin) | the five tools, defined in [tools.md](doc/tools.md) |
 | [`ym/`](src/main/java/org/ymxs/ym) | a YM register dump read into the structure, defined in [ym.md](doc/ym.md) |
-| [`doc/tunes/`](doc/tunes) | seven files of tunes as JSON, two as CSV as well; the tests read every one back |
+| [`doc/tunes/`](doc/tunes) | eight files of tunes as JSON, two as CSV as well; the tests read every one back |
 | [`go/`](go) | the same five tools in Go, the executables of a release |
 
 The records have accessors alone. Functions use exhaustive pattern

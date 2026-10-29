@@ -215,18 +215,28 @@ func MustTune(tune ymxs.Tune) (ymxs.Tune, error) {
 
 // ------------------------------------------------------- SPEC.md 6
 
-// running records one timer's source, and the row it ends on.
-// running records one timer's run: the target and the source, the row the
-// start is on, the row the source ends on, and the rows that set the
-// target's register while it ran.
+// running records one timer's run: the start, the row its effect begins
+// on, the row its source ends on, and the rows that set the target's
+// register while it ran. begun is set where the effect begins at a row
+// reckoned for the end of the one before it, a deferred start's.
 type running struct {
-	target     ymxs.Target
-	source     ymxs.Source
+	start      ymxs.Start
 	from       int
 	until      int
+	begun      bool
 	first      int
 	last       int
 	collisions int
+}
+
+func (r *running) target() ymxs.Target {
+	return ymxs.StartTarget(r.start)
+}
+
+// reckoned is whether a reading of this run rests on the reckoning: its end
+// is reckoned, or its first row is (SPEC.md 6.3).
+func (r *running) reckoned() bool {
+	return r.until != math.MaxInt32 || r.begun
 }
 
 // Writing reads the rules of SPEC.md 6 across the tune's rows. A tune that
@@ -243,22 +253,23 @@ type running struct {
 // on that reckoning is reported as such.
 func Writing(tune ymxs.Tune) []string {
 	w := &writing{tune: tune,
-		running:    map[ymxs.Timer]*running{},
-		lastSource: map[ymxs.Timer]ymxs.Source{},
-		lastTarget: map[ymxs.Timer]ymxs.Target{}}
+		running: map[ymxs.Timer]*running{},
+		pending: map[ymxs.Timer]ymxs.Start{},
+		started: map[ymxs.Timer]bool{}}
 	return w.run()
 }
 
 type writing struct {
-	tune       ymxs.Tune
-	said       []string
-	running    map[ymxs.Timer]*running
-	lastSource map[ymxs.Timer]ymxs.Source
-	lastTarget map[ymxs.Timer]ymxs.Target
+	tune    ymxs.Tune
+	said    []string
+	running map[ymxs.Timer]*running
+	pending map[ymxs.Timer]ymxs.Start
+	started map[ymxs.Timer]bool
 }
 
 func (w *writing) run() []string {
 	for at, row := range w.tune.Table.Rows {
+		w.begin(at)
 		// The effects come first, in the order a frame writes them.
 		for _, one := range ymxs.Effects(row) {
 			w.effect(at, one.Timer, one.Effect)
@@ -274,6 +285,22 @@ func (w *writing) run() []string {
 	return w.said
 }
 
+// begin starts each pending start at the row the effect before it has run
+// out by, ahead of the row's operations (SPEC.md 6.3 step 1).
+func (w *writing) begin(at int) {
+	for _, timer := range ymxs.Timers {
+		start, on := w.pending[timer]
+		if !on {
+			continue
+		}
+		if _, runs := w.runs(timer, at); runs {
+			continue
+		}
+		delete(w.pending, timer)
+		w.starts(at, timer, start, true)
+	}
+}
+
 // repeats is whether this is the row the tune repeats to, where a writer
 // stops every effect so that the wrap resumes from a known setting.
 func (w *writing) repeats(at int) bool {
@@ -284,7 +311,7 @@ func (w *writing) repeats(at int) bool {
 // shared reads rule 2: where two timers write one register, the writer
 // fixes the order. The rule is the writer's to settle, and the row where
 // the second starts is where it arises.
-func (w *writing) shared(at int, timer ymxs.Timer, target ymxs.Target) {
+func (w *writing) shared(at int, timer ymxs.Timer, target ymxs.Target, begun bool) {
 	registers := written(target)
 	for _, one := range ymxs.Timers {
 		runs, on := w.running[one]
@@ -292,12 +319,12 @@ func (w *writing) shared(at int, timer ymxs.Timer, target ymxs.Target) {
 			continue
 		}
 		for _, register := range registers {
-			if !has(written(runs.target), register) {
+			if !has(written(runs.target()), register) {
 				continue
 			}
 			w.say(at, timer, fmt.Sprintf("starts on %s, where Timer %s runs: rule 2"+
 				" leaves the order of two timers writing one register to the writer",
-				register, one), runs.until != math.MaxInt32)
+				register, one), runs.reckoned() || begun)
 			break
 		}
 	}
@@ -328,8 +355,8 @@ func (w *writing) wrap() {
 		}
 		said := fmt.Sprintf("the tune repeats to row %d, and Timer %s runs on %s when its"+
 			" last row has played: the wrap resumes with the timer running from the pass"+
-			" before", to, timer, written(runs.target)[0])
-		if runs.until != math.MaxInt32 {
+			" before", to, timer, written(runs.target())[0])
+		if runs.reckoned() {
 			said += reckoned
 		}
 		w.said = append(w.said, said)
@@ -342,16 +369,16 @@ func (w *writing) collided(timer ymxs.Timer, runs *running) {
 	if runs.collisions == 0 {
 		return
 	}
-	register := written(runs.target)[0]
+	register := written(runs.target())[0]
 	if runs.collisions == 1 {
 		w.say(runs.first, timer, fmt.Sprintf("runs on %s, and this row sets it", register),
-			runs.until != math.MaxInt32)
+			runs.reckoned())
 		runs.collisions = 0
 		return
 	}
 	said := fmt.Sprintf("rows %d to %d: Timer %s runs on %s from row %d, and %d of them"+
 		" set it", runs.first, runs.last, timer, register, runs.from, runs.collisions)
-	if runs.until != math.MaxInt32 {
+	if runs.reckoned() {
 		said += reckoned
 	}
 	w.said = append(w.said, said)
@@ -362,14 +389,15 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		w.place(at, timer, e)
-		w.shared(at, timer, ymxs.StartTarget(e))
-		if before, on := w.running[timer]; on {
-			w.collided(timer, before)
+		if runs, on := w.runs(timer, at); ymxs.StartDeferred(e) && on {
+			// the effect plays its source once from here, and the start
+			// follows it
+			runs.until = min(runs.until, at+w.frames(runs.start))
+			w.pending[timer] = e
+			return
 		}
-		w.running[timer] = &running{target: ymxs.StartTarget(e), source: ymxs.StartSource(e), from: at,
-			until: w.until(at, e), first: -1, last: -1}
-		w.lastSource[timer] = ymxs.StartSource(e)
-		w.lastTarget[timer] = ymxs.StartTarget(e)
+		delete(w.pending, timer)
+		w.starts(at, timer, e, false)
 	case ymxs.Retune:
 		if _, on := w.runs(timer, at); !on {
 			w.say(at, timer, "retunes an effect that is idle: a rate written to a timer"+
@@ -377,6 +405,7 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 				w.reckoned(timer, at))
 		}
 	case ymxs.Stop:
+		delete(w.pending, timer)
 		runs, on := w.running[timer]
 		delete(w.running, timer)
 		// A stop of a source that has run out by the reckoning is a writer
@@ -392,35 +421,27 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 	}
 }
 
-// place reads rule 3: a start sets the place's reset, unless the source it
-// starts has the row count of the one this effect last ran on the same
-// target.
+// starts puts the effect of a start in the model from this row, replacing
+// the one before it; begun where a pending start begins at a reckoned row.
+func (w *writing) starts(at int, timer ymxs.Timer, start ymxs.Start, begun bool) {
+	w.shared(at, timer, ymxs.StartTarget(start), begun)
+	if before, on := w.running[timer]; on {
+		w.collided(timer, before)
+	}
+	w.running[timer] = &running{start: start, from: at, until: w.until(at, start),
+		begun: begun, first: -1, last: -1}
+	w.started[timer] = true
+}
+
+// place reads rule 3: a start on a timer that has run none sets the place's
+// reset. After a start, the place keeps its number modulo the row count of
+// the source a start connects (SPEC.md 3.4.3).
 func (w *writing) place(at int, timer ymxs.Timer, start ymxs.Start) {
-	if ymxs.StartTiming(start).PlaceReset {
+	if ymxs.StartTiming(start).PlaceReset || w.started[timer] {
 		return
 	}
-	before, ran := w.lastSource[timer]
-	if !ran {
-		w.say(at, timer, "starts a source without the place's reset, and this timer has"+
-			" run none: the place is where the player left it", false)
-		return
-	}
-	last, on := w.lastTarget[timer]
-	if !on || !ymxs.TargetEqual(ymxs.StartTarget(start), last) {
-		named := "no target"
-		if on {
-			named = ymxs.TargetName(last)
-		}
-		w.say(at, timer, "starts a source on "+ymxs.TargetName(ymxs.StartTarget(start))+
-			" without the place's reset, and this timer last ran on "+named, false)
-		return
-	}
-	now := len(ymxs.SourceRows(ymxs.StartSource(start)).Rows)
-	then := len(ymxs.SourceRows(before).Rows)
-	if now != then {
-		w.say(at, timer, fmt.Sprintf("starts a source of %d rows without the place's"+
-			" reset, and the one before it had %d", now, then), false)
-	}
+	w.say(at, timer, "starts a source without the place's reset, and this timer has"+
+		" run none: the place is where the player left it", false)
 }
 
 // registers reads rule 1: while an effect runs on a register, a row does
@@ -432,7 +453,7 @@ func (w *writing) registers(at int, row ymxs.Row) {
 			continue
 		}
 		hit := false
-		for _, register := range written(runs.target) {
+		for _, register := range written(runs.target()) {
 			if register == ymxs.R13 {
 				continue
 			}
@@ -477,7 +498,13 @@ func (w *writing) until(at int, start ymxs.Start) int {
 	if _, repeats := ymxs.SourceRows(ymxs.StartSource(start)).Repeat(); repeats {
 		return math.MaxInt32
 	}
-	return at + ymxs.Frames(len(ymxs.SourceRows(ymxs.StartSource(start)).Rows),
+	return at + w.frames(start)
+}
+
+// frames is the frames a start's source runs for, played once at its rate
+// (SPEC.md 6.4).
+func (w *writing) frames(start ymxs.Start) int {
+	return ymxs.Frames(len(ymxs.SourceRows(ymxs.StartSource(start)).Rows),
 		ymxs.StartTiming(start).Prescaler,
 		ymxs.StartTiming(start).Count, w.tune.Rate)
 }

@@ -415,6 +415,16 @@ public final class Tunes {
         };
     }
 
+    /** The deferral: on a timer running an effect, the start is pending
+     *  until that effect's source has played its last row (3.5). */
+    public static boolean deferred(Start start) {
+        return switch (start) {
+            case StartOne one -> one.deferred();
+            case StartPair pair -> pair.deferred();
+            case StartTriple triple -> triple.deferred();
+        };
+    }
+
     /** The start of {@code source} on {@code target}, the record of the
      *  width they share. A reader of a form builds a start this way,
      *  where the two come off text; code that names the shapes builds the
@@ -424,15 +434,16 @@ public final class Tunes {
      *     a row than the target reads
      */
     public static Start starting(Target target, Source source, Prescaler prescaler,
-            int count, boolean timerReset, boolean placeReset) {
+            int count, boolean timerReset, boolean placeReset, boolean deferred) {
+        Timing timing = new Timing(prescaler, count, timerReset, placeReset);
         if (target instanceof OneTarget one && source instanceof Single single) {
-            return new StartOne(one, single, new Timing(prescaler, count, timerReset, placeReset));
+            return new StartOne(one, single, timing, deferred);
         }
         if (target instanceof TwoTarget two && source instanceof Pair pair) {
-            return new StartPair(two, pair, new Timing(prescaler, count, timerReset, placeReset));
+            return new StartPair(two, pair, timing, deferred);
         }
         if (target instanceof ThreeTarget three && source instanceof Triple triple) {
-            return new StartTriple(three, triple, new Timing(prescaler, count, timerReset, placeReset));
+            return new StartTriple(three, triple, timing, deferred);
         }
         throw new IllegalArgumentException("a source of " + columns(source)
                 + " values a row on " + name(target) + ", which reads "
@@ -440,10 +451,10 @@ public final class Tunes {
     }
 
     /** A struck note: the source from its first row, the timer from a
-     *  whole period. */
+     *  whole period, at the row. */
     public static Start struck(OneTarget target, Single source, Prescaler prescaler,
             int count) {
-        return new StartOne(target, source, new Timing(prescaler, count, true, true));
+        return new StartOne(target, source, new Timing(prescaler, count, true, true), false);
     }
 
     /** A bend: the count changes and both resets stay clear. */

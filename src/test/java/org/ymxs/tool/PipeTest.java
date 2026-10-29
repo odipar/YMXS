@@ -186,8 +186,8 @@ final class PipeTest {
 
     /**
      * Every line tools.md quotes of a run against the run that writes it.
-     * The figures in them - 2,098 rows and 4 sources, 732 characters in
-     * and 469 out, the two warnings of the tune of SPEC.md 6.6 - move
+     * The figures in them - 2,098 rows and 4 sources, 766 characters in
+     * and 482 out, the two warnings of the tune of SPEC.md 6.6 - move
      * with the tunes beside them, and no check read one back.
      */
     @Test

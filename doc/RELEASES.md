@@ -18,13 +18,47 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.4.9` beside `v0.4.9`.
+version of it is a tag of that directory: `go/v0.5.0` beside `v0.5.0`.
 
 A player pins a version of this format: the structure's version is 5, a
 writer writes 5 and a reader reads 5, 4 and 3, and a release's number
 names the tools rather than the format.
 
 ## Published
+
+### 0.5.0, 2026-10-29
+
+<https://github.com/odipar/YMXS/releases/tag/v0.5.0>, built from the commit
+tagged `v0.5.0`.
+
+The structure's version is 5: a start has `deferred` beside its two
+resets, and a start with `placeReset` clear sets the place to its number
+modulo the row count of the source it starts (SPEC.md 3.4.3, 3.5). A
+writer writes 5, and a reader reads 5, 4 and 3.
+
+- **The forms.** JSON and CSV have a `deferred` column, a part of a
+  start; a file of version 4 or 3 reads with every start's deferral
+  clear. A version other than 3 to 5 reports `version N, and this reads 3,
+  4 or 5`.
+- **The check.** Rule 3 reports one line, a start without the place's
+  reset on a timer that has run none. The lines for a changed target and
+  a changed row count are gone, since the place is defined for both. The
+  model of a timer has a pending start: the effect it follows plays its
+  source once from the deferred row, and the pending start begins where
+  that source has run out by the reckoning (SPEC.md 6.3, 6.4).
+- **The record.** A start's object has `"deferred":B` (SPEC.md 7.4), and
+  the conformance kit has a tenth tune, `deferred`.
+- **The Go module.** `ymxs.Starting` reads a fourth argument, the
+  deferral, and the three start values have a `Deferred` field;
+  `ymxs.StartDeferred` is new, and a caller of `Starting` changes with it.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release and
+of 0.4.9 write the same tune but for the version and the `deferred`
+column in 12 dumps of 12, and `ymxs-check` reports the same on the nine
+older tunes of the kit and on the seven example tunes of 0.4.9, each read
+as version 4.
+
+Checks: `bin/suite` green, 145 tests and 0 skipped.
 
 ### 0.4.9, 2026-09-30
 

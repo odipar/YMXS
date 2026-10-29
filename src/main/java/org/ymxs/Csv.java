@@ -144,7 +144,7 @@ public final class Csv {
             return;
         }
         table(out, "timer" + timer.name(), "row", "shape", "target", "source",
-                "prescaler", "count", "timerReset", "placeReset");
+                "prescaler", "count", "timerReset", "placeReset", "deferred");
         for (int line = 0; line < rows.size(); line++) {
             Effect effect = rows.get(line).effects().get(timer);
             if (effect == null) {
@@ -154,11 +154,13 @@ public final class Csv {
                 case Start start -> row(out, line, Json.START,
                         Tunes.number(Tunes.target(start)), sources.indexOf(Tunes.source(start)) + 1,
                         Chip.divides(Tunes.prescaler(start)), Tunes.count(start),
-                        Tunes.timerReset(start) ? 1 : 0, Tunes.placeReset(start) ? 1 : 0);
+                        Tunes.timerReset(start) ? 1 : 0, Tunes.placeReset(start) ? 1 : 0,
+                        Tunes.deferred(start) ? 1 : 0);
                 case Retune retune -> row(out, line, Json.RETUNE, "", "",
                         Chip.divides(retune.timing().prescaler()), retune.timing().count(),
-                        retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0);
-                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "");
+                        retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0,
+                        "");
+                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "", "");
             }
         }
     }
@@ -230,9 +232,9 @@ public final class Csv {
                     + Json.FORMAT);
         }
         int version = number(multi.of(multi.rows().get(0), "version"), "version");
-        if (version != Json.VERSION && version != Json.BEFORE) {
+        if (version < Json.OLDEST || version > Json.VERSION) {
             throw new IllegalArgumentException("version " + version + ", and this reads "
-                    + Json.BEFORE + " or " + Json.VERSION);
+                    + Json.READS);
         }
         List<Tune> tunes = new ArrayList<>();
         int at = 1;
@@ -254,8 +256,8 @@ public final class Csv {
 
     /** One source out of its name, its rows and its repeat: a row of one
      *  value where the value block has the `value` cell alone, and of two
-     *  or three where it has `value2` and `value3` (3.6). A file of the
-     *  version before this one has one value a row (json.md 2.4). */
+     *  or three where it has `value2` and `value3` (3.6). A file of
+     *  version 3 has one value a row (json.md 2.4). */
     private static Source source(String name, List<List<Integer>> rows,
             OptionalInt repeat, int version) {
         for (List<Integer> row : rows) {
@@ -264,7 +266,7 @@ public final class Csv {
                         + rows.get(0).size() + " and of " + row.size()
                         + " values, and a source has one shape");
             }
-            if (row.size() > 1 && version < Json.VERSION) {
+            if (row.size() > 1 && version < Json.SEVERAL) {
                 throw new IllegalArgumentException("source " + name + " has a row of"
                         + " several values, and version " + version
                         + " has one value a row");
@@ -401,8 +403,8 @@ public final class Csv {
                 + Timer.values()[Timer.values().length - 1]);
     }
 
-    /** One row's operation on the effect of one timer, its target read
-     *  against the version (json.md 2.4). */
+    /** One row's operation on the effect of one timer, its target and its
+     *  deferral read against the version (json.md 2.4). */
     private static Effect effect(Block acts, List<String> one, List<Source> sources, int at,
             int version) {
         int shape = number(acts.of(one, "shape"), "shape");
@@ -418,7 +420,8 @@ public final class Csv {
                         sources.get(number - 1),
                         Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                         number(acts.of(one, "count"), "count"),
-                        flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")));
+                        flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")),
+                        version >= Json.DEFERRED && flag(acts.of(one, "deferred")));
             }
             case Json.RETUNE -> new Retune(new Timing(Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")), number(acts.of(one, "count"), "count"), flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset"))));
             case Json.STOP -> Tunes.STOP;

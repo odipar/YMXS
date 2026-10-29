@@ -1,6 +1,6 @@
 # The conformance kit
 
-**1.** The kit is nine tunes under `tunes/`, each a structure in the JSON
+**1.** The kit is ten tunes under `tunes/`, each a structure in the JSON
 form of [json.md](../json.md), and the record of one tune of each beside
 it in `records/`. The kit tests the two documents, [SPEC.md](../SPEC.md)
 and [json.md](../json.md): an implementer who has read them alone writes a
@@ -22,12 +22,12 @@ are outside the record (7.1), so a recorder runs on any machine.
 | `SOURCES.md` | a row a tune: which tune of the file the record is of, the lines of it, and what the tune reaches |
 
 **4. What each tune reaches.** SOURCES.md has the table. Between them the
-nine reach the four timers, the three operations of 6.2, a source that
+ten reach the four timers, the three operations of 6.2, a source that
 repeats to row 0, one that repeats to a row above it, one that plays once,
 every register column, R7's six bits, a row that sets a register an effect
 runs on, a tune that wraps, a tune that plays once, a multi whose second
-tune runs at another rate, and the targets of two and three registers
-with the sources of two and three values a row they run.
+tune runs at another rate, and the targets of two and three registers with
+the sources of two and three values a row they run, and a deferred start.
 
 **5. The exercise.** Initial condition: an implementer whose reading
 excludes this repository and every implementation of the structure.

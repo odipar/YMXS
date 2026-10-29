@@ -134,7 +134,7 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		return
 	}
 	table(out, "timer"+timer.String(), "row", "shape", "target", "source",
-		"prescaler", "count", "timerReset", "placeReset")
+		"prescaler", "count", "timerReset", "placeReset", "deferred")
 	for line, one := range rows {
 		effect, on := one.Effects[timer]
 		if !on {
@@ -144,12 +144,13 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		case ymxs.Start:
 			row(out, line, text.Start, ymxs.TargetNumber(ymxs.StartTarget(e)),
 				indexOf(sources, ymxs.StartSource(e))+1, ymxs.Divides(ymxs.StartTiming(e).Prescaler), ymxs.StartTiming(e).Count,
-				flagOf(ymxs.StartTiming(e).TimerReset), flagOf(ymxs.StartTiming(e).PlaceReset))
+				flagOf(ymxs.StartTiming(e).TimerReset), flagOf(ymxs.StartTiming(e).PlaceReset),
+				flagOf(ymxs.StartDeferred(e)))
 		case ymxs.Retune:
 			row(out, line, text.Retune, "", "", ymxs.Divides(e.Timing.Prescaler),
-				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset))
+				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset), "")
 		case ymxs.Stop:
-			row(out, line, text.Stop, "", "", "", "", "", "")
+			row(out, line, text.Stop, "", "", "", "", "", "", "")
 		}
 	}
 }
@@ -272,9 +273,9 @@ func Read(said string) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != text.Version && version != text.Before {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
-			text.Before, text.Version)
+	if version < text.Oldest || version > text.Version {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %s", version,
+			text.Reads)
 	}
 	var tunes []ymxs.Tune
 	at := 1
@@ -458,15 +459,15 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 }
 
 // shaped reads the rows of a source against one another and against the
-// version: every row has as many values as the first, and a file of the
-// version before this one has one value a row (json.md 2.4).
+// version: every row has as many values as the first, and a file of
+// version 3 has one value a row (json.md 2.4).
 func shaped(name string, rows [][]int, version int) error {
 	for _, row := range rows {
 		if len(row) != len(rows[0]) {
 			return fmt.Errorf("source %s has rows of %d and of %d values, and a source"+
 				" has one shape", name, len(rows[0]), len(row))
 		}
-		if len(row) > 1 && version < text.Version {
+		if len(row) > 1 && version < text.Several {
 			return fmt.Errorf("source %s has a row of several values, and version %d"+
 				" has one value a row", name, version)
 		}
@@ -487,7 +488,7 @@ func timerOf(table string, tune int) (ymxs.Timer, error) {
 }
 
 // effectOf is one row's operation on the effect of one timer, its target
-// read against the version (json.md 2.4).
+// and its deferral read against the version (json.md 2.4).
 func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 	version int) (ymxs.Effect, error) {
 	shape, err := whole(acts.of(one, "shape"), "shape")
@@ -524,7 +525,14 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 		if err != nil {
 			return nil, err
 		}
-		return ymxs.Starting(run, sources[number-1], timing)
+		deferred := false
+		if version >= text.Deferred {
+			deferred, err = flag(acts.of(one, "deferred"))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ymxs.Starting(run, sources[number-1], timing, deferred)
 	case text.Retune:
 		by, err := prescaler(acts, one)
 		if err != nil {

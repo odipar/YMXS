@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 5,
   "tunes": [
     {
       "title": "Four rows, one square",
@@ -26,7 +26,8 @@
         "prescaler": [50,50,-1,-1],
         "count": [60,61,-1,-1],
         "timerReset": [1,0,-1,-1],
-        "placeReset": [1,0,-1,-1]
+        "placeReset": [1,0,-1,-1],
+        "deferred": [0,-1,-1,-1]
       }
     }
   ]

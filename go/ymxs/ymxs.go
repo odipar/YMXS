@@ -92,6 +92,10 @@ type Timing struct {
 // A start is a shape a width: each pairs a target with a source of the
 // values a row that target reads, so a source that fits its target is a
 // shape here rather than a rule a check reads.
+//
+// A start with Deferred set on a timer running an effect is pending until
+// the source of that effect has played its last row, and a tick performs it
+// there (SPEC.md 3.5).
 type Start interface {
 	Effect
 	start()
@@ -99,23 +103,26 @@ type Start interface {
 
 // StartOne is a start of one value a row.
 type StartOne struct {
-	Target OneTarget
-	Source Single
-	Timing Timing
+	Target   OneTarget
+	Source   Single
+	Timing   Timing
+	Deferred bool
 }
 
 // StartPair is a start of two values a row.
 type StartPair struct {
-	Target TwoTarget
-	Source Pair
-	Timing Timing
+	Target   TwoTarget
+	Source   Pair
+	Timing   Timing
+	Deferred bool
 }
 
 // StartTriple is a start of three values a row.
 type StartTriple struct {
-	Target ThreeTarget
-	Source Triple
-	Timing Timing
+	Target   ThreeTarget
+	Source   Triple
+	Timing   Timing
+	Deferred bool
 }
 
 // Retune leaves the effect on its source and target, at the rate in this

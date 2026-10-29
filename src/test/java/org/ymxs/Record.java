@@ -73,7 +73,8 @@ final class Record {
                     + ",\"prescaler\":" + Chip.divides(Tunes.prescaler(start))
                     + ",\"count\":" + Tunes.count(start)
                     + ",\"timerReset\":" + Tunes.timerReset(start)
-                    + ",\"placeReset\":" + Tunes.placeReset(start) + "}}";
+                    + ",\"placeReset\":" + Tunes.placeReset(start)
+                    + ",\"deferred\":" + Tunes.deferred(start) + "}}";
             case Retune retune -> "{\"retune\":{\"prescaler\":"
                     + Chip.divides(retune.timing().prescaler())
                     + ",\"count\":" + retune.timing().count()

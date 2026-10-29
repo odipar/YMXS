@@ -1,6 +1,7 @@
 package org.ymxs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -188,13 +189,60 @@ final class CsvTest {
                 .dropWhile(one -> !one.startsWith("### timerA"))
                 .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of(
-                "0,0,8,1,4,100,1,1",
-                "1,1,,,4,90,0,0",
-                "2,2,,,,,,"),
+                "0,0,8,1,4,100,1,1,0",
+                "1,1,,,4,90,0,0,",
+                "2,2,,,,,,,"),
                 rows,
-                "a shape, a target and the two resets are the numbers JSON writes,"
-                        + " and a cell is empty where that form writes -1");
+                "a shape, a target, the two resets and the deferral are the numbers"
+                        + " JSON writes, and a cell is empty where that form writes -1");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
+    }
+
+    /** A start's deferral is a cell of version 5: a reader of a file of
+     *  version 4 skips the column and reads every start with it clear
+     *  (csv.md 3.10). */
+    @Test
+    void theDeferralIsACellOfThisVersion() {
+        String five = """
+                ### multi
+                format,version,tunes
+                ymxs,5,1
+
+                ### tune
+                title,composer,writer,rate,rows,repeat
+                ,,t,50,2,0
+
+                ### source
+                name,repeat
+                a tone,0
+
+                ### value
+                row,value
+                0,13
+                1,0
+
+                ### timerA
+                row,shape,source,target,prescaler,count,timerReset,placeReset,deferred
+                0,0,1,8,50,60,1,1,0
+                1,0,1,8,50,60,0,1,1
+                """;
+        Tune tune = Csv.read(five).tunes().get(0);
+        assertTrue(deferred(tune, 1), "a start of version 5 reads its deferral");
+        String written = Csv.write(Csv.read(five));
+        assertTrue(written.contains("1,0,8,1,50,60,0,1,1\n"),
+                "the form writes the cell back: " + written);
+        assertEquals(Csv.read(five), Csv.read(written), "the form crosses both ways");
+        Tune four = Csv.read(five.replace("ymxs,5,1", "ymxs,4,1")).tunes().get(0);
+        assertFalse(deferred(four, 1), "a start of version 4 reads with its deferral clear");
+    }
+
+    /** The deferral of the start on Timer A at row {@code at} of the
+     *  tune. */
+    private static boolean deferred(Tune tune, int at) {
+        if (!(tune.table().rows().get(at).effects().get(Timer.A) instanceof Start start)) {
+            throw new AssertionError("row " + at + " starts Timer A");
+        }
+        return Tunes.deferred(start);
     }
 
     @Test
@@ -218,7 +266,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true)))),
+                        Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true), false))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));

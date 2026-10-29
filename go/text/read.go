@@ -61,9 +61,8 @@ func multiOf(tree any) (ymxs.Multi, error) {
 	if err != nil {
 		return ymxs.Multi{}, err
 	}
-	if version != Version && version != Before {
-		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %d or %d", version,
-			Before, Version)
+	if version < Oldest || version > Version {
+		return ymxs.Multi{}, fmt.Errorf("version %d, and this reads %s", version, Reads)
 	}
 	written, err := array(at, "tunes")
 	if err != nil {
@@ -205,7 +204,7 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 		for at, row := range written {
 			named := fmt.Sprintf("%s at row %d", name, at)
 			if made, ok := row.([]any); ok {
-				if version < Version {
+				if version < Several {
 					return nil, fmt.Errorf("source %s has a row of several values, and"+
 						" version %d has one value a row", name, version)
 				}
@@ -250,7 +249,7 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 // effectOf is one row's operation on the effect of one timer, and whether
 // the row acts on it at all. Each column is read and verified before the
 // next, in the order of json.md 7.1 step 8: source, target, prescaler,
-// count, timerReset, placeReset.
+// count, timerReset, placeReset and, in a file of version 5, deferred.
 func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.Timer,
 	rows int, version int) (ymxs.Effect, bool, error) {
 	shape, err := column(columns, "shape", at, timer, rows)
@@ -279,7 +278,14 @@ func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.
 		if err != nil {
 			return nil, false, err
 		}
-		made, err := ymxs.Starting(run, sources[source-1], timing)
+		deferred := None
+		if version >= Deferred {
+			deferred, err = column(columns, "deferred", at, timer, rows)
+			if err != nil {
+				return nil, false, err
+			}
+		}
+		made, err := ymxs.Starting(run, sources[source-1], timing, deferred == 1)
 		if err != nil {
 			return nil, false, err
 		}
@@ -326,10 +332,9 @@ func timingOf(columns map[string]any, at int, timer ymxs.Timer, rows int) (ymxs.
 }
 
 // TargetOf is the target of a number, read against the version: a file of
-// the version before this one reaches 0 to 13 (json.md 2.4). The CSV
-// reader calls it too.
+// version 3 reaches 0 to 13 (json.md 2.4). The CSV reader calls it too.
 func TargetOf(number, version int) (ymxs.Target, error) {
-	if version < Version && number > 13 {
+	if version < Several && number > 13 {
 		return nil, fmt.Errorf("target %d, and version %d reaches 0 to 13", number,
 			version)
 	}

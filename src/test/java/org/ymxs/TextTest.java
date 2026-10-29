@@ -1,6 +1,7 @@
 package org.ymxs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,7 +38,7 @@ final class TextTest {
 
     /** What the tunes under {@code doc/tunes} come to, read back so that
      *  a tune added or a form changed fails here. */
-    private static final int STARTS = 180;
+    private static final int STARTS = 182;
     private static final int RETUNES = 77;
     private static final int STOPS = 167;
 
@@ -82,7 +83,7 @@ final class TextTest {
                 }
             }
         }
-        assertEquals(3292, rows, "the rows of the tunes under doc/tunes");
+        assertEquals(3300, rows, "the rows of the tunes under doc/tunes");
         assertEquals(STARTS, starts, "their starts");
         assertEquals(RETUNES, retunes, "their retunes");
         assertEquals(STOPS, stops, "their stops");
@@ -111,10 +112,10 @@ final class TextTest {
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true)))));
+                Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true), false))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.B, new StartOne(Tunes.setting(Register.R13), buzzer, new Timing(Prescaler.BY_50, 1, true, false)),
-                Timer.C, new StartOne(Tunes.setting(Register.R9), square, new Timing(Prescaler.BY_10, 3, false, false)))));
+                Timer.B, new StartOne(Tunes.setting(Register.R13), buzzer, new Timing(Prescaler.BY_50, 1, true, false), true),
+                Timer.C, new StartOne(Tunes.setting(Register.R9), square, new Timing(Prescaler.BY_10, 3, false, false), false))));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.A, Tunes.bend(Prescaler.BY_4, 118),
                 Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true)))));
@@ -191,7 +192,7 @@ final class TextTest {
         Multi read = Text.read(three);
         assertEquals(1, Tunes.columns(Tunes.sources(read.tunes().get(0)).get(0)),
                 "a source of version 3 is one value a row");
-        assertTrue(Text.write(read).contains("\"version\": 4"),
+        assertTrue(Text.write(read).contains("\"version\": 5"),
                 "a writer writes this version: " + Text.write(read));
         String wide = three.replace("\"values\":[13,0]", "\"values\":[[13,1],[0,1]]")
                 .replace("\"target\":[8,-1]", "\"target\":[14,-1]");
@@ -202,10 +203,44 @@ final class TextTest {
         String on = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(target)).getMessage());
         assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
-        String later = three.replace("\"version\":3", "\"version\":5");
+        String later = three.replace("\"version\":3", "\"version\":6");
         String other = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(later)).getMessage());
-        assertTrue(other.contains("version 5, and this reads 3 or 4"), other);
+        assertTrue(other.contains("version 6, and this reads 3, 4 or 5"), other);
+    }
+
+    /** A start's deferral is a column of version 5: a reader of a file of
+     *  version 4 skips the column and reads every start with it clear, and
+     *  in a file of version 5 a start requires it (json.md 2.4, 6.2). */
+    @Test
+    void theDeferralIsAColumnOfThisVersion() {
+        String four = """
+                {"format":"ymxs","version":4,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":2,"repeat":0,
+                "sources":[{"name":"square","repeat":0,"values":[13,0]}],
+                "registers":{"r7":[56,-1]},
+                "timerA":{"shape":[0,0],"target":[8,8],"source":[1,1],
+                "prescaler":[50,50],"count":[60,60],"timerReset":[1,0],
+                "placeReset":[1,0],"deferred":[1,1]}}]}""";
+        Tune tune = Text.read(four).tunes().get(0);
+        assertFalse(deferred(tune, 0) || deferred(tune, 1),
+                "a start of version 4 reads with its deferral clear");
+        Tune five = Text.read(four.replace("\"version\":4", "\"version\":5")).tunes().get(0);
+        assertTrue(deferred(five, 1), "a start of version 5 reads its deferral");
+        String without = four.replace("\"version\":4", "\"version\":5")
+                .replace(",\"deferred\":[1,1]", "");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(without)).getMessage());
+        assertTrue(said.contains("Timer A has no \"deferred\" column"), said);
+    }
+
+    /** The deferral of the start on Timer A at row {@code at} of the
+     *  tune. */
+    private static boolean deferred(Tune tune, int at) {
+        if (!(tune.table().rows().get(at).effects().get(Timer.A) instanceof Start start)) {
+            throw new AssertionError("row " + at + " starts Timer A");
+        }
+        return Tunes.deferred(start);
     }
 
     /** A source whose rows differ in width, and one whose width differs

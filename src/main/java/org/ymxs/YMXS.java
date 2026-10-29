@@ -59,7 +59,11 @@ public interface YMXS {
      *  of the values a row that target reads, so a source that fits its
      *  target is a shape here rather than a rule a check reads. A reader
      *  that reads a start of any width reads this interface; one that
-     *  reads a width reads the record. */
+     *  reads a width reads the record.
+     *
+     *  <p>A start with {@code deferred} set on a timer running an effect
+     *  is pending until the source of that effect has played its last
+     *  row, and a tick performs it there (3.5). */
     sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
 
     /** The rate a row writes the timer, and the two resets it performs
@@ -69,13 +73,16 @@ public interface YMXS {
                   boolean placeReset) { }
 
     /** A start of one value a row. */
-    record StartOne(OneTarget target, Single source, Timing timing) implements Start { }
+    record StartOne(OneTarget target, Single source, Timing timing,
+                    boolean deferred) implements Start { }
 
     /** A start of two values a row. */
-    record StartPair(TwoTarget target, Pair source, Timing timing) implements Start { }
+    record StartPair(TwoTarget target, Pair source, Timing timing,
+                     boolean deferred) implements Start { }
 
     /** A start of three values a row. */
-    record StartTriple(ThreeTarget target, Triple source, Timing timing) implements Start { }
+    record StartTriple(ThreeTarget target, Triple source, Timing timing,
+                       boolean deferred) implements Start { }
 
     /** The row leaves the effect on its source and target, at the rate in
      *  this record. A bend changes the count; a note struck again at the

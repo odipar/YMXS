@@ -18,13 +18,43 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.5.0` beside `v0.5.0`.
+version of it is a tag of that directory: `go/v0.6.0` beside `v0.6.0`.
 
-A player pins a version of this format: the structure's version is 5, a
-writer writes 5 and a reader reads 5, 4 and 3, and a release's number
+A player pins a version of this format: the structure's version is 6, a
+writer writes 6 and a reader reads 6, 5, 4 and 3, and a release's number
 names the tools rather than the format.
 
 ## Published
+
+### 0.6.0, 2026-10-30
+
+<https://github.com/odipar/YMXS/releases/tag/v0.6.0>, built from the commit
+tagged `v0.6.0`.
+
+The structure's version is 6: a deferred start with `placeReset` clear
+places the source it connects at R, the row count of the source that
+ended, modulo the row count of the source it connects, where version 5
+placed it at R - 1 (SPEC.md 3.5.3). The source it connects continues the
+count of the rows the one before it played: a square of two rows after
+another begins at row 0, where under version 5 it began at row 1 and
+played the half the square before it ended on a second time. A writer
+writes 6, and a reader reads 6, 5, 4 and 3.
+
+- **The forms.** A file of version 5 reads as version 6 (json.md 2.4).
+  A version other than 3 to 6 reports `version N, and this reads 3, 4, 5
+  or 6`.
+- **The table.** A note under 3.5.3 lists the row the source a `Start`
+  connects begins at, at its frame and deferred, for six pairs of row
+  counts, and `SpecTest` recomputes every row from the rule.
+- **The examples** under `doc/tunes` and the kit's `deferred` tune are
+  version 6; the kit's records are as they were.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release and
+of 0.5.0 write the same tune but for the version in 12 dumps of 12, and
+`ymxs-check` exits and reports the same on the ten tunes of the kit and
+the eight example tunes, each read by 0.5.0 as version 5.
+
+Checks: `bin/suite` green, 146 tests and 0 skipped.
 
 ### 0.5.0, 2026-10-29
 

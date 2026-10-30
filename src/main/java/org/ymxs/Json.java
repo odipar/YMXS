@@ -55,7 +55,7 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
 
     /** The first version with a start's {@code deferred}: in a file of a
      *  version before it every start reads with it clear (2.4). */
@@ -71,7 +71,8 @@ public final class Json {
     public static final int OLDEST = 3;
 
     /** The versions a reader reads, as its report lists them. */
-    static final String READS = OLDEST + ", " + SEVERAL + " or " + VERSION;
+    static final String READS = OLDEST + ", " + SEVERAL + ", " + DEFERRED + " or "
+            + VERSION;
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 

@@ -1,13 +1,13 @@
 # The YMXS format
 
-Version 5 defines tune data and playback on the Atari ST's YM2149 and
+Version 6 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file includes its version beside the structure: a writer writes 5, and a
-reader reads 5 and the two versions before it, 4 and 3 (json.md 2.4). A
+A file includes its version beside the structure: a writer writes 6, and a
+reader reads 6 and the three versions before it, 5, 4 and 3 (json.md 2.4). A
 reader reads the version before the structure; another version is an
 error of the form.
 
@@ -442,8 +442,22 @@ before the pending `Start` begins.
 
 **3.5.3** The tick performs the pending `Start` as a `Start` with
 `deferred` clear (4.3), with its resets as 3.4 defines them: with
-`placeReset` clear, the place, at the last row's number R - 1, becomes
-R - 1 modulo the row count of the source it connects.
+`placeReset` clear, the place, at R, the row count of the source that
+ended, becomes R modulo the row count of the source it connects, which
+continues the count of the rows the source before it played.
+
+Note: the row the source a `Start` connects begins at, with R the row
+count of the source before it, R' that of the source it connects, and P
+the place a `Start` at its frame finds (3.4.3):
+
+| R | R' | at its frame, `placeReset` clear | deferred, `placeReset` clear | either, `placeReset` set |
+|---|---|---|---|---|
+| 2 | 2 | P | 0 | 0 |
+| 4 | 4 | P | 0 | 0 |
+| 16 | 4 | P modulo 4 | 0 | 0 |
+| 4 | 3 | P modulo 3 | 1 | 0 |
+| 2 | 4 | P | 2 | 0 |
+| 4 | 16 | P | 4 | 0 |
 
 **3.5.4** A deferred `Start` on a timer that is stopped, or running with
 its source disconnected (4.3), is performed at its frame as a `Start`
@@ -553,7 +567,8 @@ tick alone.
    row. While a `Start` is pending on the timer, the last row has no row
    after it (3.5.2).
 4. Where the source has ended (1.5) and a `Start` is pending on the timer,
-   perform it (4.3), the place at the last row's number until its step 4.
+   perform it (4.3), the place at R, the source's row count, until its
+   step 4.
    Where the source has ended and none is pending, stop the timer: the
    source has run out, the timer is idle, the place stays at the last
    row's number, and the register keeps the last value until a row of the
@@ -861,8 +876,8 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3, 4
-or 5, beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
+**8.1** What a reader does with a file whose version is other than 3, 4,
+5 or 6, beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
 **8.2** Targets past the twenty-five: a procedure writing a register of the
 MC68901, one writing other registers of the YM2149 together, and one reading

@@ -158,6 +158,36 @@ final class SpecTest {
     private static final Path SPEC = Path.of("doc/SPEC.md");
     private static final Path SOURCE = Path.of("src/main/java/org/ymxs/YMXS.java");
 
+    /**
+     * 3.5.3's table of the row a source begins at, recomputed from the
+     * rule: a deferred start with {@code placeReset} clear at R modulo R'
+     * (3.5.3), a start at its frame at the place P modulo R', which is P
+     * where R' is R or more (3.4.3), and either with {@code placeReset}
+     * set at row 0.
+     */
+    @Test
+    void theTableOfTheRowASourceBeginsAtFollowsTheRule() throws IOException {
+        String spec = Files.readString(SPEC);
+        String section = spec.substring(spec.indexOf("**3.5.3**"),
+                spec.indexOf("**3.5.4**"));
+        Matcher row = Pattern.compile("^\\| (\\d+) \\| (\\d+) \\| ([^|]+) \\| (\\d+) \\| (\\d+) \\|$",
+                Pattern.MULTILINE).matcher(section);
+        int rows = 0;
+        while (row.find()) {
+            int was = Integer.parseInt(row.group(1));
+            int now = Integer.parseInt(row.group(2));
+            String atFrame = now >= was ? "P" : "P modulo " + now;
+            assertEquals(atFrame, row.group(3).trim(), "a start at its frame, " + was + " to "
+                    + now);
+            assertEquals(was % now, Integer.parseInt(row.group(4)), "a deferred start, "
+                    + was + " to " + now);
+            assertEquals(0, Integer.parseInt(row.group(5)), "placeReset set, " + was + " to "
+                    + now);
+            rows++;
+        }
+        assertTrue(rows >= 4, "3.5.3's table read as " + rows + " rows");
+    }
+
     /** The Java block of the document, its fences off. */
     private static String quoted() throws IOException {
         List<String> lines = Files.readAllLines(SPEC);

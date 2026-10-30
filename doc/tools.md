@@ -388,7 +388,7 @@ runner where a caller starts it, puts Go on the path:
 | `doc/tunes/example.csv` with a `timerReset` or `placeReset` cell of `x`, empty, or `yes` on a retune | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
 | `doc/tunes/example.json` with a line feed in its writer | `ymxs-json-to-csv`; exit 1 and the line of 7.4 |
 | `doc/tunes/deferred.json` with R8 set at rows 5 and 6 | `ymxs-check`; the two rule 1 lines that rest on the reckoning, of the square to row 6 and of the deferred start from there (SPEC.md 6.3) |
-| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 5 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
+| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 6 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
 | `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
 | a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
 | `src/test/resources/packed.ym` | `ym-to-ymxs -r-1` and `-r-2147483648`: exit 2 and `-rROW is not a row number` (9.2) |

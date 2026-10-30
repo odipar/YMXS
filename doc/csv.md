@@ -1,6 +1,6 @@
 # CSV
 
-CSV encodes version 5 of the structure in [SPEC.md](SPEC.md) 1 as
+CSV encodes version 6 of the structure in [SPEC.md](SPEC.md) 1 as
 blocks of comma-separated values for reading in a spreadsheet. Section
 7 maps [JSON](json.md) values to cells. Every clause is normative
 except sentences beginning `Note:` and section 8.
@@ -102,7 +102,7 @@ after the tune's other blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 5, or 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
+| `version` | the whole number 6, or 5, 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader skips it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -198,7 +198,7 @@ where every step passes.
    line before the first heading line.
 2. Verify that the first block is named `multi` and has one row line; read
    its `format` cell, equal to `ymxs`, and its `version` cell, a whole
-   number equal to 3, 4 or 5 (json.md 2.4).
+   number equal to 3, 4, 5 or 6 (json.md 2.4).
 3. Verify that the block after `multi` is named `tune`. Each `tune` block
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
@@ -219,7 +219,7 @@ where every step passes.
    number 0 to R - 1, `shape` 0, 1 or 2, then the cells the shape selects,
    each a whole number as read: for a start `source` (1 to S), `target` (0
    to 24), `prescaler` (one of the seven divisors), `count`, `timerReset`,
-   `placeReset` and, in a file of version 5, `deferred`; for a retune
+   `placeReset` and, in a file of version 5 or 6, `deferred`; for a retune
    `prescaler`, `count`, `timerReset` and `placeReset`.
 7. Read the `title`, `composer` and `writer` cells of the `tune` block as
    text, `rate` as a whole number, `repeat` as empty or a whole number.
@@ -252,7 +252,7 @@ numbers, R the row count and S the number of sources.
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 3, 4 and 5 | `version N, and this reads 3, 4 or 5` |
+| a `version` cell other than 3, 4, 5 and 6 | `version N, and this reads 3, 4, 5 or 6` |
 | a row line of a `value` block with its `value2` or `value3` cell filled, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
@@ -370,7 +370,7 @@ this form.
 ```
 ### multi
 format,version,tunes
-ymxs,5,1
+ymxs,6,1
 
 ### tune
 title,composer,writer,rate,rows,repeat

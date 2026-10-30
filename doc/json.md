@@ -1,6 +1,6 @@
 # JSON
 
-JSON encodes version 5 of the structure in [SPEC.md](SPEC.md) 1.
+JSON encodes version 6 of the structure in [SPEC.md](SPEC.md) 1.
 [csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
 normative except sentences beginning `Note:` and section 10.
 
@@ -48,7 +48,7 @@ object has that member and *absent* otherwise.
 | key | value | meaning |
 |---|---|---|
 | `format` | the text `ymxs` | this form |
-| `version` | the whole number 5, or 4 or 3 for a file of a version before it (2.4) | the version of the structure |
+| `version` | the whole number 6, or 5, 4 or 3 for a file of a version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
 **2.2** A reader reads the listed keys of each object of this form and
@@ -58,13 +58,17 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A writer writes version 5. A reader reads version 5 and the two
-versions before it. In a file of version 4 or 3 a reader skips a
-`deferred` column (6.1) and reads every start with `deferred` clear. A
-file of version 3 has one value a row in every source and a `target` of 0
-to 13, the shapes that version defines, and reads as the structure those
-make. A row of several values or a `target` above 13 in a file of version
-3 is an error of the form (8.1), as is any other version (SPEC.md 8).
+**2.4** A writer writes version 6. A reader reads version 6 and the three
+versions before it. A file of version 5 reads as version 6: the two
+differ in the row a deferred start with `placeReset` clear begins its
+source at (SPEC.md 3.5.3), which version 5 put at R - 1, the last row's
+number, modulo the row count of that source. In a file of version 4 or 3
+a reader skips a `deferred` column (6.1) and reads every start with
+`deferred` clear. A file of version 3 has one value a row in every source
+and a `target` of 0 to 13, the shapes that version defines, and reads as
+the structure those make. A row of several values or a `target` above 13
+in a file of version 3 is an error of the form (8.1), as is any other
+version (SPEC.md 8).
 
 ---
 
@@ -216,7 +220,7 @@ where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
-3. Read `version`, a whole number equal to 3, 4 or 5 (2.4).
+3. Read `version`, a whole number equal to 3, 4, 5 or 6 (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
@@ -238,7 +242,7 @@ where every step passes.
    each; for each row i from 0 to R - 1 read `shape` at index i, one of
    -1, 0, 1, 2, then for a start `source` (1 to S), `target` (0 to 24),
    `prescaler` (one of the seven divisors), `count`, `timerReset`,
-   `placeReset` and, in a file of version 5, `deferred`, and for a retune
+   `placeReset` and, in a file of version 5 or 6, `deferred`, and for a retune
    `prescaler`, `count`, `timerReset` and `placeReset`. A column is
    verified present, an array of length R and a whole number at index i as
    it is read, before its value.
@@ -270,7 +274,7 @@ the key is absent, except `an array` where the value of `registers` or of a
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 3, 4 and 5 | `version N, and this reads 3, 4 or 5` |
+| `version` other than 3, 4, 5 and 6 | `version N, and this reads 3, 4, 5 or 6` |
 | a row of `values` that is an array, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
@@ -379,7 +383,7 @@ retuned at row 1, stopped at row 3.
 ```json
 {
   "format": "ymxs",
-  "version": 5,
+  "version": 6,
   "tunes": [
     {
       "title": "Four rows, one square",

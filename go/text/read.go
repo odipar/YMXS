@@ -249,7 +249,7 @@ func sourcesOf(at map[string]any, version int) ([]ymxs.Source, error) {
 // effectOf is one row's operation on the effect of one timer, and whether
 // the row acts on it at all. Each column is read and verified before the
 // next, in the order of json.md 7.1 step 8: source, target, prescaler,
-// count, timerReset, placeReset and, in a file of version 5, deferred.
+// count, timerReset, placeReset and, in a file of version 5 or 6, deferred.
 func effectOf(columns map[string]any, at int, sources []ymxs.Source, timer ymxs.Timer,
 	rows int, version int) (ymxs.Effect, bool, error) {
 	shape, err := column(columns, "shape", at, timer, rows)

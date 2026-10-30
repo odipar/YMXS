@@ -26,7 +26,7 @@ import (
 const Format = "ymxs"
 
 // Version is the version of the structure this maps.
-const Version = 5
+const Version = 6
 
 // Deferred is the first version with a start's deferred: in a file of a
 // version before it every start reads with it clear (json.md 2.4).
@@ -42,8 +42,8 @@ const Several = 4
 const Oldest = 3
 
 // Reads is the versions a reader reads, as its report lists them.
-var Reads = strconv.Itoa(Oldest) + ", " + strconv.Itoa(Several) + " or " +
-	strconv.Itoa(Version)
+var Reads = strconv.Itoa(Oldest) + ", " + strconv.Itoa(Several) + ", " +
+	strconv.Itoa(Deferred) + " or " + strconv.Itoa(Version)
 
 // None marks a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an

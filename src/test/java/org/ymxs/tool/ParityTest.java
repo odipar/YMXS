@@ -201,13 +201,13 @@ final class ParityTest {
         String sourceRepeat = "\"name\": \"square 13\", \"repeat\": 0,";
         String start = "0,0,8,1,50,60,1,1";
         String retune = "1,1,,,50,61,0,0";
-        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 5,",
+        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 6,",
                 "\"rows\": 4,", "\"rate\": 50,")) {
             assertTrue(json.contains(each), "the example has " + each);
         }
         assertTrue(csv.contains(start) && csv.contains(retune), "the example starts and retunes");
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\": 5,",
+                new Wrong("ymxs-check", json.replace("\"version\": 6,",
                         "\"version\": 4294967300,"), "version is 4294967300" + whole),
                 new Wrong("ymxs-check", json.replace("\"rows\": 4,",
                         "\"rows\": 4294967300,"), "rows is 4294967300" + whole),
@@ -327,7 +327,7 @@ final class ParityTest {
      * check of {@code doc/tunes/deferred.json} with R8 set at rows 5 and 6
      * reports the square's run to row 6 by the reckoning and the fall's
      * from there (6.3, 6.4); a file of version 4 skips the
-     * {@code deferred} column, and a start of version 5 without it is one
+     * {@code deferred} column, and a start of version 6 without it is one
      * error of the form (json.md 2.4, 8.1; csv.md 5.2).
      */
     @Test
@@ -349,8 +349,8 @@ final class ParityTest {
         assertTrue(said.contains("row 5: Timer A runs on R8, and this row sets it" + reckoned)
                 && said.contains("row 6: Timer A runs on R8, and this row sets it" + reckoned),
                 said);
-        both("ymxs-check", json.replace("\"version\": 5", "\"version\": 4").getBytes());
-        both("ymxs-csv-to-json", csv.replace("ymxs,5,1", "ymxs,4,1").getBytes());
+        both("ymxs-check", json.replace("\"version\": 6", "\"version\": 4").getBytes());
+        both("ymxs-csv-to-json", csv.replace("ymxs,6,1", "ymxs,4,1").getBytes());
         wrongInBothTrees(new Wrong("ymxs-check", json.replace(",\n        " + deferred, ""),
                 "Timer A has no \"deferred\" column"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(cells, ",placeReset\n"),

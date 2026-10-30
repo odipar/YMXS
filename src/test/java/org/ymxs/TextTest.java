@@ -192,7 +192,7 @@ final class TextTest {
         Multi read = Text.read(three);
         assertEquals(1, Tunes.columns(Tunes.sources(read.tunes().get(0)).get(0)),
                 "a source of version 3 is one value a row");
-        assertTrue(Text.write(read).contains("\"version\": 5"),
+        assertTrue(Text.write(read).contains("\"version\": 6"),
                 "a writer writes this version: " + Text.write(read));
         String wide = three.replace("\"values\":[13,0]", "\"values\":[[13,1],[0,1]]")
                 .replace("\"target\":[8,-1]", "\"target\":[14,-1]");
@@ -203,10 +203,10 @@ final class TextTest {
         String on = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(target)).getMessage());
         assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
-        String later = three.replace("\"version\":3", "\"version\":6");
+        String later = three.replace("\"version\":3", "\"version\":7");
         String other = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(later)).getMessage());
-        assertTrue(other.contains("version 6, and this reads 3, 4 or 5"), other);
+        assertTrue(other.contains("version 7, and this reads 3, 4, 5 or 6"), other);
     }
 
     /** A start's deferral is a column of version 5: a reader of a file of

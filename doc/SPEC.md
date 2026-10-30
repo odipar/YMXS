@@ -443,11 +443,21 @@ before the pending `Start` begins.
 **3.5.3** The tick performs the pending `Start` as a `Start` with
 `deferred` clear (4.3), with its resets as 3.4 defines them: with
 `placeReset` clear, the place, at R, the row count of the source that
-ended, becomes R modulo the row count of the source it connects. The
-source it connects continues the count of the rows the source before it
-played: where its row count divides R, the place is 0, as with
-`placeReset` set, and across a source of four rows after one of two the
-place is 2.
+ended, becomes R modulo the row count of the source it connects, which
+continues the count of the rows the source before it played.
+
+Note: the row the source a `Start` connects begins at, with R the row
+count of the source before it, R' that of the source it connects, and P
+the place a `Start` at its frame finds (3.4.3):
+
+| R | R' | at its frame, `placeReset` clear | deferred, `placeReset` clear | either, `placeReset` set |
+|---|---|---|---|---|
+| 2 | 2 | P | 0 | 0 |
+| 4 | 4 | P | 0 | 0 |
+| 16 | 4 | P modulo 4 | 0 | 0 |
+| 4 | 3 | P modulo 3 | 1 | 0 |
+| 2 | 4 | P | 2 | 0 |
+| 4 | 16 | P | 4 | 0 |
 
 **3.5.4** A deferred `Start` on a timer that is stopped, or running with
 its source disconnected (4.3), is performed at its frame as a `Start`

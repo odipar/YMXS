@@ -10,21 +10,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
+import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.Three;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 import org.ymxs.YMXS.Two;
@@ -46,7 +49,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A source is written by its number, 1 upward into the sources a tune's
  * rows start ({@link Tunes#sources}). The name beside it appears in the
- * tools' reports alone.
+ * tools' reports alone. A part of a mapping is written the same way, 0
+ * for the identity and 1 upward into the transformations the mappings of
+ * a tune's rows use ({@link Tunes#transformations}).
  */
 public final class Json {
 
@@ -55,7 +60,12 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 6;
+    public static final int VERSION = 7;
+
+    /** The first version with transformations, mappings and a remap: in
+     *  a file of a version before it every start reads with the mapping
+     *  of no parts, and a shape of 3 is an error of the form (2.4). */
+    public static final int MAPPED = 7;
 
     /** The first version with a start's {@code deferred}: in a file of a
      *  version before it every start reads with it clear (2.4). */
@@ -70,9 +80,18 @@ public final class Json {
      *  one to {@link #VERSION} (2.4). */
     public static final int OLDEST = 3;
 
-    /** The versions a reader reads, as its report lists them. */
-    static final String READS = OLDEST + ", " + SEVERAL + ", " + DEFERRED + " or "
-            + VERSION;
+    /** The versions a reader reads, as its report lists them: 3, 4, 5, 6
+     *  or 7. */
+    static final String READS = reads();
+
+    private static String reads() {
+        StringBuilder said = new StringBuilder();
+        for (int version = OLDEST; version < VERSION; version++) {
+            said.append(version).append(", ");
+        }
+        said.setLength(said.length() - 2);
+        return said + " or " + VERSION;
+    }
 
     private static final JsonNodeFactory MAKE = JsonNodeFactory.instance;
 
@@ -102,6 +121,7 @@ public final class Json {
     public static final int START = 0;
     public static final int RETUNE = 1;
     public static final int STOP = 2;
+    public static final int REMAP = 3;
 
     /** One tune as a JSON tree. */
     public static ObjectNode of(Tune tune) {
@@ -132,13 +152,39 @@ public final class Json {
                 }
             }
         }
+        // 3.7: a transformation is its name and its entries, in the
+        // number order of SPEC.md 1.9
+        List<Transformation> transformations = Tunes.transformations(tune);
+        ArrayNode mapped = out.putArray("transformations");
+        for (Transformation transformation : transformations) {
+            ObjectNode one = mapped.addObject();
+            one.put("name", transformation.name());
+            ArrayNode entries = one.putArray("entries");
+            for (int entry : transformation.entries()) {
+                entries.add(entry);
+            }
+        }
         List<Row> rows = Tunes.rows(tune);
         ObjectNode sets = out.putObject("registers");
         for (Register register : Register.values()) {
             column(sets, name(register), rows, register);
         }
         for (Timer timer : Timer.values()) {
-            timer(out, tune, timer, rows, sources);
+            timer(out, timer, rows, sources, transformations);
+        }
+        return out;
+    }
+
+    /** The value of a mapping in its column (6.7): 0 where every part is
+     *  the identity, the mapping of no parts included, and otherwise an
+     *  array of a number a part, 0 the identity and n transformation n. */
+    private static JsonNode mapping(Mapping mapping, List<Transformation> transformations) {
+        if (Tunes.isIdentity(mapping)) {
+            return MAKE.numberNode(0);
+        }
+        ArrayNode out = MAKE.arrayNode();
+        for (Part part : mapping.parts()) {
+            out.add(Tunes.number(transformations, part));
         }
         return out;
     }
@@ -162,9 +208,9 @@ public final class Json {
 
     /** One timer's columns: the operation on that effect at every row,
      *  and {@link #NONE} where the row leaves it alone. Only a timer some
-     *  row acts on has columns. */
-    private static void timer(ObjectNode out, Tune tune, Timer timer, List<Row> rows,
-                              List<Source> sources) {
+     *  row acts on has columns, the nine of 6.1. */
+    private static void timer(ObjectNode out, Timer timer, List<Row> rows,
+                              List<Source> sources, List<Transformation> transformations) {
         boolean any = false;
         for (Row row : rows) {
             if (row.effects().containsKey(timer)) {
@@ -184,6 +230,7 @@ public final class Json {
         ArrayNode timerReset = into.putArray("timerReset");
         ArrayNode placeReset = into.putArray("placeReset");
         ArrayNode deferred = into.putArray("deferred");
+        ArrayNode mapping = into.putArray("mapping");
         for (Row row : rows) {
             Effect effect = row.effects().get(timer);
             if (effect == null) {
@@ -195,6 +242,7 @@ public final class Json {
                 timerReset.add(NONE);
                 placeReset.add(NONE);
                 deferred.add(NONE);
+                mapping.add(NONE);
                 continue;
             }
             switch (effect) {
@@ -207,6 +255,7 @@ public final class Json {
                     timerReset.add(Tunes.timerReset(start) ? 1 : 0);
                     placeReset.add(Tunes.placeReset(start) ? 1 : 0);
                     deferred.add(Tunes.deferred(start) ? 1 : 0);
+                    mapping.add(mapping(Tunes.mapping(start), transformations));
                 }
                 case Retune retune -> {
                     shape.add(RETUNE);
@@ -217,6 +266,7 @@ public final class Json {
                     timerReset.add(retune.timing().timerReset() ? 1 : 0);
                     placeReset.add(retune.timing().placeReset() ? 1 : 0);
                     deferred.add(NONE);
+                    mapping.add(NONE);
                 }
                 case Stop ignored -> {
                     shape.add(STOP);
@@ -227,6 +277,18 @@ public final class Json {
                     timerReset.add(NONE);
                     placeReset.add(NONE);
                     deferred.add(NONE);
+                    mapping.add(NONE);
+                }
+                case Remap remap -> {
+                    shape.add(REMAP);
+                    target.add(NONE);
+                    source.add(NONE);
+                    prescaler.add(NONE);
+                    count.add(NONE);
+                    timerReset.add(NONE);
+                    placeReset.add(NONE);
+                    deferred.add(NONE);
+                    mapping.add(mapping(remap.mapping(), transformations));
                 }
             }
         }
@@ -261,23 +323,25 @@ public final class Json {
      *  each where the source has one value a row and an array each where
      *  it has two or three, one shape through the source (4.1, 4.2).
      *  {@code values} is read before {@code name}, as 7.1 step 6 orders
-     *  them, and the size of a row before its values. */
+     *  them, and the size of a row before its values. A line of an error
+     *  has the name through {@link Check#named} (8.1). */
     private static Source source(JsonNode one, int version) {
         JsonNode written = array(one, "values");
         String name = text(one, "name");
+        String reported = Check.named(name);
         List<List<Integer>> rows = new ArrayList<>();
         for (int at = 0; at < written.size(); at++) {
             JsonNode row = written.get(at);
-            String named = name + " at row " + at + " is ";
+            String named = reported + " at row " + at + " is ";
             if (row.isArray()) {
                 if (version < SEVERAL) {
-                    throw new IllegalArgumentException("source " + name + " has a row of"
+                    throw new IllegalArgumentException("source " + reported + " has a row of"
                             + " several values, and version " + version
                             + " has one value a row");
                 }
                 if (row.size() < 2 || row.size() > 3) {
                     throw new IllegalArgumentException("a row of " + row.size()
-                            + " values in source " + name + ", and a row is a number"
+                            + " values in source " + reported + ", and a row is a number"
                             + " or two or three values");
                 }
                 List<Integer> values = new ArrayList<>();
@@ -291,7 +355,7 @@ public final class Json {
         }
         for (List<Integer> row : rows) {
             if (row.size() != rows.get(0).size()) {
-                throw new IllegalArgumentException("source " + name + " has rows of "
+                throw new IllegalArgumentException("source " + reported + " has rows of "
                         + rows.get(0).size() + " and of " + row.size()
                         + " values, and a source has one shape");
             }
@@ -316,15 +380,38 @@ public final class Json {
         return tune(tree, VERSION);
     }
 
+    /** One transformation out of its object: {@code entries}, then
+     *  {@code name}, then each entry in key order, as 7.1 step 6 orders
+     *  them (3.7). A line of an error has the name through
+     *  {@link Check#named} (8.1). */
+    private static Transformation transformation(JsonNode one) {
+        JsonNode written = array(one, "entries");
+        String name = text(one, "name");
+        List<Integer> entries = new ArrayList<>();
+        for (int key = 0; key < written.size(); key++) {
+            entries.add(whole(written.get(key), Check.named(name) + " at entry " + key
+                    + " is " + written.get(key)));
+        }
+        return new Transformation(name, entries);
+    }
+
     /** One tune out of a JSON tree of {@code version}: a file of version 3
      *  has one value a row and a target of 0 to 13, and another shape in it
      *  is an error of the form; a file of version 4 or 3 has every start
-     *  with {@code deferred} clear (2.4). */
+     *  with {@code deferred} clear; a file of version 6 or before has every
+     *  start with the mapping of no parts, and its {@code transformations}
+     *  and {@code mapping} are skipped (2.4). */
     public static Tune tune(JsonNode tree, int version) {
         int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
         for (JsonNode one : array(tree, "sources")) {
             sources.add(source(one, version));
+        }
+        List<Transformation> transformations = new ArrayList<>();
+        if (version >= MAPPED) {
+            for (JsonNode one : array(tree, "transformations")) {
+                transformations.add(transformation(one));
+            }
         }
         List<Map<Register, Integer>> registers = new ArrayList<>();
         List<Map<Timer, Effect>> effects = new ArrayList<>();
@@ -364,7 +451,8 @@ public final class Json {
                         + " effect");
             }
             for (int at = 0; at < count; at++) {
-                Effect effect = effect(columns, at, sources, timer, count, version);
+                Effect effect = effect(columns, at, sources, transformations, timer, count,
+                        version);
                 if (effect != null) {
                     effects.get(at).put(timer, effect);
                 }
@@ -377,7 +465,7 @@ public final class Json {
         Tune tune = new Tune(text(tree, "title"), text(tree, "composer"),
                 text(tree, "writer"), number(tree, "rate"),
                 new Table<>(built, repeat(tree)));
-        List<String> wrong = Check.declared(sources, tune);
+        List<String> wrong = Check.declared(sources, transformations, tune);
         if (!wrong.isEmpty()) {
             throw new IllegalArgumentException(String.join("\n", wrong));
         }
@@ -417,8 +505,12 @@ public final class Json {
     }
 
     /** One row's operation on the effect of one timer, or null where the
-     *  row leaves it alone. */
+     *  row leaves it alone. The columns are read in the order 6.2 lists
+     *  them, each verified as it is read, and a start's source is verified
+     *  to have the values a row its target reads as the start is built
+     *  (8.1). */
     private static @Nullable Effect effect(JsonNode columns, int at, List<Source> sources,
+                                           List<Transformation> transformations,
                                            Timer timer, int rows, int version) {
         int shape = column(columns, "shape", at, timer, rows);
         if (shape == NONE) {
@@ -439,14 +531,94 @@ public final class Json {
                         column(columns, "timerReset", at, timer, rows) == 1,
                         column(columns, "placeReset", at, timer, rows) == 1,
                         version >= DEFERRED
-                                && column(columns, "deferred", at, timer, rows) == 1);
+                                && column(columns, "deferred", at, timer, rows) == 1,
+                        version >= MAPPED
+                                ? mapping(columns, at, timer, rows, transformations)
+                                : Tunes.NO_PARTS);
             }
-            case RETUNE -> new Retune(new Timing(Chip.prescaler(column(columns, "prescaler", at, timer, rows)), column(columns, "count", at, timer, rows), column(columns, "timerReset", at, timer, rows) == 1, column(columns, "placeReset", at, timer, rows) == 1));
+            case RETUNE -> new Retune(new Timing(
+                    Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
+                    column(columns, "count", at, timer, rows),
+                    column(columns, "timerReset", at, timer, rows) == 1,
+                    column(columns, "placeReset", at, timer, rows) == 1));
             case STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " sets shape "
-                    + shape + " on Timer " + timer + ", and a shape is " + NONE + ", "
-                    + START + ", " + RETUNE + " or " + STOP);
+            case REMAP -> {
+                if (version < MAPPED) {
+                    throw shape(at, shape, timer, version);
+                }
+                yield new Remap(mapping(columns, at, timer, rows, transformations));
+            }
+            default -> throw shape(at, shape, timer, version);
         };
+    }
+
+    /** The error of a shape outside the shapes of {@code version}. */
+    private static IllegalArgumentException shape(int at, int shape, Timer timer,
+                                                  int version) {
+        return new IllegalArgumentException("row " + at + " sets shape " + shape
+                + " on Timer " + timer + ", and a shape is " + NONE + ", " + START + ", "
+                + RETUNE + (version >= MAPPED ? ", " + STOP + " or " + REMAP
+                        : " or " + STOP));
+    }
+
+    /**
+     * The mapping at row {@code at} of a start or a remap (6.7): the
+     * column verified present and of the tune's length, then the value
+     * verified 0 or an array of whole numbers, of an array an element
+     * other than 0 among them, and each element 0 to the number of
+     * transformations, in that order.
+     */
+    private static Mapping mapping(JsonNode columns, int at, Timer timer, int rows,
+                                   List<Transformation> transformations) {
+        JsonNode column = columns.get("mapping");
+        if (column == null) {
+            throw new IllegalArgumentException("Timer " + timer + " has no \"mapping\""
+                    + " column");
+        }
+        sized(column, rows, "Timer " + timer + "'s mapping");
+        JsonNode value = column.get(at);
+        if (isWhole(value) && value.intValue() == 0) {
+            return Tunes.NO_PARTS;
+        }
+        boolean wholes = value.isArray();
+        boolean identity = true;
+        for (JsonNode element : value) {
+            wholes = wholes && isWhole(element);
+            identity = identity && isWhole(element) && element.intValue() == 0;
+        }
+        if (!wholes) {
+            throw new IllegalArgumentException("Timer " + timer + "'s mapping at row " + at
+                    + " is " + value + ", and this form requires 0 or an array of whole"
+                    + " numbers");
+        }
+        if (identity) {
+            throw new IllegalArgumentException("Timer " + timer + "'s mapping at row " + at
+                    + " is " + value + ", and a mapping of the identity in every part is 0");
+        }
+        List<Part> parts = new ArrayList<>();
+        for (JsonNode element : value) {
+            parts.add(part(element.intValue(), at, transformations));
+        }
+        return new Mapping(parts);
+    }
+
+    /** Part {@code number} of a mapping at row {@code at}: 0 the identity,
+     *  and n transformation n. The CSV reader calls it too.
+     *
+     * @throws IllegalArgumentException where the tune has no such
+     *     transformation
+     */
+    static Part part(int number, int at, List<Transformation> transformations) {
+        if (number < 0 || number > transformations.size()) {
+            throw new IllegalArgumentException("row " + at + " maps through transformation "
+                    + number + ", and the tune has " + transformations.size());
+        }
+        return number == 0 ? Tunes.IDENTITY : transformations.get(number - 1);
+    }
+
+    /** Whether a node is a whole number of this form (1.4). */
+    private static boolean isWhole(JsonNode value) {
+        return value.isIntegralNumber() && value.canConvertToInt();
     }
 
     /** The kind of a node, for a fault message. */

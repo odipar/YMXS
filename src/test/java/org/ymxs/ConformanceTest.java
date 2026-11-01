@@ -9,8 +9,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -56,7 +59,15 @@ class ConformanceTest {
                     "a multi of two tunes: the record is of the second, at 60 Hz where the"
                             + " first is at 50"),
             new Source("deferred", 1, 17,
-                    "a deferred start, recorded at the frame of its row (3.5, 7.4)"));
+                    "a deferred start, recorded at the frame of its row (3.5, 7.4)"),
+            new Source("transformations", 1, 12,
+                    "a start through a transformation, a fade of remaps, a remap at the"
+                            + " repeat row, a target of three registers through a mapping,"
+                            + " transformations of 16 entries and of 256, keys above the most"
+                            + " of a register, two transformations of one name, equal entries"
+                            + " under two names (3.6.2), and a remap on a timer outside the"
+                            + " tune (4.3); the file lists the transformations in another"
+                            + " order than 1.9 numbers them (3.6, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {
@@ -128,6 +139,48 @@ class ConformanceTest {
         listed = listed(warned, "`%s.json`");
         assertTrue(task.contains(listed + " break a rule"),
                 "TASK.md has another list than " + listed);
+    }
+
+    /** The lengths of the transformations of the kit, as SOURCES.md and
+     *  README.md list them. */
+    @Test
+    void theKitListsTheLengthsOfItsTransformations() throws IOException {
+        TreeSet<Integer> lengths = new TreeSet<>();
+        for (Source source : KIT) {
+            Multi multi = Text.read(Files.readString(
+                    KIT_AT.resolve("tunes").resolve(source.name() + ".json")));
+            for (Tune tune : multi.tunes()) {
+                for (Transformation each : Tunes.transformations(tune)) {
+                    lengths.add(each.entries().size());
+                }
+            }
+        }
+        assertEquals(2, lengths.size(), "the transformations of the kit have two lengths: "
+                + lengths);
+        String listed = "transformations of %d entries and of %d".formatted(
+                lengths.first(), lengths.last());
+        assertTrue(prose("SOURCES.md").contains(listed),
+                "SOURCES.md has other lengths than " + listed);
+        assertTrue(prose("README.md").contains(listed),
+                "README.md has other lengths than " + listed);
+    }
+
+    /** The number of tunes of the kit, a file each under tunes/, against
+     *  the two sentences of README.md with it as a word: the kit is that
+     *  many tunes, and that many reach the four timers. */
+    @Test
+    void theReadmeHasTheNumberOfTunesOfTheKit() throws IOException {
+        try (Stream<Path> files = Files.list(KIT_AT.resolve("tunes"))) {
+            assertEquals(KIT.size(), files.filter(one -> one.toString().endsWith(".json"))
+                    .count(), "tunes/ has a file a tune of the kit");
+        }
+        String word = Words.of(KIT.size());
+        String readme = prose("README.md");
+        assertTrue(readme.contains("The kit is " + word + " tunes"),
+                "README.md has another number of tunes than " + word);
+        assertTrue(readme.contains(word + " reach the four timers"),
+                "README.md has another number of tunes reaching the four timers than "
+                        + word);
     }
 
     /** A document of the kit, each run of white space one space. */

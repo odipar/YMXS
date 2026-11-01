@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 7,
   "tunes": [
     {
       "title": "One row",
@@ -10,6 +10,7 @@
       "rows": 1,
       "repeat": 0,
       "sources": [],
+      "transformations": [],
       "registers": {
         "r0": [
           128

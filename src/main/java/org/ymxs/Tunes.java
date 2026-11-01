@@ -7,13 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Identity;
+import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.OneTarget;
 import org.ymxs.YMXS.Pair;
+import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.SetBuzzer;
@@ -33,6 +38,7 @@ import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.ThreeTarget;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 import org.ymxs.YMXS.TwoTarget;
@@ -52,6 +58,13 @@ public final class Tunes {
 
     /** The stop, the same for every timer and every row. */
     public static final Stop STOP = new Stop();
+
+    /** The part that writes each value as it is (SPEC.md 3.6.2). */
+    public static final Identity IDENTITY = new Identity();
+
+    /** The mapping of no parts, the identity in every part (SPEC.md
+     *  3.6.3). */
+    public static final Mapping NO_PARTS = new Mapping(List.of());
 
     /** An empty row. A player advancing over it leaves every register as it
      *  is and
@@ -166,6 +179,51 @@ public final class Tunes {
                     + all.size());
         }
         return all.get(number - 1);
+    }
+
+    /**
+     * The transformations of this tune, in the order of SPEC.md 1.9: the
+     * rows from row 0, within a row the timers A to D, and of a start or a
+     * remap each part of its mapping from part 0, a transformation new to
+     * the list appended. The identity is outside the list.
+     */
+    public static List<Transformation> transformations(Tune tune) {
+        List<Transformation> out = new ArrayList<>();
+        for (Row row : rows(tune)) {
+            for (Effect effect : effects(row).values()) {
+                Mapping mapping = mapping(effect);
+                if (mapping == null) {
+                    continue;
+                }
+                for (Part part : mapping.parts()) {
+                    if (part instanceof Transformation transformation
+                            && !out.contains(transformation)) {
+                        out.add(transformation);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    /** The number a form writes for {@code part}: 0 for the identity, and
+     *  n for transformation n of {@code transformations}, the list of
+     *  {@link #transformations}.
+     *
+     * @throws IllegalArgumentException where the list lacks the part
+     */
+    public static int number(List<Transformation> transformations, Part part) {
+        return switch (part) {
+            case Identity ignored -> 0;
+            case Transformation transformation -> {
+                int at = transformations.indexOf(transformation);
+                if (at < 0) {
+                    throw new IllegalArgumentException("no row of this tune maps through "
+                            + transformation.name());
+                }
+                yield at + 1;
+            }
+        };
     }
 
     /** The timers this tune claims: every timer a row starts a source on.
@@ -403,6 +461,7 @@ public final class Tunes {
             case Start start -> timing(start).timerReset();
             case Retune retune -> retune.timing().timerReset();
             case Stop ignored -> false;
+            case Remap ignored -> false;
         };
     }
 
@@ -412,6 +471,7 @@ public final class Tunes {
             case Start start -> timing(start).placeReset();
             case Retune retune -> retune.timing().placeReset();
             case Stop ignored -> false;
+            case Remap ignored -> false;
         };
     }
 
@@ -425,25 +485,88 @@ public final class Tunes {
         };
     }
 
-    /** The start of {@code source} on {@code target}, the record of the
-     *  width they share. A reader of a form builds a start this way,
-     *  where the two come off text; code that names the shapes builds the
-     *  record.
+    /** The mapping a start connects its source through. */
+    public static Mapping mapping(Start start) {
+        return switch (start) {
+            case StartOne one -> one.mapping();
+            case StartPair pair -> pair.mapping();
+            case StartTriple triple -> triple.mapping();
+        };
+    }
+
+    /** The mapping of a start or a remap, or null for a retune and a
+     *  stop, which have none. */
+    public static @Nullable Mapping mapping(Effect effect) {
+        return switch (effect) {
+            case Start start -> mapping(start);
+            case Remap remap -> remap.mapping();
+            case Retune ignored -> null;
+            case Stop ignored -> null;
+        };
+    }
+
+    // ---------------------------------------------------------- a mapping
+
+    /** A mapping of these parts, part i for value i of a row. */
+    public static Mapping mapping(Part... parts) {
+        return new Mapping(List.of(parts));
+    }
+
+    /** The parts a tick writes the values of a row through, on a target
+     *  of {@code width} values a row: part i for value i, and the identity
+     *  for each value where the mapping has no parts (SPEC.md 3.6.3). */
+    public static List<Part> parts(Mapping mapping, int width) {
+        if (!mapping.parts().isEmpty()) {
+            return mapping.parts();
+        }
+        List<Part> out = new ArrayList<>();
+        for (int at = 0; at < width; at++) {
+            out.add(IDENTITY);
+        }
+        return out;
+    }
+
+    /** Whether every part of the mapping is the identity, the mapping of
+     *  no parts included: a form writes 0 for such a mapping. */
+    public static boolean isIdentity(Mapping mapping) {
+        return mapping.parts().stream().allMatch(part -> part instanceof Identity);
+    }
+
+    /** The value written for {@code value} through {@code part}: the value
+     *  itself through the identity, and its entry through a
+     *  transformation (SPEC.md 3.6.4), whose keys are 0 to the number of
+     *  its entries less one, 255 at most (3.6.1).
+     *
+     * @throws IndexOutOfBoundsException where the value is outside the
+     *     keys of the transformation
+     */
+    public static int written(Part part, int value) {
+        return switch (part) {
+            case Identity ignored -> value;
+            case Transformation transformation -> transformation.entries().get(value);
+        };
+    }
+
+    /** The start of {@code source} on {@code target} through
+     *  {@code mapping}, the record of the width they share. A reader of a
+     *  form builds a start this way, where the two come off text; code
+     *  that names the shapes builds the record.
      *
      * @throws IllegalArgumentException where the source has other values
      *     a row than the target reads
      */
     public static Start starting(Target target, Source source, Prescaler prescaler,
-            int count, boolean timerReset, boolean placeReset, boolean deferred) {
+            int count, boolean timerReset, boolean placeReset, boolean deferred,
+            Mapping mapping) {
         Timing timing = new Timing(prescaler, count, timerReset, placeReset);
         if (target instanceof OneTarget one && source instanceof Single single) {
-            return new StartOne(one, single, timing, deferred);
+            return new StartOne(one, single, timing, deferred, mapping);
         }
         if (target instanceof TwoTarget two && source instanceof Pair pair) {
-            return new StartPair(two, pair, timing, deferred);
+            return new StartPair(two, pair, timing, deferred, mapping);
         }
         if (target instanceof ThreeTarget three && source instanceof Triple triple) {
-            return new StartTriple(three, triple, timing, deferred);
+            return new StartTriple(three, triple, timing, deferred, mapping);
         }
         throw new IllegalArgumentException("a source of " + columns(source)
                 + " values a row on " + name(target) + ", which reads "
@@ -451,10 +574,11 @@ public final class Tunes {
     }
 
     /** A struck note: the source from its first row, the timer from a
-     *  whole period, at the row. */
+     *  whole period, at the row, through the mapping of no parts. */
     public static Start struck(OneTarget target, Single source, Prescaler prescaler,
             int count) {
-        return new StartOne(target, source, new Timing(prescaler, count, true, true), false);
+        return new StartOne(target, source, new Timing(prescaler, count, true, true), false,
+                NO_PARTS);
     }
 
     /** A bend: the count changes and both resets stay clear. */

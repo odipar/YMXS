@@ -1,8 +1,10 @@
 package org.ymxs;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.ymxs.YMXS.Multi;
 
 /**
@@ -11,15 +13,17 @@ import org.ymxs.YMXS.Multi;
  * so stays outside {@link YMXS}.
  *
  * <p>{@link Json} maps the structure to a JSON tree and back;
- * {@link Layout} fixes the line breaks; the escaping, the parsing and the
- * writing are the JSON library's. This class is the two ends of that.
+ * {@link Layout} fixes the line breaks; {@link Written.Reader} builds the
+ * tree read, each number in it as written; the escaping, the parsing and
+ * the writing are the JSON library's. This class is the two ends of that.
  *
  * <p>Writing a multi and reading it back returns an equal multi. Reading
  * text written by this class and writing it back returns identical text.
  */
 public final class Text {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(
+            new SimpleModule().addDeserializer(JsonNode.class, new Written.Reader()));
 
     private static final ObjectWriter WRITER = MAPPER.writer(new Layout());
 

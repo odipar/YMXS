@@ -103,8 +103,9 @@ which lines it writes before that write and which after.
 
 **4.1 The report.** A tool that finds an error writes its name, `: `, the
 text of the error and a line feed, and exits with the code of 3.6. An error
-of the structure (4.3) or of an unstarted source (4.4) is one text of one or
-more lines, each ending in a line feed, the name before the first alone:
+of the structure (4.3), or of an unstarted source or an unused
+transformation (4.4, 4.5), is one text of one or more lines, each ending in
+a line feed, the name before the first alone:
 
     ymxs-check: tune 1: the tune has 4 rows and repeats to row 4
     tune 1: row 0: Timer A: the source has 2 rows and repeats to row 2
@@ -115,16 +116,18 @@ csv.md 5.1. The reading ends at the first error found.
 
 **4.2.1 JSON.** The reading performs the steps of json.md 7.1 in order, so
 the first error found is the first in that order: the root's `format`,
-`version` and `tunes`; for each tune, its `rows`, `sources`, `registers`,
-`timerA` to `timerD`, then `title`, `composer`, `writer`, `rate` and
-`repeat`, then the unstarted sources (4.4); after the last tune, the
-structure (4.3).
+`version` and `tunes`; for each tune, its `rows`, `sources`,
+`transformations`, `registers`, `timerA` to `timerD`, then `title`,
+`composer`, `writer`, `rate` and `repeat`, then the unstarted sources and
+the unused transformations (4.4, 4.5); after the last tune, the structure
+(4.3).
 
 **4.2.2 CSV.** The reading performs the steps of csv.md 4.1 in order: the
 text split into blocks; the `multi` block; for each `tune` block, every
 block after it other than a timer block, in file order, then the timer
 blocks in file order, then the tune's `rate` and `repeat`, then the
-unstarted sources (4.4); after the last tune, the structure (4.3).
+unstarted sources and the unused transformations (4.4, 4.5); after the last
+tune, the structure (4.3).
 
 **4.3 Errors of the structure.** After the form is read, the structure
 is checked as json.md 8.3 and csv.md 5.3 define: every condition of
@@ -135,7 +138,15 @@ SPEC.md 1.11 present is one line of one error, in the order of SPEC.md
 **4.4 An unstarted source.** A source listed in JSON `sources` or a CSV
 `source` block must be started by a tune row. Otherwise, reading the tune
 produces an error of the form before the structure check: one line per
-source in list order, using the last line of json.md 8.1 or csv.md 5.1.
+source in list order, using the line of json.md 8.1 or csv.md 5.1 for a
+source no row starts.
+
+**4.5 An unused transformation.** A transformation listed in JSON
+`transformations` or a CSV `transformation` block must be a part of the
+mapping of a tune row. Otherwise, reading the tune produces an error of the
+form before the structure check, the error of 4.4 where there is one: one
+line per transformation in list order, after the lines of 4.4, using the
+line of json.md 8.1 or csv.md 5.1 for a transformation no row uses.
 
 ---
 
@@ -213,8 +224,8 @@ the input text and D that of the output. For `doc/tunes/example.json`
 and `doc/tunes/example.csv`:
 
 ```
-ymxs-json-to-csv: 1 tune, 4 rows, 766 characters in and 482 out
-ymxs-csv-to-json: 1 tune, 4 rows, 482 characters in and 766 out
+ymxs-json-to-csv: 1 tune, 4 rows, 828 characters in and 494 out
+ymxs-csv-to-json: 1 tune, 4 rows, 494 characters in and 828 out
 ```
 
 **7.3** The multi `ymxs-json-to-csv` writes, read by `ymxs-csv-to-json`,
@@ -222,12 +233,16 @@ equals the multi read, and the same with the two exchanged. A JSON text
 one of these tools wrote is written back byte for byte through the two
 in that order, and a CSV text through the two in the other order.
 
-**7.4** A multi whose title, composer, writer or source name has a line
-feed or a carriage return in it is an error of `ymxs-json-to-csv`, found
-after the reading and before any warning line, exit 1, standard output
-empty:
+**7.4** A multi whose title, composer, writer, source name or
+transformation name has a line feed or a carriage return in it is an error
+of `ymxs-json-to-csv`, found after the reading and before any warning line,
+exit 1, standard output empty:
 
-    ymxs-json-to-csv: a value with a line feed in it, which this form cannot write: <value>
+    ymxs-json-to-csv: a value with a line feed or a carriage return in it, which this form cannot write: <value>
+
+`<value>` is the text, each line feed in it written as the two characters
+`\n` and each carriage return as `\r`, so the report is one line (csv.md
+5.4).
 
 ---
 
@@ -265,7 +280,8 @@ with the `this is not JSON: ` error of 8.1, exit 1, standard output empty.
 ## 9. ym-to-ymxs
 
 **9.1** The input is a YM3!, YM3b, YM5! or YM6! register dump, in an LHA
-archive or bare, and the output is JSON of a multi of one tune.
+archive or bare, and the output is JSON of a multi of one tune, of version
+7 (json.md 2.4), every start with the mapping of no parts (SPEC.md 3.6.3).
 [ym.md](ym.md) defines the reading and the errors of a dump.
 
 **9.2 The flags.** `-r`, `-rROW` and `-silent`. `-r` writes a tune that
@@ -295,10 +311,10 @@ SPEC.md 1.11 for the repeat row.
 dump's name and author as they are, each empty for a YM3 dump (ym.md 2.6);
 R the row count, H the rate, S the number of sources the rows start,
 `<timers>` the timers some row starts a source on, A to D, separated by
-`, `, `[]` where empty. Three parts follow, each where its figure is above
-0, in this order: `, N slots this does not read`, `, N frames a recording
-kept a square wave off its voice`, `, N recordings cut at the row the tune
-repeats to` (ym.md 9).
+`, `, `[]` where empty. Three clauses follow, each where its figure is
+above 0, in this order: `, N slots this does not read`, `, N frames a
+recording kept a square wave off its voice`, `, N recordings cut at the
+row the tune repeats to` (ym.md 9).
 
 ```
 ym-to-ymxs: YM5! "Circus Attractions #2" by "Mad Max", 4 rows at 50 Hz, 0 sources, timers []
@@ -388,7 +404,7 @@ runner where a caller starts it, puts Go on the path:
 | `doc/tunes/example.csv` with a `timerReset` or `placeReset` cell of `x`, empty, or `yes` on a retune | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
 | `doc/tunes/example.json` with a line feed in its writer | `ymxs-json-to-csv`; exit 1 and the line of 7.4 |
 | `doc/tunes/deferred.json` with R8 set at rows 5 and 6 | `ymxs-check`; the two rule 1 lines that rest on the reckoning, of the square to row 6 and of the deferred start from there (SPEC.md 6.3) |
-| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 6 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
+| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 7 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
 | `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
 | a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
 | `src/test/resources/packed.ym` | `ym-to-ymxs -r-1` and `-r-2147483648`: exit 2 and `-rROW is not a row number` (9.2) |
@@ -396,6 +412,30 @@ runner where a caller starts it, puts Go on the path:
 | `doc/tunes/example.csv` with a `repeat` cell of `x` before a `value` cell of `y`, a `count` cell with a `"`, a `\` or a control character in it, and timer tables named with them | `ymxs-csv-to-json`; exit 1 and the line of csv.md 5.1, the cell or name as read |
 | `doc/tunes/example.json` with a title of a character outside the Basic Multilingual Plane | `ymxs-json-to-csv`, then `ymxs-csv-to-json` on that output; the character counted as two (1.7) |
 | a YM6! dump whose name has a `"`, a `\` and a control character in it and whose author has bytes above 127, and 12 bytes opening with `a"\` and a control character | `ym-to-ymxs`; the name and the author as they are (9.4), and the opening bytes as ym.md 3 defines |
+| `doc/tunes/fade.json` and `doc/conformance/tunes/transformations.json`, tunes through transformations | `ymxs-check`; `ymxs-json-to-csv`; `ymxs-csv-to-json` on that output, equal to `ymxs-merge` on the file and to `fade.json` byte for byte; the two concatenated through `ymxs-merge` |
+| a tune of version 7 with a transformation of the empty name | `ymxs-json-to-csv`, the name a row line of `""` (csv.md 2.5); `ymxs-csv-to-json` and `ymxs-json-to-csv` on that output, the CSV byte for byte |
+| a tune of version 7 in JSON with each condition version 7 adds to json.md 8.1, numbers of X written `1e1`, `1.50` and `-0`, and a transformation name with a line feed, and with a carriage return | `ymxs-check`, and `ymxs-json-to-csv` for the two names; exit 1 and the line of json.md 8.1, X with each number as written in the file, or of 7.4, the name written as 7.4 defines |
+| that tune in JSON as version 6 without its `Remap`, with an entry of `"x"` and a `mapping` column of `"x"` | `ymxs-check`; exit 0, the `transformations` key and the `mapping` column skipped (json.md 2.4) |
+| that tune in CSV with each condition version 7 adds to csv.md 5.1, a `mapping` cell of an Arabic-Indic digit, and a `value` cell of Arabic-Indic digits | `ymxs-csv-to-json`; exit 1 and the line of csv.md 5.1 (csv.md 1.7) |
+| that tune in CSV with a `mapping` cell of `1`, U+00A0 and `1` | `ymxs-csv-to-json`; exit 1 and the line of SPEC.md 1.11 of a mapping of 2 parts on `setR8` (csv.md 1.3, 3.10) |
+| that tune in CSV with a `value` cell ending in U+00A0 | `ymxs-csv-to-json`; exit 0 (csv.md 1.3, 1.7) |
+| that tune in CSV with an `entry` block of 16 row lines | `ymxs-csv-to-json`; exit 0 |
+| that tune in CSV with an `entry` block of 257 row lines, and with the block absent | `ymxs-csv-to-json`; exit 1 and the line `the transformation has E entries` of SPEC.md 1.11, E 257 or 0 (csv.md 3.12) |
+| that tune in CSV with an `entry` block of 16 row lines and a `value` cell of 16 | `ymxs-csv-to-json`; exit 1 and the line of SPEC.md 1.11 of a key above 15 |
+| that tune in CSV as version 6 and as version 4 with its `transformation` and `entry` blocks, with each of the two alone, the `entry` block alone also with an `entry` cell of `x`, and with the `entry` block first | `ymxs-csv-to-json`; exit 1 and the line of csv.md 5.1 of a block of any other name for the first of the two in file order, the line of the tools of 0.6.0 (csv.md 3.10, 4.1 step 5) |
+| that tune in CSV as version 6 without the two blocks and its `Remap`, with a `mapping` cell of `x` | `ymxs-csv-to-json`; exit 0, the `mapping` column skipped (csv.md 3.10) |
+| that tune in CSV as version 6 without the two blocks, its `Remap` kept | `ymxs-csv-to-json`; exit 1 and the line of csv.md 5.1 of a `shape` cell of 3 in a file of version 6 or before |
+| that tune in JSON with each condition version 7 adds to SPEC.md 1.11, a `Remap` read against the `Start` after it included, through transformations of 0, 1, 16, 255, 256 and 257 entries | `ymxs-check`; exit 1 and the lines of SPEC.md 1.11 in the order of 1.12; for 0 and 257 entries the line `the transformation has E entries` and the lines of its entries, with no line of a value through it |
+| that tune in JSON through a transformation of 255 entries, each 0 to 255 | `ymxs-check`; exit 0 |
+| that tune in JSON through a table of 16 entries and one of 256, both named `half` | `ymxs-check`, exit 0; `ymxs-merge`, which writes two transformations (SPEC.md 3.6.2) |
+| that tune in JSON through two transformations listed in the other order than SPEC.md 1.9 numbers them, an entry of 300 in one, and an entry above 255 in each | `ymxs-check`; exit 1 and the lines of the entries, prefixed `transformation F, NAME: `, F the number of 1.9, in that number order (SPEC.md 1.12) |
+| that tune in JSON with a source of 0, 1 and 20 at the `Start` and at the `Remap` through a table of 16 entries, entry 0 of 40 and entry 1 of 300 | `ymxs-check`; exit 1, the line of entry 1, then at the `Start` the line of a key of 20 above 15 and the line of 0 mapped to 40, and at the `Remap` the two in row order (SPEC.md 1.12) |
+| a tune of version 7 in JSON with two sources of one row of 16 under two names, started on R8 at rows 0 and 1, a `Remap` at row 2 through 16 entries, and the first started again at row 3 | `ymxs-check`; exit 1 and the line of a key above 15 for each source, prefixed `start of row 0: ` and `start of row 1: ` (SPEC.md 1.12) |
+| a tune of version 7 in JSON with a source or a transformation named with a line feed, and named with a carriage return, the name in a line prefixed `transformation F, NAME: ` or in a line of json.md 8.1 | `ymxs-check`, and `ymxs-json-to-csv` for the line prefixed `transformation F, NAME: `; exit 1 and that line as one line, the two characters `\n` in place of the line feed and `\r` in place of the carriage return (SPEC.md 1.12, json.md 8.1) |
+| a tune of version 7 in CSV with a source or a transformation named with a carriage return, the name in a line prefixed `transformation F, NAME: ` or in a line of csv.md 5.1, and a tune of version 3 in CSV with a source so named and a row of several values | `ymxs-csv-to-json`; exit 1 and that line as one line, the two characters `\r` in place of the carriage return (SPEC.md 1.12, csv.md 5.1) |
+| a tune of version 7 in JSON and in CSV with a source of one value a row started on a target of two registers, and of two values on a target of one, the row of the start setting a register above its most | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the one line `a source of W values a row on setRn, which reads U` of json.md 8.1 or csv.md 5.1, the line of the register unreported (SPEC.md 3.2.1) |
+| that tune in JSON and in CSV with the start of a source of one value a row on a target of two registers mapping through transformation 2, and the start of a source of two values on a target of one with a `count` of `x` | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line of json.md 8.1 or csv.md 5.1 of the `mapping` or of the `count`, since a reader verifies the values a row after the columns of a start (json.md 7.1 step 8, csv.md 4.1 step 6) |
+| a tune of version 7 with a source of no rows started on a target of two registers: in JSON an empty `values`, and in CSV no `value` block and a `value` block of no row line | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line `a source of 1 values a row on setNoiseB, which reads 2` of json.md 8.1 or csv.md 5.1 (json.md 4.2, csv.md 3.6) |
 
 **11.5 Where the trees differ.** Each row is one input on which the two
 trees differ, read off invocations of both.
@@ -404,12 +444,12 @@ trees differ, read off invocations of both.
 |---|---|---|
 | an input that is not JSON | `this is not JSON: ` and the message of the Java parser | `this is not JSON: ` and the message of the Go parser |
 | an input that is not JSON, through `ymxs-merge` | the line above and a second line with the parser's location (8.1) | one line |
-| a fault line that prints a value, X of json.md 8.1 | the value as the Java parser writes it: `10.0` for `1e1`, `[1,2]` for an array, an object's keys in input order | `null`, `an array`, `an object`, the text in quotes, the number as written, or `true` |
+| a JSON text with an unpaired surrogate escape, such as `\ud800` | the character written as `?`, on standard error and in the output of `ymxs-json-to-csv` and `ymxs-merge` | the character written as U+FFFD, on standard error and in the output of `ymxs-json-to-csv` and `ymxs-merge` |
 
-The three rows come from the two JSON parsers. The messages of the two
-differ, and each keeps a value in a separate form: Jackson a number as its
-value and an object's keys in input order, Go's decoder a number as
-written and an object's keys unordered.
+The three rows come from the two JSON parsers: the messages of the two
+differ, and the Java parser reads an unpaired surrogate escape as a lone
+UTF-16 surrogate, which the UTF-8 encoder of the output writes as `?`, where
+the Go parser reads it as U+FFFD.
 
 **11.6 The whole suite.** `bin/suite [maven argument ...]` runs the Java
 suite as `.github/workflows/test.yml` runs it. It writes

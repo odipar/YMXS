@@ -8,20 +8,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
+import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Three;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 import org.ymxs.YMXS.Two;
@@ -105,6 +108,19 @@ public final class Csv {
             }
         }
 
+        // 3.11, 3.12: a transformation opens a block of its name, and its
+        // entries are a block after it, a row line a key
+        List<Transformation> transformations = Tunes.transformations(tune);
+        for (Transformation transformation : transformations) {
+            table(out, "transformation", "name");
+            row(out, transformation.name());
+            table(out, "entry", "key", "entry");
+            List<Integer> entries = transformation.entries();
+            for (int key = 0; key < entries.size(); key++) {
+                row(out, key, entries.get(key));
+            }
+        }
+
         List<Object> named = new ArrayList<>(List.of("registers", "row"));
         for (Register register : Register.values()) {
             named.add(Json.name(register));
@@ -124,7 +140,7 @@ public final class Csv {
         }
 
         for (Timer timer : Timer.values()) {
-            timer(out, timer, rows, sources);
+            timer(out, timer, rows, sources, transformations);
         }
     }
 
@@ -132,7 +148,7 @@ public final class Csv {
      *  values are the ones {@link Json} writes, and a cell is empty where
      *  that form writes {@code -1}. */
     private static void timer(StringBuilder out, Timer timer, List<Row> rows,
-                              List<Source> sources) {
+                              List<Source> sources, List<Transformation> transformations) {
         boolean any = false;
         for (Row row : rows) {
             if (row.effects().containsKey(timer)) {
@@ -144,7 +160,7 @@ public final class Csv {
             return;
         }
         table(out, "timer" + timer.name(), "row", "shape", "target", "source",
-                "prescaler", "count", "timerReset", "placeReset", "deferred");
+                "prescaler", "count", "timerReset", "placeReset", "deferred", "mapping");
         for (int line = 0; line < rows.size(); line++) {
             Effect effect = rows.get(line).effects().get(timer);
             if (effect == null) {
@@ -155,14 +171,31 @@ public final class Csv {
                         Tunes.number(Tunes.target(start)), sources.indexOf(Tunes.source(start)) + 1,
                         Chip.divides(Tunes.prescaler(start)), Tunes.count(start),
                         Tunes.timerReset(start) ? 1 : 0, Tunes.placeReset(start) ? 1 : 0,
-                        Tunes.deferred(start) ? 1 : 0);
+                        Tunes.deferred(start) ? 1 : 0,
+                        mapping(Tunes.mapping(start), transformations));
                 case Retune retune -> row(out, line, Json.RETUNE, "", "",
                         Chip.divides(retune.timing().prescaler()), retune.timing().count(),
                         retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0,
-                        "");
-                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "", "");
+                        "", "");
+                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "", "", "");
+                case Remap remap -> row(out, line, Json.REMAP, "", "", "", "", "", "", "",
+                        mapping(remap.mapping(), transformations));
             }
         }
+    }
+
+    /** The cell of a mapping (6.3): {@code 0} where every part is the
+     *  identity, the mapping of no parts included, and otherwise the
+     *  number of each part, separated by one space. */
+    private static String mapping(Mapping mapping, List<Transformation> transformations) {
+        if (Tunes.isIdentity(mapping)) {
+            return "0";
+        }
+        List<String> numbers = new ArrayList<>();
+        for (Part part : mapping.parts()) {
+            numbers.add(String.valueOf(Tunes.number(transformations, part)));
+        }
+        return String.join(" ", numbers);
     }
 
     /** A line opening a table and naming its columns, after a blank line. */
@@ -175,21 +208,28 @@ public final class Csv {
     }
 
     /** One row, each cell quoted where it has a comma, a quote or a
-     *  leading or trailing space. */
+     *  leading or trailing white space, and a row of one empty cell as
+     *  {@code ""}: a reader skips a blank line (2.1, 2.5). */
     private static void row(StringBuilder out, Object... cells) {
         for (int at = 0; at < cells.length; at++) {
             out.append(at > 0 ? "," : "").append(cell(String.valueOf(cells[at])));
         }
+        if (cells.length == 1 && String.valueOf(cells[0]).isEmpty()) {
+            out.append("\"\"");
+        }
         out.append('\n');
     }
 
+    /** {@code said} as a cell. A text with a line feed or a carriage
+     *  return in it is the error of 5.4, the text in its line written as
+     *  {@link Check#named} writes a name, so the line is one line. */
     private static String cell(String said) {
         if (said.indexOf('\n') >= 0 || said.indexOf('\r') >= 0) {
-            throw new IllegalArgumentException("a value with a line feed in it, which this"
-                    + " form cannot write: " + said);
+            throw new IllegalArgumentException("a value with a line feed or a carriage return"
+                    + " in it, which this form cannot write: " + Check.named(said));
         }
         boolean quote = said.indexOf(',') >= 0 || said.indexOf('"') >= 0
-                || !said.equals(said.strip()) || said.startsWith("#");
+                || !said.equals(trimmed(said)) || said.startsWith("#");
         return quote ? '"' + said.replace("\"", "\"\"") + '"' : said;
     }
 
@@ -257,18 +297,19 @@ public final class Csv {
     /** One source out of its name, its rows and its repeat: a row of one
      *  value where the value block has the `value` cell alone, and of two
      *  or three where it has `value2` and `value3` (3.6). A file of
-     *  version 3 has one value a row (json.md 2.4). */
+     *  version 3 has one value a row (json.md 2.4). A line of an error has
+     *  the name through {@link Check#named} (5.1). */
     private static Source source(String name, List<List<Integer>> rows,
             OptionalInt repeat, int version) {
         for (List<Integer> row : rows) {
             if (row.size() != rows.get(0).size()) {
-                throw new IllegalArgumentException("source " + name + " has rows of "
-                        + rows.get(0).size() + " and of " + row.size()
+                throw new IllegalArgumentException("source " + Check.named(name)
+                        + " has rows of " + rows.get(0).size() + " and of " + row.size()
                         + " values, and a source has one shape");
             }
             if (row.size() > 1 && version < Json.SEVERAL) {
-                throw new IllegalArgumentException("source " + name + " has a row of"
-                        + " several values, and version " + version
+                throw new IllegalArgumentException("source " + Check.named(name)
+                        + " has a row of several values, and version " + version
                         + " has one value a row");
             }
         }
@@ -298,6 +339,8 @@ public final class Csv {
         List<String> names = new ArrayList<>();
         List<OptionalInt> repeats = new ArrayList<>();
         List<List<List<Integer>>> values = new ArrayList<>();
+        List<String> mapped = new ArrayList<>();
+        List<List<Integer>> entries = new ArrayList<>();
         List<Map<Register, Integer>> registers = empty(count, Register.class);
         List<Map<Timer, Effect>> effects = empty(count, Timer.class);
         List<Block> acts = new ArrayList<>();
@@ -340,6 +383,33 @@ public final class Csv {
                         last.add(row);
                     }
                 }
+                // in a file of version 6 or before either block is a block
+                // of any other name (3.10, 4.1 step 5)
+                case "transformation" -> {
+                    if (version < Json.MAPPED) {
+                        throw absent(number, block);
+                    }
+                    if (block.rows().size() != 1) {
+                        throw new IllegalArgumentException("tune " + number + " opens a"
+                                + " transformation with " + block.rows().size() + " rows,"
+                                + " and one row opens it");
+                    }
+                    mapped.add(block.of(block.rows().get(0), "name"));
+                    entries.add(new ArrayList<>());
+                }
+                case "entry" -> {
+                    if (version < Json.MAPPED) {
+                        throw absent(number, block);
+                    }
+                    if (entries.isEmpty()) {
+                        throw new IllegalArgumentException("tune " + number + " opens entries"
+                                + " before any transformation");
+                    }
+                    List<Integer> last = entries.get(entries.size() - 1);
+                    for (List<String> line : block.rows()) {
+                        last.add(number(block.of(line, "entry"), "entry"));
+                    }
+                }
                 case "registers" -> {
                     for (List<String> line : block.rows()) {
                         int at = row(count, block.of(line, "row"), "tune " + number
@@ -355,9 +425,7 @@ public final class Csv {
                 }
                 default -> {
                     if (!block.name().startsWith("timer")) {
-                        throw new IllegalArgumentException("tune " + number + " opens a \""
-                                + TABLE + block.name() + "\" table, which this form does"
-                                + " not have");
+                        throw absent(number, block);
                     }
                     acts.add(block);
                 }
@@ -368,12 +436,17 @@ public final class Csv {
             sources.add(source(names.get(at), values.get(at), repeats.get(at),
                     version));
         }
+        List<Transformation> transformations = new ArrayList<>();
+        for (int at = 0; at < mapped.size(); at++) {
+            transformations.add(new Transformation(mapped.get(at), entries.get(at)));
+        }
         for (Block block : acts) {
             Timer timer = timer(block.name(), number);
             for (List<String> line : block.rows()) {
                 int at = row(count, block.of(line, "row"), "tune " + number
                         + " sets an effect");
-                effects.get(at).put(timer, effect(block, line, sources, at, version));
+                effects.get(at).put(timer, effect(block, line, sources, transformations, at,
+                        version));
             }
         }
         List<Row> rows = new ArrayList<>();
@@ -383,11 +456,18 @@ public final class Csv {
         Tune tune = new Tune(told.of(one, "title"), told.of(one, "composer"),
                 told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
                 new Table<>(rows, maybe(told.of(one, "repeat"))));
-        List<String> wrong = Check.declared(sources, tune);
+        List<String> wrong = Check.declared(sources, transformations, tune);
         if (!wrong.isEmpty()) {
             throw new IllegalArgumentException(String.join("\n", wrong));
         }
         return tune;
+    }
+
+    /** The error of a block of tune {@code number} whose name is outside
+     *  the names of a block of a tune (4.1 step 5). */
+    private static IllegalArgumentException absent(int number, Block block) {
+        return new IllegalArgumentException("tune " + number + " opens a \"" + TABLE
+                + block.name() + "\" table, which this form does not have");
     }
 
     /** The timer a table of that name is for. */
@@ -403,10 +483,12 @@ public final class Csv {
                 + Timer.values()[Timer.values().length - 1]);
     }
 
-    /** One row's operation on the effect of one timer, its target and its
-     *  deferral read against the version (json.md 2.4). */
-    private static Effect effect(Block acts, List<String> one, List<Source> sources, int at,
-            int version) {
+    /** One row's operation on the effect of one timer, its target, its
+     *  deferral and its mapping read against the version (json.md 2.4),
+     *  and a start's source verified to have the values a row its target
+     *  reads as the start is built (5.1). */
+    private static Effect effect(Block acts, List<String> one, List<Source> sources,
+            List<Transformation> transformations, int at, int version) {
         int shape = number(acts.of(one, "shape"), "shape");
         return switch (shape) {
             case Json.START -> {
@@ -421,14 +503,89 @@ public final class Csv {
                         Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
                         number(acts.of(one, "count"), "count"),
                         flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")),
-                        version >= Json.DEFERRED && flag(acts.of(one, "deferred")));
+                        version >= Json.DEFERRED && flag(acts.of(one, "deferred")),
+                        version >= Json.MAPPED
+                                ? mapping(acts.of(one, "mapping"), at, transformations)
+                                : Tunes.NO_PARTS);
             }
-            case Json.RETUNE -> new Retune(new Timing(Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")), number(acts.of(one, "count"), "count"), flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset"))));
+            case Json.RETUNE -> new Retune(new Timing(
+                    Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
+                    number(acts.of(one, "count"), "count"),
+                    flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset"))));
             case Json.STOP -> Tunes.STOP;
-            default -> throw new IllegalArgumentException("row " + at + " sets shape "
-                    + shape + " of an effect, and a shape is " + Json.START + ", "
-                    + Json.RETUNE + " or " + Json.STOP);
+            case Json.REMAP -> {
+                if (version < Json.MAPPED) {
+                    throw shape(at, shape, version);
+                }
+                yield new Remap(mapping(acts.of(one, "mapping"), at, transformations));
+            }
+            default -> throw shape(at, shape, version);
         };
+    }
+
+    /** The error of a shape outside the shapes of {@code version}. */
+    private static IllegalArgumentException shape(int at, int shape, int version) {
+        return new IllegalArgumentException("row " + at + " sets shape " + shape
+                + " of an effect, and a shape is " + Json.START + ", " + Json.RETUNE
+                + (version >= Json.MAPPED ? ", " + Json.STOP + " or " + Json.REMAP
+                        : " or " + Json.STOP));
+    }
+
+    /**
+     * The mapping of a {@code mapping} cell (3.10): the whole numbers in
+     * it, split at each run of white space, verified one or more, of
+     * several a number other than 0 among them, and each 0 to the number
+     * of transformations, in that order. A cell of one number, 0, is the
+     * mapping of no parts.
+     */
+    private static Mapping mapping(String cell, int at, List<Transformation> transformations) {
+        List<Integer> numbers = new ArrayList<>();
+        for (String part : split(cell)) {
+            try {
+                numbers.add(whole(part));
+            } catch (NumberFormatException wrong) {
+                numbers.clear();
+                break;
+            }
+        }
+        if (numbers.isEmpty()) {
+            throw new IllegalArgumentException("mapping is \"" + cell + "\", and this form"
+                    + " requires a whole number a part");
+        }
+        if (numbers.stream().allMatch(number -> number == 0)) {
+            if (numbers.size() == 1) {
+                return Tunes.NO_PARTS;
+            }
+            throw new IllegalArgumentException("mapping is \"" + cell + "\", and a mapping"
+                    + " of the identity in every part is 0");
+        }
+        List<Part> parts = new ArrayList<>();
+        for (int number : numbers) {
+            parts.add(Json.part(number, at, transformations));
+        }
+        return new Mapping(parts);
+    }
+
+    /** The text between the runs of white space of a cell, the white space
+     *  before the first and after the last removed. */
+    private static List<String> split(String cell) {
+        List<String> out = new ArrayList<>();
+        StringBuilder one = new StringBuilder();
+        for (int at = 0; at < cell.length(); at++) {
+            char c = cell.charAt(at);
+            if (white(c)) {
+                if (one.length() > 0) {
+                    out.add(one.toString());
+                    one.setLength(0);
+                }
+            } else {
+                one.append(c);
+            }
+        }
+        if (one.length() > 0) {
+            out.add(one.toString());
+        }
+        return out;
     }
 
     private static int row(int rows, String said, String what) {
@@ -450,11 +607,51 @@ public final class Csv {
 
     private static int number(String said, String what) {
         try {
-            return Integer.parseInt(said.strip());
+            return whole(trimmed(said));
         } catch (NumberFormatException wrong) {
             throw new IllegalArgumentException(what + " is \"" + said
                     + "\", and this form requires a whole number");
         }
+    }
+
+    /** A whole number (1.7) with its white space removed: an optional
+     *  {@code +} or {@code -} and the digits {@code 0} to {@code 9}, in 32
+     *  bits.
+     *
+     * @throws NumberFormatException where {@code said} is no such number
+     */
+    private static int whole(String said) {
+        int digits = said.startsWith("+") || said.startsWith("-") ? 1 : 0;
+        if (digits == said.length()) {
+            throw new NumberFormatException(said);
+        }
+        for (int at = digits; at < said.length(); at++) {
+            if (said.charAt(at) < '0' || said.charAt(at) > '9') {
+                throw new NumberFormatException(said);
+            }
+        }
+        return Integer.parseInt(said);
+    }
+
+    /** Whether {@code c} is white space: a character of the Unicode
+     *  property White_Space (1.3). */
+    static boolean white(int c) {
+        return c >= 0x09 && c <= 0x0D || c == 0x20 || c == 0x85 || c == 0xA0 || c == 0x1680
+                || c >= 0x2000 && c <= 0x200A || c == 0x2028 || c == 0x2029 || c == 0x202F
+                || c == 0x205F || c == 0x3000;
+    }
+
+    /** {@code said} with the white space before and after it removed. */
+    static String trimmed(String said) {
+        int from = 0;
+        int to = said.length();
+        while (from < to && white(said.charAt(from))) {
+            from++;
+        }
+        while (to > from && white(said.charAt(to - 1))) {
+            to--;
+        }
+        return said.substring(from, to);
     }
 
     /** A cell of 1 or 0, as {@link Json} writes one. */
@@ -474,15 +671,15 @@ public final class Csv {
         // line is a row of the table open.
         String naming = null;
         for (String line : text.split("\n", -1)) {
-            if (line.isBlank()) {
+            if (trimmed(line).isEmpty()) {
                 continue;
             }
             if (line.startsWith("###")) {
                 if (naming != null) {
                     throw new IllegalArgumentException(unnamed(naming));
                 }
-                String name = line.substring(3).strip();
-                if (name.isBlank()) {
+                String name = trimmed(line.substring(3));
+                if (name.isEmpty()) {
                     throw new IllegalArgumentException("a table with no name: " + line);
                 }
                 if (name.indexOf(',') >= 0) {

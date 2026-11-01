@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 7,
   "tunes": [
     {
       "title": "Every register",
@@ -19,6 +19,7 @@
           ]
         }
       ],
+      "transformations": [],
       "registers": {
         "r0": [
           1,
@@ -124,6 +125,16 @@
         ],
         "placeReset": [
           1,
+          -1,
+          -1
+        ],
+        "deferred": [
+          0,
+          -1,
+          -1
+        ],
+        "mapping": [
+          0,
           -1,
           -1
         ]

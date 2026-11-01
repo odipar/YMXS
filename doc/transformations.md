@@ -1,127 +1,30 @@
-# Transformations: a plan for issue 104
+# Transformations in YMXR: a plan for issue 104
 
-Issue 104 asks for a mapping applied to a source on its way to the target:
-a source of volumes A and sixteen tables V0 to V15, each mapping a volume
-to another, so that an effect writes V5(A(row)) where it writes A(row)
-today. This document is the plan: the structure YMXS gains, and how YMXR
-encodes and plays it, the value looked up at the tick. A version of the
-structure that defines it replaces this document.
+The subject of issue 104 is a mapping applied to a source on its way to the
+target: a source of volumes A and sixteen tables V0 to V15, each mapping a
+volume to another, so that an effect writes V5(A(row)) where version 6 of
+the structure writes A(row). Version 7 of the structure defines the
+transformations and the mappings, and this document is the plan for YMXR:
+how YMXR encodes and plays them, the value looked up at the tick.
 
-## The structure
+## Where version 7 defines it
 
-A *transformation* is a name and 256 entries, each 0 to 255: entry k is
-the value written where the value read is k, the key. One kind serves
-every target. The name is text for display and for reports. The identity
-writes each value as it is, and a transformation is distinct from the
-identity, an entry k of value k at every key included; equal entries under
-two names are two transformations.
-
-A *mapping* is, for each value of a row of the target, a transformation or
-the identity. A `Start` connects its source through a mapping, and a tick
-writes value i of the row it reads through part i of the mapping (SPEC.md
-5.2 step 2). A fade of a voice maps its volume alone: on `setVoiceA` the
-mapping is the identity, the identity and V5.
-
-```java
-sealed interface Part permits Identity, Transformation { }
-
-record Identity() implements Part { }
-
-record Transformation(String name, List<Integer> entries) implements Part { }
-
-record Mapping(List<Part> parts) { }
-
-record StartOne(OneTarget target, Single source, Timing timing,
-                boolean deferred, Mapping mapping) implements Start { }
-
-record StartPair(TwoTarget target, Pair source, Timing timing,
-                 boolean deferred, Mapping mapping) implements Start { }
-
-record StartTriple(ThreeTarget target, Triple source, Timing timing,
-                   boolean deferred, Mapping mapping) implements Start { }
-
-record Remap(Mapping mapping) implements Effect { }
-```
-
-A mapping has as many parts as its target reads values (SPEC.md 3.1.1).
-
-### A remap
-
-`Effect` permits `Remap` beside `Start`, `Retune` and `Stop`. A `Remap`
-sets the mapping of the effect the timer runs, as a `Retune` sets its rate
-(SPEC.md 4.3): the timer, the source, the rate, the place and a pending
-`Start` are as they were, and the next tick writes through the new
-mapping. A pending `Start` keeps the mapping of its row. On an idle timer
-a `Remap` leaves the timer as it is, and a check reports it, as it reports
-a `Retune` on one (rule 5). The mapping is part of a timer's condition:
-the wrap and the end keep it (SPEC.md 4.5, 4.6). A `Remap` neither ends a
-run nor begins one (SPEC.md 6.2, 6.3), and at the repeat row it leaves the
-line of rule 1(d) to be reported. A fade of V15 to V0 over sixteen frames
-is sixteen `Remap`s.
-
-### The keys and the numbering
-
-A value through a transformation is a key, 0 to 255, on any target, and
-the entries it reaches are within the most of its register; a value
-through the identity is within the most of its register, as SPEC.md 3.2.2
-defines it today. A source of 8-bit samples written to a volume register
-through a table of the chip's levels is one use.
-
-The transformations of a tune are numbered from 1: read the rows from row
-0 to the last, within a row the timers A, B, C and D, and where a `Start`
-or a `Remap` maps through a transformation new to the list, append it. The
-identity is 0, outside the list. The forms write the transformations in
-that order, and a transformation of a file that no row uses is an error of
-the form.
-
-### What a check reports
-
-The errors of SPEC.md 1.11 gain three lines, and SPEC.md 1.12 reports each
-tune's transformations after its repeat row and before its rows, each in
-number order and prefixed `transformation T: `:
-
-| condition | reported as |
+| piece | clauses |
 |---|---|
-| a transformation has other than 256 entries | `the transformation has E entries, and it maps 256 keys, 0 to 255` |
-| entry K is outside 0 to 255 | `entry K is V, and an entry is 0 to 255` |
-| value i of row N of the source of a `Start`, through part i of its mapping, is above the most M of register i of its target | `value i of row N maps to V on setRn, and the target is 0 to M` |
+| a transformation and the identity | SPEC.md 3.6.1 and 3.6.2 |
+| a mapping | SPEC.md 1.1, 1.8, 3.6.3 and 3.6.4 |
+| a remap | SPEC.md 1.7, 3.5.5, 4.3 and rule 5 |
+| the keys | SPEC.md 3.2.2 and 3.6.5 |
+| the numbering of the transformations | SPEC.md 1.9 |
+| the errors of the structure a check reports | SPEC.md 1.11 and 1.12 |
+| the warning of a remap on an idle timer | SPEC.md 6.3 and 6.5 |
+| JSON | json.md 3.7 to 3.9 and 6.7 |
+| CSV | csv.md 3.9 to 3.12 |
+| the record | SPEC.md 7.3 and 7.4 |
+| the version | the opening of SPEC.md, and json.md 2.4 |
 
-The third line comes under the `Start`'s timer, after the lines of the
-source. A `Remap` is checked against the source the check's model has its
-timer run at that row (SPEC.md 6.2), with the same line, under the
-`Remap`'s timer; where the model has the timer idle, rule 5 reports the
-`Remap`. Rules 1 and 2 read the registers of the target through any
-mapping, `setR7` writes bits 5 to 0 of its entry, and every write of R13,
-mapped or not, restarts the envelope (SPEC.md 2.5).
-
-### The forms
-
-- JSON: a tune has `transformations`, an array, after `sources`, of
-  `{"name":N,"entries":[...]}`, the entries 20 a line. A timer has a
-  `mapping` column after `deferred`: at a start, and as the one part of
-  `shape` 3, a remap, the part's number for a target of one value and an
-  array of the parts' numbers for a wider one, 0 the identity; -1 at
-  `shape` 1 and 2. A file of version 7 has the column wherever a shape
-  selects it.
-- CSV: a `### transformation` block, its `name` cell, and an `### entry`
-  block after it of 256 row lines, `key,entry`, written after the tune's
-  sources in number order; a `mapping` cell after `deferred`, its parts
-  separated by a space; `shape` 3 in csv.md 3.9, 4.1 step 6 and 5.1.
-- The record: the first line has `"transformations"` after `"sources"`, an
-  array of the entries of each; a start's object ends with `"mapping":M`,
-  and a remap is `{"remap":{"mapping":M}}`, M a number for a target of one
-  value and an array otherwise (SPEC.md 7.3, 7.4). The kit's records are
-  written again.
-
-### The version
-
-The structure's version is 7. A writer writes 7, and a reader reads 7 and
-the four versions before it, 6, 5, 4 and 3. In a file of version 6 or
-before a reader skips a `mapping` column and a `transformations` key, and
-reads every start through the identity; `shape` 3 there is the error of
-the form `a shape is -1, 0, 1 or 2`. SPEC.md 3.3.6 and 8.5 name "the
-mapping of the steps of 4.3 to the registers of the MC68901", and are
-reworded in the same change, so that *mapping* has one meaning.
+V0 to V15 are the transformations `Vn` of SPEC.md 3.6.5, 16 entries each
+for the volumes 0 to 15, and a table for 8-bit samples has 256.
 
 ## What it changes in YMXR
 
@@ -129,12 +32,12 @@ YMXR encodes an effect as four columns of the tune file, the target, the
 source, the control and the count (YMXR's SPEC.md, 1.8), and the eight
 bits of the control column are all assigned (YMXR's SPEC.md, 1.9.2). A
 table has 128 columns at most (YMXR's requirements.md, R3.4, raised from
-32 by odipar/YMXR#319). The
-general tick handler moves its row with one instruction from the source to
-the chip's data port, through a displacement patched into it, and reads
-and writes memory alone: a tick that writes a row costs 96 cycles (YMXR's
-performance.md, A tick). The encoding below looks the value up at the tick
-of an effect that maps it, and leaves every other tick as it is.
+32 by odipar/YMXR#319). The general tick handler moves its row with one
+instruction from the source to the chip's data port, through a
+displacement patched into it, and reads and writes memory alone: a tick
+that writes a row costs 96 cycles (YMXR's performance.md, A tick). The
+encoding below looks the value up at the tick of an effect that maps it,
+and leaves every other tick as it is.
 
 ### What it costs where no value is mapped
 
@@ -199,10 +102,11 @@ DTX's reader read every row of four tunes at such a period.
 ### The tables
 
 A tune file of version 10 has a long at 16, the offset of the
-transformation index, a word T and T offsets of 256 bytes each, entry k
-the value of key k; the source index follows at 20, and at 28 in the bound
-tune (YMXR's BINARIES.md, 1). The tables are read at the frame alone, so
-their place in the file has no reach to respect.
+transformation index, a word T and T offsets, each of a table: a word E
+and E bytes, entry k the value of key k, padded to a multiple of 4; the
+source index follows at 20, and at 28 in the bound tune (YMXR's
+BINARIES.md, 1). The tables are read at the frame alone, so their place
+in the file has no reach to respect.
 
 ### The tick
 
@@ -211,8 +115,13 @@ it writes. The tick writes the key into the low byte of the displacement
 of the read that follows it, `move.b slot(pc),$FFFF8802.w`, whose high
 byte selects one of two slots of 256 bytes at 256 times that byte from the
 displacement: each slot is a copy of the transformation, and the read
-writes the entry. Counted with the rig's counter, which agrees with the
-68000 manual's timings instruction by instruction:
+writes the entry. A slot is 256 bytes for a table of any length, since the
+key is a byte. The tick reads keys below E. A marked source has keys below
+128, since one with a key of 128 or more on a marked target is written
+counted (below); at its marked row the tick reads keys 128 to 127 + E', E'
+the lesser of E and 128. A copy fills E bytes of a slot, and 2E' for a
+marked source. Counted with the rig's counter, which agrees with the 68000
+manual's timings instruction by instruction:
 
 | the row's read and the marker's branch | cycles | bytes | the handler |
 |---|---|---|---|
@@ -260,8 +169,10 @@ as above: the slots are in the core.
 | a change of mapping | cycles, counted |
 |---|---|
 | the table's address and the slot's | 26 |
-| the copy of 256 bytes into the slot not in use, 8 registers unrolled | 1,260 |
-| the same for a marked source: 128 bytes read once and written twice, bit 7 set the second time | 956 |
+| the copy of 256 entries into the slot not in use, 8 registers unrolled, two saved | 1,260 |
+| the copy of 16 entries, a table of volumes, 4 free registers, no save | 84 |
+| the same for a marked source: 128 entries read once and written twice, bit 7 set the second time, unrolled through 7 data registers, d0, d1 and d3 to d7, d6 and d7 saved | 1,504 |
+| the same for a marked source of 16 entries, 4 free data registers, d0, d1, d3 and d4, no save | 192 |
 | the switch of the slot, one byte | 20 |
 | a square: its level and its mask, written from two entries | 64 |
 | a source of one row: its one entry | 26 |
@@ -306,11 +217,11 @@ the implementation counts.
 
 ## The plan
 
-- [ ] The plan, this document
-- [ ] YMXS: the structure, the remap, the keys, the numbering and the
+- [x] The plan, this document
+- [x] YMXS: the structure, the remap, the keys, the numbering and the
       errors, in SPEC.md 1 to 6, and 3.3.6 and 8.5 reworded
-- [ ] YMXS: JSON, CSV and the record; the check; both trees; version 7
-- [ ] YMXS: the examples and the conformance kit gain a tune through
+- [x] YMXS: JSON, CSV and the record; the check; both trees; version 7
+- [x] YMXS: the examples and the conformance kit gain a tune through
       transformations, a fade among them
 - [ ] YMXR: version 10, bit 5, the four mapping columns and the index;
       the readers, the binder and the converter
@@ -318,4 +229,4 @@ the implementation counts.
 - [ ] YMXR: the lookup instances, the slots, the remap and the
       `YMXR_MAP` cores; the model and the rig's tunes
 - [ ] YMXR: the cycles and the sizes counted into performance.md
-- [ ] The specifications define what landed; this document goes
+- [ ] YMXR's specifications define what landed; this document goes

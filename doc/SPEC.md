@@ -1,23 +1,24 @@
 # The YMXS format
 
-Version 6 defines tune data and playback on the Atari ST's YM2149 and
+Version 7 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player.
-A file includes its version beside the structure: a writer writes 6, and a
-reader reads 6 and the three versions before it, 5, 4 and 3 (json.md 2.4). A
-reader reads the version before the structure; another version is an
-error of the form.
+A file includes its version beside the structure: a writer writes 7, and a
+reader reads 7 and the four versions before it, 6, 5, 4 and 3
+(json.md 2.4). A reader reads the version before the structure; another
+version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
 section 6 as rule 1, a condition of one as rule 1(a). `Note:` begins an
 informative sentence. A range includes both ends. Integer division
 discards the remainder. In a reported text, `Rn` is a register, `setRn`
 and `setRm` are two targets by their names of 3.1.2, `setToneA` among
-them, and each other capital letter is a decimal figure defined beside the
-text.
+them, `NAME` is a text, a capital letter after `Timer` is a timer's
+letter, and each other capital letter, and `i`, is a decimal figure, each
+defined beside the text.
 
 **Roles.** A player performs sections 4 and 5 on the two chips. A recorder
 performs section 4 with every register write and every timer operation
@@ -72,7 +73,7 @@ public interface YMXS {
 
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
-    sealed interface Effect permits Start, Retune, Stop { }
+    sealed interface Effect permits Start, Retune, Stop, Remap { }
 
     sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
 
@@ -80,17 +81,19 @@ public interface YMXS {
                   boolean placeReset) { }
 
     record StartOne(OneTarget target, Single source, Timing timing,
-                    boolean deferred) implements Start { }
+                    boolean deferred, Mapping mapping) implements Start { }
 
     record StartPair(TwoTarget target, Pair source, Timing timing,
-                     boolean deferred) implements Start { }
+                     boolean deferred, Mapping mapping) implements Start { }
 
     record StartTriple(ThreeTarget target, Triple source, Timing timing,
-                       boolean deferred) implements Start { }
+                       boolean deferred, Mapping mapping) implements Start { }
 
     record Retune(Timing timing) implements Effect { }
 
     record Stop() implements Effect { }
+
+    record Remap(Mapping mapping) implements Effect { }
 
     sealed interface Target permits OneTarget, TwoTarget, ThreeTarget { }
 
@@ -123,6 +126,14 @@ public interface YMXS {
     record Two(int first, int second) { }
 
     record Three(int first, int second, int third) { }
+
+    record Mapping(List<Part> parts) { }
+
+    sealed interface Part permits Identity, Transformation { }
+
+    record Identity() implements Part { }
+
+    record Transformation(String name, List<Integer> entries) implements Part { }
 
     enum Register {
         R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
@@ -161,46 +172,61 @@ and where absent the table has ended.
 value; an absent timer continues unchanged. A row sets each register at
 most once and performs at most one operation on each timer.
 
-**1.7 An effect and the three operations.** The effect of a timer is
-the source connected to a target on it, at the rate of its prescaler and
-count (3.3). Four timers, each running one effect at most; the timer
-identifies the effect. An operation is a value of the type `Effect`
-(1.1): a `Start` connects `source` to `target` on the timer and sets
-`prescaler` and `count`; a `Retune` sets `prescaler` and `count` of the
-effect the timer runs; a `Stop` stops the timer. A `Start` and a
-`Retune` have the resets `timerReset` and `placeReset` (3.4), and a
+**1.7 An effect and the four operations.** The effect of a timer is
+the source connected to a target on it through a mapping, at the rate of
+its prescaler and count (3.3, 3.6). Four timers, each running one effect
+at most; the timer identifies the effect. An operation is a value of the
+type `Effect` (1.1): a `Start` connects `source` to `target` through
+`mapping` on the timer and sets `prescaler` and `count`; a `Retune` sets
+`prescaler` and `count` of the effect the timer runs; a `Stop` stops the
+timer; a `Remap` sets the mapping of the effect the timer runs. A `Start`
+and a `Retune` have the resets `timerReset` and `placeReset` (3.4), and a
 `Start` has `deferred` (3.5). A `Start` on a timer running an effect ends
 it and begins another: at its frame where `deferred` is clear, and where
 it is set at the tick that reads the last row of the source of that
 effect. Section 4 defines each operation as steps.
 
-**1.8 Targets and sources.** This version defines three kinds of target:
-`SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
-`SetNoise` and `SetEnvelope`, two registers each; and `SetVoice` and
-`SetBuzzer`, three (3.1). It defines three kinds of source to match,
-`Single`, `Pair` and `Triple`: a text `name` and a `table` of one, two or
-three integers a row (3.2).
+**1.8 Targets, sources and mappings.** This version defines three kinds
+of target: `SetRegister`, one a register, named `setR0` to `setR13`;
+`SetTone`, `SetNoise` and `SetEnvelope`, two registers each; and
+`SetVoice` and `SetBuzzer`, three (3.1). It defines three kinds of source
+to match, `Single`, `Pair` and `Triple`: a text `name` and a `table` of
+one, two or three integers a row (3.2). A `Start` connects its source to
+its target through a `Mapping`: a `Part` for each value of a row, the
+`Identity` or a `Transformation`, a text `name` and 1 to 256 `entries`;
+or no parts, the identity in every part (3.6).
 
-**1.9 The sources of a tune.** The list this procedure produces from an
-empty list: read the rows from row 0 to the last, within a row the timers A,
-B, C, D; where the operation is a `Start` whose source is new to the list,
-append it. The order is the *first-start order*; the sources are numbered
-from 1 in it, and a source is selected by number. Two sources are equal
-where their names are equal, their values equal in number and order a row at
-a time, and their repeat rows both absent or both present and equal; two
-`Start`s of equal sources start one source of the tune, and equal values
-under two names are two sources.
+**1.9 The sources and the transformations of a tune.** The sources are
+the list this procedure produces from an empty list: read the rows from
+row 0 to the last, within a row the timers A, B, C, D; where the operation
+is a `Start` whose source is new to the list, append it. The order is the
+*first-start order*; the sources are numbered from 1 in it, and a source
+is selected by number. Two sources are equal where their names are equal,
+their values equal in number and order a row at a time, and their repeat
+rows both absent or both present and equal; two `Start`s of equal sources
+start one source of the tune, and equal values under two names are two
+sources.
+
+The transformations are the list the same reading produces from an empty
+list: where the operation is a `Start` or a `Remap`, each part of its
+mapping in order, from part 0, that is a transformation new to the list is
+appended. The transformations are numbered from 1 in that order, and a
+transformation is selected by number; the identity is 0, outside the list.
+Two transformations are equal as 3.6.2 defines, and two parts of equal
+transformations are one transformation of the tune.
 
 **1.10 The timers of a tune.** The timers on which some row performs a
-`Start`, in the order A, B, C, D; a timer with only a `Retune` or a
-`Stop` is outside them.
+`Start`, in the order A, B, C, D; a timer with only a `Retune`, a `Stop`
+or a `Remap` is outside them.
 
 **1.11 Errors of the structure.** A structure with a condition below is
 outside what a player plays, and a check reports each condition present as
-its line, in the order of 1.12. H is a rate in frames a second, R a row
-count, X a repeat row, V a value, M the most of a register (2.1), C a count,
-T a rate in ticks a second, W the values a row of a source, U the values a
-target reads, N a row number.
+its line, in the order of 1.12; 1.12 omits a condition that rests on
+another condition present. H is a rate in frames a second, R a row count,
+X a repeat row, V a value, M the most of a register (2.1), C a count, T a
+rate in ticks a second, U the values a target reads, N a row number, E an
+entry count, K a key, P the parts of a mapping, and i the number of a value
+in a row and of its part, from 0.
 
 | condition | reported as |
 |---|---|
@@ -208,18 +234,25 @@ target reads, N a row number.
 | the rate of a tune is below 1 | `a rate of H: a player is called at least once a second` |
 | the table of a tune is empty | `the tune has no rows: a clock reads one` |
 | the repeat row of a tune of R rows is present and outside 0 to R - 1 | `the tune has R rows and repeats to row X` |
+| a transformation has E entries, E outside 1 to 256 | `the transformation has E entries, and a transformation has 1 to 256` |
+| entry K of a transformation is V, outside 0 to 255 | `entry K is V, and an entry is 0 to 255` |
 | a row sets a register to a value outside 0 to its most | `Rn is 0 to M, and this row sets it to V` |
 | a `Start` or a `Retune` has a count outside 0 to 255 | `a count of C: a timer's data register is a byte, 0 to 255, and 0 counts 256` |
 | a `Start` or a `Retune` with a count of 0 to 255 has a rate above 125,000 (3.3.4) | `a rate of T ticks a second: a 68000 at 8 MHz enters an interrupt and leaves it in 64 cycles, so 125000 a second is every cycle it has` |
 | the table of the source of a `Start` is empty | `the source has no rows: a clock reads one` |
 | the repeat row of the source of a `Start`, of R rows, is present and outside 0 to R - 1 | `the source has R rows and repeats to row X` |
 | row N of the source of a `Start` is a value below 0 | `row N is V, and a register is 0 upward` |
-| the rows of the source of a `Start` have a number of values other than the number its target reads | `a source of W values a row on setRn, which reads U` |
-| row N of the source of a `Start` is a value above the most of the register its target writes | `a source on setRn whose row N is V, and the target is 0 to M` |
+| value i of row N of the source of a `Start` is V, above the most M of register i of its target, where part i of its mapping is the identity (3.6.3) | `a source on setRn whose row N is V, and the target is 0 to M` |
+| value i of row N of the source of a `Start` is V, above the last key K of the transformation of 1 to 256 entries that is part i of its mapping (3.6.5) | `a source on setRn whose row N is V, and a key is 0 to K` |
+| the mapping of a `Start` has P parts, P of 1 or more and other than the U values its target reads | `a mapping of P parts on setRn, which reads U` |
+| value i of row N of the source of a `Start`, through a transformation that is part i of its mapping, maps to V, above the most M of register i of its target | `value i of row N maps to V on setRn, and the target is 0 to M` |
+| the mapping of a `Remap` has P parts, P of 1 or more and other than the U values the target of a `Start` on its timer reads | `a mapping of P parts on setRn, which reads U` |
+| value i of row N of the source of a `Start` on the timer of a `Remap` is V, above the last key K of the transformation of 1 to 256 entries that is part i of the mapping of the `Remap` | `a source on setRn whose row N is V, and a key is 0 to K` |
+| value i of row N of the source of a `Start` on the timer of a `Remap`, through part i of the mapping of the `Remap`, maps to V, above the most M of register i of the target of the `Start` | `value i of row N maps to V on setRn, and the target is 0 to M` |
 
-Note: a target of this version reads one, two or three values a row (3.1.1),
-so the line `a source of W values a row on setRn, which reads U` arises
-where a source and the target that runs it differ.
+The mapping of a `Remap` is read against each `Start` on its timer at any
+row of the tune, before or after the `Remap`, with the target and the
+source of that `Start` (3.6.5).
 
 **1.12 The order of the report.**
 
@@ -230,18 +263,41 @@ Report each condition present, in this order:
    and unprefixed when checking one tune:
    1. The rate.
    2. An empty table, then the repeat row.
-   3. Each row in order, prefixed `row N: `:
+   3. Each transformation in number order (1.9), prefixed
+      `transformation F, NAME: `: the number of its entries, then
+      entries outside 0 to 255 in key order.
+   4. Each row in order, prefixed `row N: `:
       1. Registers, R0 to R13.
-      2. Each timer with a `Start` or `Retune`, A to D, prefixed
-         `Timer X: `:
-         1. The count.
-         2. The rate, omitted for a count outside 0 to 255.
+      2. Each timer with a `Start`, a `Retune` or a `Remap`, A to D,
+         prefixed `Timer X: `:
+         1. The count of a `Start` or a `Retune`.
+         2. Its rate, omitted for a count outside 0 to 255.
          3. For a `Start`: an empty source table, its repeat row, values
-            below 0 in row order, then the number of values a row. If
-            that last condition is absent, values above the register's
-            most in row order.
+            below 0 in row order. If the mapping has no parts or a part
+            for each value, values above the register's most through the
+            identity, or above the last key of a transformation of 1 to
+            256 entries, in row order. Then the number of parts of the
+            mapping, and if that is absent, values mapped through a
+            transformation above the register's most in row order.
+         4. For a `Remap`: for each target a `Start` on the timer
+            connects, in the row order of the first `Start` that connects
+            it, the number of parts of the mapping; then for each target
+            and source a `Start` on the timer connects, in the row order
+            of the first `Start` that connects the two, prefixed `start
+            of row S: `, where the number of parts on that target is
+            absent, values above the last key of a transformation of 1 to
+            256 entries or mapped above the register's most, in row
+            order.
 
-N is the tune or row number; X is the timer's letter. Prefixes accumulate.
+N is the tune or row number; X is the timer's letter; F is the
+transformation's number (1.9) and NAME its name, each line feed in it
+written as the two characters `\n` and each carriage return as `\r`; S is
+the row of the first `Start` that connects the target and the source.
+Prefixes accumulate. Within each item, the lines of a row of a source come
+in value order, from value 0. A value through a transformation of 1 to 256
+entries is read against its last key; where the value is a key, its entry
+is compared with the register's most where that entry is 0 to 255, and a
+value through a transformation of another number of entries is skipped.
 
 ---
 
@@ -296,7 +352,8 @@ a tick (3.1.1), writes bits 5 to 0 and leaves bits 7 and 6 as they were.
 **2.5 The envelope shape.** Every write to R13 restarts the envelope,
 the value changed or the same. A player writes R13 on every row that
 sets it, the value R13 already has included; every tick of an effect
-whose target is `setR13` writes it (3.1.1).
+whose target is `setR13` writes it, the value written through its mapping
+(3.1.1, 3.6.4).
 
 ---
 
@@ -306,8 +363,10 @@ whose target is `setR13` writes it (3.1.1).
 
 **3.1.1** A target is a procedure the player calls at a tick with one row of
 a source; it writes the row's values to the registers below, value i of the
-row to register i of the target. A target reads one, two or three values a
-row, and the source an effect runs on it has that many values a row (3.2.1).
+row through part i of the mapping of the effect (3.6) to register i of the
+target. A target reads one, two or three values a row, the source an effect
+runs on it has that many values a row (3.2.1), and its mapping that many
+parts or none (3.6.3).
 
 | target | registers, value i of the row to register i | values a row |
 |---|---|---|
@@ -318,14 +377,15 @@ row, and the source an effect runs on it has that many values a row (3.2.1).
 | `setBuzzer` | R11 R12 R13 | 3 |
 | `setNoiseA`, `setNoiseB`, `setNoiseC` | R6 R8, R6 R9, R6 R10 | 2 |
 
-`setR7` writes bits 5 to 0 and leaves 7 and 6 (2.4). A tone target writes
-the twelve bits of a voice's period, fine then coarse (2.2); a voice target
-writes those and the volume, whose bit 4 selects the envelope (2.3); an
-envelope target writes the sixteen bits of the envelope period (2.2), and a
-buzzer target those and the shape, which every write restarts (2.5). A noise
-target writes the noise period and one voice's volume; R6 is one register
-for the three voices (2.1), so two noise targets running at once write one
-period and the later tick's write remains.
+`setR7` writes bits 5 to 0 of the value written (3.6.4) and leaves 7 and 6
+(2.4). A tone target writes the twelve bits of a voice's period, fine then
+coarse (2.2); a voice target writes those and the volume, whose bit 4
+selects the envelope (2.3); an envelope target writes the sixteen bits of
+the envelope period (2.2), and a buzzer target those and the shape, which
+every write restarts (2.5). A noise target writes the noise period and one
+voice's volume; R6 is one register for the three voices (2.1), so two noise
+targets running at once write one period and the later tick's write
+remains.
 
 The order of the writes is the player's, with the two the sound depends on
 fixed here: a voice's fine byte before its coarse nibble, so the period
@@ -344,14 +404,19 @@ registers are numbered 14 to 24, in the order of the table above:
 ### 3.2 The sources
 
 **3.2.1** A source is a name and a table (1.4) of one, two or three values a
-row, the values a row the target of every effect that runs it reads (3.1.1);
-a source of other values a row than its target reads is an error of the
-structure (1.11). The name is text for display and for reports, and
-distinguishes sources (1.9); a player reads the table alone.
+row, the values a row the target of every effect that runs it reads (3.1.1).
+Every `Start` of the structure connects such a source (1.1), and a reader
+reports a `Start` of a source of other values a row than its target reads
+as an error of the form (json.md 8.1, csv.md 5.1). The name is text for
+display and for reports, and distinguishes sources (1.9); a player reads
+the table alone.
 
 **3.2.2** Value i of every row of a source is 0 to the most of register i of
-the target of every effect that runs it; outside that is an error of the
-structure (1.11).
+the target of every `Start` that connects it, where part i of a mapping is
+the identity (3.6.3), and a key, 0 to the last key of the transformation,
+where it is a transformation, through the mapping of that `Start` and
+through the mapping of every `Remap` on the timer of that `Start` (3.6.5);
+outside that is an error of the structure (1.11).
 
 **3.2.3** Two effects run one source where two rows start it on two
 timers; it is one source of the tune (1.9). Each timer has a separate
@@ -396,10 +461,10 @@ leaving it, and 8,000,000 divided by 64 is 125,000.
 running count reaches zero: the period in progress ends at the old
 count, the next begins at the new. A prescaler divides the clock from
 the write on while the running count continues: the period in progress
-is part at each prescaler. With `timerReset` set the timer is stopped
-before the write (3.4.1), so both apply from it.
+is counted partly at each prescaler. With `timerReset` set the timer is
+stopped before the write (3.4.1), so both apply from it.
 
-**3.3.6** The mapping of the steps of 4.3 to the registers of the MC68901,
+**3.3.6** How the steps of 4.3 are written to the registers of the MC68901,
 the order of the count and the prescaler within one step, and how a player
 claims a timer from the host are left to a later version (8.5).
 
@@ -407,8 +472,8 @@ claims a timer from the host are left to a later version (8.5).
 
 **3.4.1 `timerReset`.** Set: the player stops the timer before writing
 the count and the prescaler (4.3); the timer starts at that write and
-begins a whole period at the count, the part counted discarded. Clear:
-a running timer continues its period, and the writes apply as 3.3.5
+begins a whole period at the count, the steps already counted discarded.
+Clear: a running timer continues its period, and the writes apply as 3.3.5
 defines. On a stopped timer the outcome is the same either way.
 
 **3.4.2 The place.** Each timer has a place: the number of the row of its
@@ -466,7 +531,68 @@ with `deferred` clear.
 **3.5.5** At a frame, a `Stop` and a `Start` performed at it discard the
 pending `Start`, and a deferred `Start` that becomes pending replaces it.
 A `Retune` sets the rate of the effect the timer runs, and the `Start`
-stays pending. The wrap (4.5) and the end (4.6) leave it pending.
+stays pending. A `Remap` sets the mapping of the effect the timer runs, and
+the `Start` stays pending with the mapping of its row. The wrap (4.5) and
+the end (4.6) leave it pending.
+
+### 3.6 Transformations and mappings
+
+**3.6.1** A *transformation* is a name and a list of E entries, E from 1
+to 256, numbered from 0, each 0 to 255: entry k is the value written where
+the value read is k, the *key*. Its keys are 0 to E - 1, its *last key*.
+The name is text for display and for reports, and distinguishes
+transformations (3.6.2); a player reads the entries alone. A
+transformation of E entries, E outside 1 to 256, or with an entry outside
+0 to 255, is an error of the structure (1.11).
+
+**3.6.2** The *identity* writes each value as it is. A transformation is
+distinct from the identity, one whose entry k is k at every key included.
+Two transformations are equal where their names are equal and their
+entries equal in number and order; two parts of equal transformations are
+one transformation of the tune (1.9), and equal entries under two names are
+two transformations.
+
+**3.6.3** A *mapping* is a list of parts, each the identity or a
+transformation, part i for value i of a row (3.1.1). The mapping of no
+parts is the identity in every part: its part i is the identity for each
+value i its target reads. A mapping of one part or more has a part for
+each value its target reads; a mapping of another number of parts is an
+error of the structure (1.11). A `Start` connects its source to its target
+through its mapping, and a `Remap` sets the mapping of the effect the
+timer runs (4.3).
+
+**3.6.4** A tick writes value i of the row it reads through part i of the
+mapping of its effect (5.2 step 2). The *value written* is the value read
+through the identity, and entry k through a transformation, k the value
+read. The target writes the value written to register i as 3.1.1 defines:
+`setR7` writes its bits 5 to 0, and every write of R13 restarts the
+envelope (2.5).
+
+**3.6.5 Keys.** Value i of a row of the source of a `Start` is, through a
+transformation, a key, 0 to its last key, on every target, and the entry it
+reaches is 0 to the most of register i of the target; through the identity
+it is 0 to the most of register i (3.2.2). The mapping of a `Remap` is read
+against the target and the source of each `Start` on its timer, at any row
+of the tune: through a transformation each value is a key, 0 to its last
+key, and each value written through the mapping is 0 to the most of
+register i of that target. Outside these is an error of the structure
+(1.11). A key is a byte on every target, since a transformation has 256
+entries at most.
+
+Note: a fade of a voice maps its volume alone, on `setVoiceA` through the
+identity, the identity and a transformation of volumes, a `Remap` a frame;
+with `Vn` the transformation whose entry k is k × n divided by 15, for the
+16 keys of a volume, 0 to 15, a volume is written as below, and `V15`, a
+transformation distinct from the identity (3.6.2), writes the values the
+identity writes at those keys:
+
+| part | key 12 | key 15 |
+|---|---|---|
+| the identity | 12 | 15 |
+| `V15` | 12 | 15 |
+| `V10` | 8 | 10 |
+| `V5` | 4 | 5 |
+| `V0` | 0 | 0 |
 
 ---
 
@@ -491,10 +617,10 @@ clock of the operating system, which runs on Timer C.
    ended (4.6); otherwise the current row is the row after it (1.5).
 6. Report 0.
 
-**4.3 The three operations.** An operation is performed on a timer of the
+**4.3 The four operations.** An operation is performed on a timer of the
 tune (1.10) alone: an operation on another timer leaves that timer and its
-registers as they are. A `Retune` on such a timer breaks rule 5, a `Stop`
-rule 6, except a `Stop` at the repeat row (rule 6(a)).
+registers as they are. A `Retune` or a `Remap` on such a timer breaks rule
+5, a `Stop` rule 6, except a `Stop` at the repeat row (rule 6(a)).
 
 A `Stop`: stop the timer, and discard the `Start` pending on it (3.5). It
 is idle, its source disconnected, and it raises its next tick after a later
@@ -502,15 +628,17 @@ is idle, its source disconnected, and it raises its next tick after a later
 
 A deferred `Start` on a timer running with its source connected: the
 `Start` is pending on the timer (3.5), and replaces the `Start` pending
-there, where one is. The operation leaves the timer, its source, its rate
-and its place as they were; a tick performs the `Start` (5.2 step 4).
+there, where one is. The operation leaves the timer, its source, its
+mapping, its rate and its place as they were; a tick performs the `Start`
+(5.2 step 4).
 
 Every other `Start`, and a pending `Start` a tick performs: discard the
 `Start` pending on the timer, where one is, then in order:
 
 1. If `timerReset` is set, stop the timer.
-2. Connect the source to the target on this timer. From this step, its
-   ticks read this source and call this target (5).
+2. Connect the source to the target on this timer through the mapping of
+   the `Start` (3.6). From this step, its ticks read this source and call
+   this target through this mapping (5).
 3. Write the prescaler and count. A stopped timer starts a whole period
    at the count; a running timer continues its period (3.3.5).
 4. If `placeReset` is set, set the place to 0; otherwise set it to its
@@ -520,6 +648,12 @@ A `Retune`: steps 1, 3 and 4 of a `Start`, and a `Start` pending on the
 timer stays pending (3.5.5). On an idle timer step 3 starts the timer with
 its source disconnected (rule 5), and what the player performs at its
 ticks is left to a later version (5.4).
+
+A `Remap`: set the mapping of the effect the timer runs to the mapping of
+the `Remap` (3.6). The timer, its source, its rate, its place and a `Start`
+pending on it are as they were; the next tick writes through the new
+mapping (5.2 step 2), and a pending `Start` keeps the mapping of its row
+(3.5.5). On an idle timer a `Remap` leaves the timer as it is (rule 5).
 
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
@@ -538,17 +672,18 @@ with running effects (rule 1).
 
 **4.5 The wrap.** Where a tune repeats, the row after its last row is its
 repeat row (1.5), performed as any row. A timer running when the last row is
-read runs on: the wrap leaves every timer, every place and every pending
-`Start` as they are. Rule 1(d) and rule 6(a) define what the repeat row
-performs on it.
+read runs on: the wrap leaves every timer, every place, every mapping and
+every pending `Start` as they are. Rule 1(d) and rule 6(a) define what the
+repeat row performs on it.
 
 **4.6 The end.** A tune that plays once ends with its last row: the frame
 that reads it reports 0, and every frame after leaves the row, the timers
 and the registers as they are and reports -1; R rows are read in frames 0 to
 R - 1, and frame R on reports -1. Each timer keeps the condition the last
-row left it in, a pending `Start` included; what a host does with a timer
-running after the end is left to a later version (8.7). A tune of R rows
-repeating to RR reads R rows in its first pass and R - RR in every loop.
+row left it in, its mapping and a pending `Start` included; what a host does
+with a timer running after the end is left to a later version (8.7). A tune
+of R rows repeating to RR reads R rows in its first pass and R - RR in every
+loop.
 
 ---
 
@@ -561,8 +696,9 @@ tick alone.
 **5.2 A tick** of a timer running an effect, in order:
 
 1. Read the row of the source at the place (3.4.2).
-2. Call the target with it; the target writes the row's values to its
-   registers, value i to register i (3.1.1).
+2. Call the target with it through the mapping of the effect (3.6); the
+   target writes the row's values to its registers, value i through part i
+   of the mapping to register i (3.1.1, 3.6.4).
 3. Where the source has a row after the row read (1.5), the place is that
    row. While a `Start` is pending on the timer, the last row has no row
    after it (3.5.2).
@@ -571,10 +707,10 @@ tick alone.
    step 4.
    Where the source has ended and none is pending, stop the timer: the
    source has run out, the timer is idle, the place stays at the last
-   row's number, and the register keeps the last value until a row of the
-   tune sets it. A later `Start` on the timer with `placeReset` clear sets
-   the place to that number modulo the row count of the source it
-   connects (3.4.3).
+   row's number, and the register keeps the last value written (3.6.4)
+   until a row of the tune sets it. A later `Start` on the timer with
+   `placeReset` clear sets the place to that number modulo the row count
+   of the source it connects (3.4.3).
 
 **5.3** A tick reads its source alone; the tune's table is read at a frame
 (4). A tick leaves the registers of the timer as they are: the timer counts
@@ -601,8 +737,10 @@ a structure with one is outside the check.
       `Stop` on that timer; step 2 of a later `Start` on that timer, which
       replaces it; for a source that plays once, the tick that reads its
       last row (5.2 step 4), after which the source has run out. While a
-      `Start` is pending on the timer, its source plays once (3.5.2).
-- (b) An effect runs on the register its target writes.
+      `Start` is pending on the timer, its source plays once (3.5.2). A
+      `Remap` on the timer leaves its effect running (4.3).
+- (b) An effect runs on the register its target writes (3.1.1); its
+      mapping changes the values written (3.6.4).
 - (c) A timer is idle from the end of its effect (a) to its next `Start`.
 - (d) An effect started on a row runs at step 4 of that row's frame (4.2);
       an effect stopped on a row has ended by step 4 of that frame. A
@@ -627,7 +765,9 @@ row leaves that register alone.**
 - 1(d) An effect running when the last row is read runs on through the
   repeat row (4.5), and the rows of the next pass are bound by 1(a). The
   repeat row performs an operation on such a timer: a `Stop` (rule 6(a)), a
-  `Start`, or a `Retune` (rule 5).
+  `Start`, or a `Retune` (rule 5). A `Remap` at the repeat row leaves the
+  effect running from the pass before, and the line of 1(d) is reported as
+  where the row leaves the timer alone (6.3).
 
 **Rule 2: where two timers write one register, the writer fixes the
 order.**
@@ -657,12 +797,13 @@ order.**
   or clear (3.4.1).
 - 4(b) A check skips this rule (6.3).
 
-**Rule 5: a `Retune` on a timer follows a `Start` on it whose effect
-runs.**
+**Rule 5: a `Retune` or a `Remap` on a timer follows a `Start` on it whose
+effect runs.**
 
-- 5(a) A `Retune` on an idle timer breaks the rule: a timer before its first
-  `Start`, after a `Stop`, or after its source has run out (5.2 step 4). It
-  starts the timer with its source disconnected (4.3).
+- 5(a) A `Retune` or a `Remap` on an idle timer breaks the rule: a timer
+  before its first `Start`, after a `Stop`, or after its source has run out
+  (5.2 step 4). A `Retune` starts the timer with its source disconnected,
+  and a `Remap` leaves the timer as it is (4.3).
 
 **Rule 6: a `Stop` on a timer is the first `Stop` after a `Start` on it,
 with one exception.**
@@ -714,6 +855,9 @@ from 0 to the last:
      where the effect of the timer is absent from the model and N is
      other than the repeat row; where it is present, close its run and
      remove it.
+   - (d) a `Remap`: report the rule 5 line of a `Remap` where the effect of
+     the timer is absent from the model or has run out at N. The effect in
+     the model, its run and the pending `Start` are as they were.
 3. For each timer with an effect in the model running at N, A to D: where
    the target's register is among R0 to R12 and row N sets it, count row N
    among the run's rows.
@@ -724,7 +868,7 @@ After the last row:
    effect stays for step 5, and a pending `Start` stays pending.
 5. Where the tune repeats: for each timer with an effect in the model
    running at the last row, A to D, report the rule 1(d) line where the
-   repeat row leaves the timer alone.
+   repeat row leaves the timer alone or performs a `Remap` on it.
 
 The report is the lines in the order reported.
 
@@ -758,10 +902,11 @@ ends with the suffix of 6.4 under the condition named.
 |---|---|---|
 | 1 | one row of the run, row F, sets the register while the effect runs (6.3), alone among the rows of the run | `row F: Timer X runs on Rn, and this row sets it`, with the suffix where the effect is reckoned |
 | 1 | several rows of the run set the register while the effect runs (6.3), the first at row F, the last at row L, K of them | `rows F to L: Timer X runs on Rn from row S, and K of them set it`, with the suffix where the effect is reckoned |
-| 1(d) | the tune repeats to row T, the effect of Timer X runs when the last row has been read, and row T leaves Timer X alone | `the tune repeats to row T, and Timer X runs on Rn when its last row has played: the wrap resumes with the timer running from the pass before`, with the suffix where the effect is reckoned |
+| 1(d) | the tune repeats to row T, the effect of Timer X runs when the last row has been read, and row T leaves Timer X alone or performs a `Remap` on it | `the tune repeats to row T, and Timer X runs on Rn when its last row has played: the wrap resumes with the timer running from the pass before`, with the suffix where the effect is reckoned |
 | 2 | a `Start` on Timer X at row N has a target writing Rn, on which the effect of Timer Y runs | `row N: Timer X starts on Rn, where Timer Y runs: rule 2 leaves the order of two timers writing one register to the writer`, with the suffix where the effect of Timer Y is reckoned or step 1 of 6.3 performs the `Start` |
 | 3 | a `Start` at row N with `placeReset` clear on a timer before any `Start` on it | `row N: Timer X starts a source without the place's reset, and this timer has run none: the place is where the player left it` |
 | 5 | a `Retune` at row N on an idle timer | `row N: Timer X retunes an effect that is idle: a rate written to a timer with no source on it starts that timer with no source to run`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a bounded U and N is at or above U (6.3), run out by the reckoning |
+| 5 | a `Remap` at row N on an idle timer | `row N: Timer X remaps an effect that is idle: a mapping is set on a running effect, and this row leaves the timer as it is`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a bounded U and N is at or above U (6.3), run out by the reckoning |
 | 6 | a `Stop` at row N on a timer whose effect is absent from the model, N other than the repeat row | `row N: Timer X stops an effect this timer has not started` |
 
 Rules 1, 2 and 5 are read with the effect running until U (6.3); rule
@@ -810,7 +955,8 @@ section lists them, `true`, `false` and `null` as JSON defines them, a line
 feed, byte 10, ending every line. The first line is the figures of the tune
 (7.3), each line after it one frame (7.4).
 
-**7.3 The first line** is `{"rate":H,"timers":[...],"sources":[...]}`:
+**7.3 The first line** is
+`{"rate":H,"timers":[...],"sources":[...],"transformations":[...]}`:
 `rate` the rate of the tune H; `timers` the timers of the tune (1.10),
 each as its letter `"A"` to `"D"`, in that order, `[]` where empty;
 `sources` the sources of the tune (1.9) in number order, each
@@ -819,7 +965,9 @@ row order, the values of row 0 then those of row 1 and so on, a row being
 one, two or three values as the target that runs the source reads (3.1.1):
 a source of the two rows (200, 1) and (100, 2) has `"rows":[200,1,100,2]`;
 and RR its repeat row, or `null` for a source that plays once; `[]` where
-the tune has no sources.
+the tune has no sources; `transformations` the transformations of the tune
+(1.9) in number order, each the list of its entries in key order, `[]`
+where the tune has none.
 
 **7.4 A frame's line.** For a frame that reads a row,
 `{"result":0,"w":{...},"e":{...}}`: `w` the registers the frame writes
@@ -833,17 +981,21 @@ empty. For the first frame after the end (4.6), `{"result":-1}`.
 
 | operation | object |
 |---|---|
-| a `Start` | `{"start":{"target":"setRn","source":S,"prescaler":P,"count":C,"timerReset":B,"placeReset":B,"deferred":B}}` |
+| a `Start` | `{"start":{"target":"setRn","source":S,"prescaler":P,"count":C,"timerReset":B,"placeReset":B,"deferred":B,"mapping":M}}` |
 | a `Retune` | `{"retune":{"prescaler":P,"count":C,"timerReset":B,"placeReset":B}}` |
 | a `Stop` | `{"stop":{}}` |
+| a `Remap` | `{"remap":{"mapping":M}}` |
 
 `target` is the name of the target (3.1.2), `source` the number S of the
 source in first-start order (1.9), which the numbering of a file matches
 where a writer emitted it (json.md 3.4), `prescaler` the divisor P
 (3.3.2), `count` the count C (3.3.3), `timerReset` and `placeReset` the
-resets (3.4), `deferred` the deferral (3.5), each B `true` or `false`. A
-deferred `Start` is recorded at the frame of its row, as every operation
-is; the tick that performs it is outside the record (7.1).
+resets (3.4), `deferred` the deferral (3.5), each B `true` or `false`, and
+`mapping` the mapping M (3.6): 0 for a mapping whose every part is the
+identity, the mapping of no parts included (3.6.3), and otherwise an array
+of a number a part in part order, 0 the identity and n transformation n
+(1.9). A deferred `Start` is recorded at the frame of its row, as every
+operation is; the tick that performs it is outside the record (7.1).
 
 **7.5 The length.** The first line and the lines of as many frames as the
 host requires, from frame 0, except that the record of a tune that plays
@@ -861,8 +1013,8 @@ csv.md 8): four rows at 50 Hz repeating to row 0, one source `square
 13`, started on Timer A on `setR8` at row 0, retuned at row 1, stopped
 at row 3, whose stop row sets R8 to 12 within rule 1(a):
 
-    {"rate":50,"timers":["A"],"sources":[{"rows":[13,0],"repeat":0}]}
-    {"result":0,"w":{"0":163,"1":2,"2":238,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true,"deferred":false}}}}
+    {"rate":50,"timers":["A"],"sources":[{"rows":[13,0],"repeat":0}],"transformations":[]}
+    {"result":0,"w":{"0":163,"1":2,"2":238,"7":56},"e":{"A":{"start":{"target":"setR8","source":1,"prescaler":50,"count":60,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0}}}}
     {"result":0,"w":{"0":142,"1":12,"7":49},"e":{"A":{"retune":{"prescaler":50,"count":61,"timerReset":false,"placeReset":false}}}}
     {"result":0,"w":{"0":251,"1":4},"e":{}}
     {"result":0,"w":{"0":89,"1":2,"7":56,"8":12},"e":{"A":{"stop":{}}}}
@@ -876,8 +1028,8 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3, 4,
-5 or 6, beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
+**8.1** What a reader does with a file whose version is other than 3 to 7,
+beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
 **8.2** Targets past the twenty-five: a procedure writing a register of the
 MC68901, one writing other registers of the YM2149 together, and one reading
@@ -888,7 +1040,7 @@ a row wider than a byte, numbered 25 to 127 (3.1.2).
 **8.4** The place of a timer before the first `Start` or `Retune` with
 `placeReset` set on it (3.4.2).
 
-**8.5** The mapping of the steps of 4.3 to the registers of the MC68901,
+**8.5** How the steps of 4.3 are written to the registers of the MC68901,
 the order of the count and the prescaler within one step, and what
 claiming a timer from the host comprises (3.3.6, 4.1).
 

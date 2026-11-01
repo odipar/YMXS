@@ -6,9 +6,11 @@
 // for a caller that stops at the first.
 //
 // A structure is bound by the two chips and the music: what fits a
-// register, what a timer counts, and that an effect hands a source's row
-// to a target of that same shape. What a form can write belongs to that
-// form, and no limit of one appears here.
+// register, what a timer counts, and that a mapping writes each value of
+// it into its register. A start pairs a target with a source of the values
+// a row that target reads (ymxs.Start), and a form reports a source of
+// another width as an error of the form. What a form can write belongs to
+// that form, and no limit of one appears here.
 //
 // Writing is the other half: the rules of SPEC.md 6 read across rows
 // rather than within one, and a tune that breaks one of them plays, but
@@ -38,7 +40,9 @@ func Multi(multi ymxs.Multi) []string {
 	return said
 }
 
-// Tune lists what is wrong with the tune, or an empty list.
+// Tune lists what is wrong with the tune, or an empty list, in the order
+// of SPEC.md 1.12: the rate, the table, each transformation in number
+// order under its number and its name, then each row.
 func Tune(tune ymxs.Tune) []string {
 	var said []string
 	if tune.Rate < 1 {
@@ -46,16 +50,48 @@ func Tune(tune ymxs.Tune) []string {
 			" a second", tune.Rate))
 	}
 	said = append(said, table(len(tune.Table.Rows), tune.Table.Repeat, "the tune")...)
+	for at, transformation := range ymxs.Transformations(tune) {
+		for _, one := range Transformation(transformation) {
+			said = append(said, fmt.Sprintf("transformation %d, %s: %s", at+1,
+				ymxs.Reported(transformation.Name), one))
+		}
+	}
 	for at, row := range tune.Table.Rows {
-		for _, one := range Row(row) {
+		for _, one := range rowOf(tune, row) {
 			said = append(said, fmt.Sprintf("row %d: %s", at, one))
 		}
 	}
 	return said
 }
 
-// Row lists what is wrong with the row, or an empty list.
+// Transformation lists what is wrong with a transformation, or an empty
+// list: the number of its entries, where it is outside 1 to 256, then each
+// entry outside 0 to 255 in key order.
+func Transformation(transformation ymxs.Transformation) []string {
+	var said []string
+	if _, counted := ymxs.LastKey(transformation); !counted {
+		said = append(said, fmt.Sprintf("the transformation has %d entries, and a"+
+			" transformation has 1 to %d", len(transformation.Entries), ymxs.MostEntries))
+	}
+	for key, entry := range transformation.Entries {
+		if entry < 0 || entry > ymxs.MostEntry {
+			said = append(said, fmt.Sprintf("entry %d is %d, and an entry is 0 to %d", key,
+				entry, ymxs.MostEntry))
+		}
+	}
+	return said
+}
+
+// Row lists what is wrong with the row, or an empty list. A remap is read
+// against the starts on its timer, which are rows of a tune, so this lists
+// none of its lines; Tune lists them.
 func Row(row ymxs.Row) []string {
+	return rowOf(ymxs.Tune{}, row)
+}
+
+// rowOf lists what is wrong with a row of the tune: the registers, then each
+// timer with a start, a retune or a remap, A to D.
+func rowOf(tune ymxs.Tune, row ymxs.Row) []string {
 	var said []string
 	for _, one := range ymxs.Registered(row) {
 		most := ymxs.Most(one.Register)
@@ -65,15 +101,20 @@ func Row(row ymxs.Row) []string {
 		}
 	}
 	for _, one := range ymxs.Effects(row) {
-		for _, wrong := range Effect(one.Effect) {
-			said = append(said, fmt.Sprintf("Timer %s: %s", one.Timer, wrong))
+		wrong := Effect(one.Effect)
+		if remap, ok := one.Effect.(ymxs.Remap); ok {
+			wrong = Remapping(tune, one.Timer, remap)
+		}
+		for _, line := range wrong {
+			said = append(said, fmt.Sprintf("Timer %s: %s", one.Timer, line))
 		}
 	}
 	return said
 }
 
 // Effect lists what is wrong with one row's operation on one effect, or an
-// empty list.
+// empty list. A remap is read against the starts on its timer
+// (Remapping), so this lists none of its lines.
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
@@ -82,7 +123,7 @@ func Effect(effect ymxs.Effect) []string {
 		return append(said, runs(e)...)
 	case ymxs.Retune:
 		return append(count(e.Timing.Count), rate(e.Timing.Prescaler, e.Timing.Count)...)
-	case ymxs.Stop:
+	case ymxs.Stop, ymxs.Remap:
 		return nil
 	}
 	panic(fmt.Sprintf("no effect %T", effect))
@@ -105,26 +146,166 @@ func Source(source ymxs.Source) []string {
 	return said
 }
 
-// runs reads what a start must satisfy: the target reads the row shape the
-// source writes, and the source's values fit that register.
+// runs reads what a start must satisfy (SPEC.md 1.12 item 2.4.2.3): the
+// source alone; where the mapping has no parts or a part for each value,
+// each value fits its register through the identity and is a key, 0 to the
+// last key, through a transformation of 1 to 256 entries; the mapping has
+// a part for each value or none; and where it does, each value through a
+// transformation maps into its register. A value through a transformation
+// of 1 to 256 entries is read against its last key; where the value is a
+// key, its entry is compared with the register's most where that entry is
+// 0 to 255, and a value through a transformation of another number of
+// entries is skipped (ymxs.Through). The source has the values a row its
+// target reads (ymxs.Start).
 func runs(start ymxs.Start) []string {
-	said := Source(ymxs.StartSource(start))
-	if ymxs.TargetColumns(ymxs.StartTarget(start)) != ymxs.SourceColumns(ymxs.StartSource(start)) {
-		return append(said, fmt.Sprintf("a source of %d values a row on %s, which reads %d",
-			ymxs.SourceColumns(ymxs.StartSource(start)), ymxs.TargetName(ymxs.StartTarget(start)),
-			ymxs.TargetColumns(ymxs.StartTarget(start))))
+	target, source := ymxs.StartTarget(start), ymxs.StartSource(start)
+	mapping := ymxs.StartMapping(start)
+	named := ymxs.TargetName(target)
+	said := Source(source)
+	if reads := ymxs.TargetColumns(target); len(mapping.Parts) != 0 &&
+		len(mapping.Parts) != reads {
+		return append(said, fmt.Sprintf("a mapping of %d parts on %s, which reads %d",
+			len(mapping.Parts), named, reads))
 	}
-	mosts := ymxs.TargetMosts(ymxs.StartTarget(start))
-	for at, row := range ymxs.SourceRows(ymxs.StartSource(start)).Rows {
-		for value, most := range mosts {
-			if row[value] > most {
-				said = append(said, fmt.Sprintf("a source on %s whose row %d is %d, and"+
-					" the target is 0 to %d", ymxs.TargetName(ymxs.StartTarget(start)),
-					at, row[value], most))
+	mosts := ymxs.TargetMosts(target)
+	rows := ymxs.SourceRows(source).Rows
+	for at, row := range rows {
+		for i, most := range mosts {
+			part := ymxs.PartAt(mapping, i)
+			if _, identity := part.(ymxs.Identity); identity {
+				if row[i] > most {
+					said = append(said, fmt.Sprintf("a source on %s whose row %d is %d,"+
+						" and the target is 0 to %d", named, at, row[i], most))
+				}
+			} else if last, above := aboveKeys(part, row[i]); above {
+				said = append(said, keyed(at, row[i], named, last))
+			}
+		}
+	}
+	for at, row := range rows {
+		for i, most := range mosts {
+			part := ymxs.PartAt(mapping, i)
+			if _, identity := part.(ymxs.Identity); identity {
+				continue
+			}
+			if written, read := ymxs.Through(part, row[i]); read && written > most {
+				said = append(said, mapped(i, at, written, named, most))
 			}
 		}
 	}
 	return said
+}
+
+// Remapping lists what is wrong with a remap on the timer of the tune, or
+// an empty list (SPEC.md 1.12 item 2.4.2.4). Its mapping is read against
+// each start on the timer at any row of the tune: for each target in the
+// row order of the first start that connects it, the number of parts; then
+// for each target and source in the row order of the first start that
+// connects the two, prefixed "start of row S: ", S the row of that start,
+// where the mapping has a part for each value or none, each value is a
+// key, 0 to the last key, through a transformation of 1 to 256 entries,
+// and each value written through the mapping fits its register, in row
+// order and within a row in value order. A value through a transformation
+// of 1 to 256 entries is read against its last key; where the value is a
+// key, its entry is compared with the register's most where that entry is
+// 0 to 255, and a value through a transformation of another number of
+// entries is skipped (ymxs.Through). Each source has the values a row its
+// target reads (ymxs.Start).
+func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
+	var starts []startAt
+	for at, row := range ymxs.Rows(tune) {
+		if start, ok := row.Effects[timer].(ymxs.Start); ok {
+			starts = append(starts, startAt{row: at, start: start})
+		}
+	}
+	parts := len(remap.Mapping.Parts)
+	var said []string
+	var targets []ymxs.Target
+	for _, one := range starts {
+		target := ymxs.StartTarget(one.start)
+		if indexOfTarget(targets, target) >= 0 {
+			continue
+		}
+		targets = append(targets, target)
+		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
+			said = append(said, fmt.Sprintf("a mapping of %d parts on %s, which reads %d",
+				parts, ymxs.TargetName(target), reads))
+		}
+	}
+	var connected []ymxs.Start
+	for _, one := range starts {
+		target, source := ymxs.StartTarget(one.start), ymxs.StartSource(one.start)
+		seen := false
+		for _, before := range connected {
+			if ymxs.TargetEqual(ymxs.StartTarget(before), target) &&
+				ymxs.SourceEqual(ymxs.StartSource(before), source) {
+				seen = true
+				break
+			}
+		}
+		if seen {
+			continue
+		}
+		connected = append(connected, one.start)
+		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
+			continue
+		}
+		mosts, named := ymxs.TargetMosts(target), ymxs.TargetName(target)
+		from := fmt.Sprintf("start of row %d: ", one.row)
+		for at, row := range ymxs.SourceRows(source).Rows {
+			for i, most := range mosts {
+				part := ymxs.PartAt(remap.Mapping, i)
+				if last, above := aboveKeys(part, row[i]); above {
+					said = append(said, from+keyed(at, row[i], named, last))
+				} else if written, read := ymxs.Through(part, row[i]); read && written > most {
+					said = append(said, from+mapped(i, at, written, named, most))
+				}
+			}
+		}
+	}
+	return said
+}
+
+// startAt is a start on a timer and the row of the tune that performs it.
+type startAt struct {
+	row   int
+	start ymxs.Start
+}
+
+// aboveKeys is the last key K of the part, and whether the value is above
+// it, where the part is a transformation of 1 to 256 entries (SPEC.md
+// 3.6.5). The second result is false through the identity and through a
+// transformation of another number of entries.
+func aboveKeys(part ymxs.Part, value int) (int, bool) {
+	transformation, ok := part.(ymxs.Transformation)
+	if !ok {
+		return 0, false
+	}
+	last, counted := ymxs.LastKey(transformation)
+	return last, counted && value > last
+}
+
+// keyed is the line of row N of a source on a target, whose value V is
+// above the last key K of the transformation it is read through.
+func keyed(at, value int, target string, last int) string {
+	return fmt.Sprintf("a source on %s whose row %d is %d, and a key is 0 to %d", target, at,
+		value, last)
+}
+
+// mapped is the line of value i of row N of a source, written through a
+// mapping as a value above the most of register i of its target.
+func mapped(i, at, written int, target string, most int) string {
+	return fmt.Sprintf("value %d of row %d maps to %d on %s, and the target is 0 to %d", i,
+		at, written, target, most)
+}
+
+func indexOfTarget(targets []ymxs.Target, target ymxs.Target) int {
+	for i, one := range targets {
+		if ymxs.TargetEqual(one, target) {
+			return i
+		}
+	}
+	return -1
 }
 
 // rate reads what a rate must satisfy: a 68000 services the ticks it comes
@@ -169,7 +350,32 @@ func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
 		if !found {
 			said = append(said, fmt.Sprintf("source %d, %s, is started by no row, and a"+
 				" source a tune does not run is dropped where this form is read",
-				at+1, ymxs.SourceName(one)))
+				at+1, ymxs.Reported(ymxs.SourceName(one))))
+		}
+	}
+	return said
+}
+
+// Used lists what is wrong with the transformations a form declares beside
+// the tune its rows make, or nil: each that the mapping of no row uses, in
+// the order declared. The structure reaches a transformation through the
+// mapping that uses it (ymxs.Transformations), so such a transformation is
+// dropped where the form is read.
+func Used(declared []ymxs.Transformation, tune ymxs.Tune) []string {
+	var said []string
+	used := ymxs.Transformations(tune)
+	for at, one := range declared {
+		found := false
+		for _, and := range used {
+			if ymxs.TransformationEqual(one, and) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			said = append(said, fmt.Sprintf("transformation %d, %s, is used by no row, and"+
+				" a transformation a tune does not map through is dropped where this form"+
+				" is read", at+1, ymxs.Reported(one.Name)))
 		}
 	}
 	return said
@@ -242,11 +448,12 @@ func (r *running) reckoned() bool {
 // Writing reads the rules of SPEC.md 6 across the tune's rows. A tune that
 // breaks one of them plays, but not as written.
 //
-// Three of the five are read here. Rule 2 leaves the order of two timers
-// writing one register to the writer, and is not checked. Rule 4 requires
-// a start to set the timer's reset where the timer is stopped, and a
-// stopped timer begins a whole period with the value or without it, so
-// either value is correct and it is not checked either.
+// Rules 1, 2, 3, 5 and 6 are read here (SPEC.md 6.3). Rule 4 requires a
+// start to set the timer's reset where the timer is stopped, and a stopped
+// timer begins a whole period with the value or without it, so either
+// value is correct and a check skips it. A remap neither ends a run nor
+// begins one: its mapping changes the values written, and the registers
+// an effect runs on are those of its target (SPEC.md 6.2).
 //
 // A source that plays once has a start in the rows and no end, so its
 // duration is reckoned from its rate (ymxs.Frames). Every reading resting
@@ -344,9 +551,11 @@ func (w *writing) wrap() {
 		if !running || last >= runs.until {
 			continue
 		}
+		// a remap at the repeat row leaves the effect running from the pass
+		// before, as a row that leaves the timer alone does (rule 1(d))
 		set := false
 		for _, one := range ymxs.Effects(w.tune.Table.Rows[to]) {
-			if one.Timer == timer {
+			if _, remap := one.Effect.(ymxs.Remap); one.Timer == timer && !remap {
 				set = true
 			}
 		}
@@ -403,6 +612,13 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 			w.say(at, timer, "retunes an effect that is idle: a rate written to a timer"+
 				" with no source on it starts that timer with no source to run",
 				w.reckoned(timer, at))
+		}
+	case ymxs.Remap:
+		// the effect in the model, its run and the pending start are as
+		// they were (SPEC.md 6.3 step 2(d))
+		if _, on := w.runs(timer, at); !on {
+			w.say(at, timer, "remaps an effect that is idle: a mapping is set on a running"+
+				" effect, and this row leaves the timer as it is", w.reckoned(timer, at))
 		}
 	case ymxs.Stop:
 		delete(w.pending, timer)

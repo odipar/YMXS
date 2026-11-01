@@ -17,7 +17,7 @@ import java.util.OptionalInt;
  * compiling until they read it.
  *
  * <p>A form encodes a tune. doc/json.md defines one; a player's binary
- * layout is another. No part of this is arranged for a form, and every
+ * layout is another. Each type here is independent of a form, and every
  * limit here follows from the two chips.
  */
 public interface YMXS {
@@ -28,7 +28,8 @@ public interface YMXS {
 
     /** One tune: its title, and its rows, one a frame at the tune's rate.
      *  Its sources are the ones its rows start
-     *  ({@link Tunes#sources}). */
+     *  ({@link Tunes#sources}), and its transformations the ones the
+     *  mappings of its rows use. */
     record Tune(String title, String composer, String writer, int rate,
                 Table<Row> table) { }
 
@@ -45,15 +46,15 @@ public interface YMXS {
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
     /** One row's operation on the effect of one timer. An effect is a
-     *  source connected to a target on one timer, at the rate its
-     *  prescaler and count come to, and a row performs one of three
-     *  operations on it. */
-    sealed interface Effect permits Start, Retune, Stop { }
+     *  source connected to a target on one timer through a mapping, at
+     *  the rate its prescaler and count come to, and a row performs one
+     *  of four operations on it. */
+    sealed interface Effect permits Start, Retune, Stop, Remap { }
 
-    /** The row runs {@code source} on {@code target} at that rate, from
-     *  this row on. Every start records the target and the rate, changed
-     *  or not, since a start defines the effect rather than the parts of
-     *  it that differ.
+    /** The row runs {@code source} on {@code target} through
+     *  {@code mapping} at that rate, from this row on. Every start records
+     *  the target, the mapping and the rate, changed or not, since a start
+     *  defines the effect rather than the fields of it that differ.
      *
      *  <p>A start is a shape a width: each pairs a target with a source
      *  of the values a row that target reads, so a source that fits its
@@ -74,15 +75,15 @@ public interface YMXS {
 
     /** A start of one value a row. */
     record StartOne(OneTarget target, Single source, Timing timing,
-                    boolean deferred) implements Start { }
+                    boolean deferred, Mapping mapping) implements Start { }
 
     /** A start of two values a row. */
     record StartPair(TwoTarget target, Pair source, Timing timing,
-                     boolean deferred) implements Start { }
+                     boolean deferred, Mapping mapping) implements Start { }
 
     /** A start of three values a row. */
     record StartTriple(ThreeTarget target, Triple source, Timing timing,
-                       boolean deferred) implements Start { }
+                       boolean deferred, Mapping mapping) implements Start { }
 
     /** The row leaves the effect on its source and target, at the rate in
      *  this record. A bend changes the count; a note struck again at the
@@ -92,6 +93,12 @@ public interface YMXS {
     /** The row stops the effect: its timer stops, and the effect is idle
      *  until a later row starts a source on it. */
     record Stop() implements Effect { }
+
+    /** The row sets the mapping of the effect the timer runs, and leaves
+     *  its source, its rate and its place as they were: a fade is a remap
+     *  a frame, each through the next transformation of a volume. A start
+     *  pending on the timer keeps the mapping of its row. */
+    record Remap(Mapping mapping) implements Effect { }
 
     /** What a timer's tick calls with a source's row: a procedure that
      *  reads one row and writes it to the registers below. A target is
@@ -155,6 +162,27 @@ public interface YMXS {
     /** One row of a source of three values, a value a register of the
      *  target that runs it. */
     record Three(int first, int second, int third) { }
+
+    /** For each value of a row, the part a tick writes it through: part i
+     *  maps value i, and a mapping of one part or more has a part for each
+     *  value its target reads. The mapping of no parts is the identity in
+     *  every part. */
+    record Mapping(List<Part> parts) { }
+
+    /** How a tick writes one value of a row: as it is, or through a
+     *  transformation. */
+    sealed interface Part permits Identity, Transformation { }
+
+    /** The part that writes each value as it is. A transformation whose
+     *  entry k is k at every key is a separate part from this one. */
+    record Identity() implements Part { }
+
+    /** A name and 1 to 256 entries, each 0 to 255: entry k is the value
+     *  written where the value read is k, the key. The keys are 0 to the
+     *  last key, the number of entries less one. The name is text for
+     *  display and for reports, and two transformations are one where
+     *  their names and their entries are equal in number and order. */
+    record Transformation(String name, List<Integer> entries) implements Part { }
 
     /** One of the fourteen YM2149 registers a row sets and a target
      *  writes. Two of the chip's sixteen are its I/O ports, outside a

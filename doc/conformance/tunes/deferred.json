@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 6,
+  "version": 7,
   "tunes": [
     {
       "title": "A square, then a fall",
@@ -13,6 +13,7 @@
         {"name": "square 15", "repeat": 0, "values": [15,0]},
         {"name": "fall", "repeat": null, "values": [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0]}
       ],
+      "transformations": [],
       "registers": {
         "r0": [163,-1,-1,-1,142,-1,-1,-1],
         "r1": [2,-1,-1,-1,1,-1,-1,-1],
@@ -26,7 +27,8 @@
         "count": [200,-1,-1,-1,200,-1,-1,-1],
         "timerReset": [1,-1,-1,-1,0,-1,-1,-1],
         "placeReset": [1,-1,-1,-1,1,-1,-1,-1],
-        "deferred": [0,-1,-1,-1,1,-1,-1,-1]
+        "deferred": [0,-1,-1,-1,1,-1,-1,-1],
+        "mapping": [0,-1,-1,-1,0,-1,-1,-1]
       }
     }
   ]

@@ -69,8 +69,9 @@ type Row struct {
 }
 
 // Effect is one row's operation on the effect of one timer. An effect is a
-// source connected to a target on one timer, at the rate its prescaler and
-// count come to, and a row performs one of three operations on it.
+// source connected to a target on one timer through a mapping, at the rate
+// its prescaler and count come to, and a row performs one of four
+// operations on it.
 type Effect interface {
 	effect()
 }
@@ -85,9 +86,10 @@ type Timing struct {
 	PlaceReset bool
 }
 
-// Start runs a source on a target at that rate, from this row on. Every
-// start records the target and the rate, changed or not, since a start
-// defines the effect rather than the parts of it that differ.
+// Start runs a source on a target through a mapping at that rate, from
+// this row on. Every start records the target, the mapping and the rate,
+// changed or not, since a start defines the effect rather than the fields
+// of it that differ.
 //
 // A start is a shape a width: each pairs a target with a source of the
 // values a row that target reads, so a source that fits its target is a
@@ -101,12 +103,14 @@ type Start interface {
 	start()
 }
 
-// StartOne is a start of one value a row.
+// StartOne is a start of one value a row. The zero Mapping is the mapping
+// of no parts, the identity in every part.
 type StartOne struct {
 	Target   OneTarget
 	Source   Single
 	Timing   Timing
 	Deferred bool
+	Mapping  Mapping
 }
 
 // StartPair is a start of two values a row.
@@ -115,6 +119,7 @@ type StartPair struct {
 	Source   Pair
 	Timing   Timing
 	Deferred bool
+	Mapping  Mapping
 }
 
 // StartTriple is a start of three values a row.
@@ -123,6 +128,7 @@ type StartTriple struct {
 	Source   Triple
 	Timing   Timing
 	Deferred bool
+	Mapping  Mapping
 }
 
 // Retune leaves the effect on its source and target, at the rate in this
@@ -136,11 +142,20 @@ type Retune struct {
 // later row starts a source on it.
 type Stop struct{}
 
+// Remap sets the mapping of the effect the timer runs, and leaves its
+// source, its rate and its place as they were: a fade is a remap a frame,
+// each through the next transformation of a volume. A start pending on the
+// timer keeps the mapping of its row (SPEC.md 3.5.5).
+type Remap struct {
+	Mapping Mapping
+}
+
 func (StartOne) effect()    {}
 func (StartPair) effect()   {}
 func (StartTriple) effect() {}
 func (Retune) effect()      {}
 func (Stop) effect()        {}
+func (Remap) effect()       {}
 
 func (StartOne) start()    {}
 func (StartPair) start()   {}
@@ -263,6 +278,38 @@ type Three struct {
 func (Single) source() {}
 func (Pair) source()   {}
 func (Triple) source() {}
+
+// Mapping is, for each value of a row, the part a tick writes it through:
+// part i maps value i, and a mapping of one part or more has a part for
+// each value its target reads (SPEC.md 3.6.3). The mapping of no parts,
+// the zero Mapping, is the identity in every part.
+type Mapping struct {
+	Parts []Part
+}
+
+// Part is how a tick writes one value of a row: as it is, or through a
+// transformation.
+type Part interface {
+	part()
+}
+
+// Identity is the part that writes each value as it is. A transformation
+// whose entry k is k at every key is a separate part from this one.
+type Identity struct{}
+
+// Transformation is a name and E entries, E from 1 to MostEntries, each 0
+// to MostEntry: entry k is the value written where the value read is k,
+// the key. Its keys are 0 to E - 1, and E - 1 is its last key (LastKey).
+// The name is text for display and for reports, and two transformations
+// are one where their names and their entries are equal in number and
+// order (TransformationEqual).
+type Transformation struct {
+	Name    string
+	Entries []int
+}
+
+func (Identity) part()       {}
+func (Transformation) part() {}
 
 // Voice is one of the three voices of the YM2149, which a target names
 // where it writes the registers of one.

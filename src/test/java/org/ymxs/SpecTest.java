@@ -188,6 +188,50 @@ final class SpecTest {
         assertTrue(rows >= 4, "3.5.3's table read as " + rows + " rows");
     }
 
+    /**
+     * 3.6.5's table of the volume written, recomputed from the rule: the
+     * key through the identity, and through {@code Vn} its entry at the
+     * key, the key times n divided by 15, the remainder discarded. The
+     * sentence that defines {@code Vn} is read too, so a table that
+     * follows a reworded rule fails here.
+     */
+    @Test
+    void theTableOfTheVolumeWrittenFollowsTheRule() throws IOException {
+        String spec = Files.readString(SPEC);
+        int from = spec.indexOf("**3.6.5");
+        assertTrue(from >= 0, SPEC + " has no 3.6.5");
+        String section = spec.substring(from, spec.indexOf("\n---\n", from));
+        assertTrue(section.replaceAll("\\s+", " ")
+                .contains("the transformation whose entry k is k × n divided by 15"),
+                "3.6.5 defines Vn as entry k, k × n divided by 15");
+        Matcher header = Pattern.compile("^\\| part((?: \\| key \\d+)+) \\|$",
+                Pattern.MULTILINE).matcher(section);
+        assertTrue(header.find(), "3.6.5's table has a column a key");
+        List<Integer> keys = new ArrayList<>();
+        Matcher key = Pattern.compile("key (\\d+)").matcher(header.group(1));
+        while (key.find()) {
+            keys.add(Integer.parseInt(key.group(1)));
+        }
+        Matcher row = Pattern.compile("^\\| (the identity|`V(\\d+)`)((?: \\| \\d+)+) \\|$",
+                Pattern.MULTILINE).matcher(section);
+        int rows = 0;
+        boolean identity = false;
+        while (row.find()) {
+            String[] cells = row.group(3).substring(" | ".length()).split(" \\| ");
+            assertEquals(keys.size(), cells.length, row.group(1) + " has a cell a key");
+            for (int at = 0; at < keys.size(); at++) {
+                int k = keys.get(at);
+                int written = row.group(2) == null ? k : k * Integer.parseInt(row.group(2)) / 15;
+                assertEquals(written, Integer.parseInt(cells[at].strip()), row.group(1)
+                        + " at key " + k);
+            }
+            identity |= row.group(2) == null;
+            rows++;
+        }
+        assertTrue(identity, "3.6.5's table has a row for the identity");
+        assertTrue(rows >= 4, "3.6.5's table read as " + rows + " rows");
+    }
+
     /** The Java block of the document, its fences off. */
     private static String quoted() throws IOException {
         List<String> lines = Files.readAllLines(SPEC);
@@ -306,7 +350,7 @@ final class SpecTest {
     void everyCitationLandsOnAClause() throws IOException {
         List<String> wrong = new ArrayList<>();
         for (Path at : List.of(Path.of("doc/SPEC.md"), Path.of("doc/json.md"),
-                Path.of("doc/csv.md"), Path.of("doc/ym.md"))) {
+                Path.of("doc/csv.md"), Path.of("doc/ym.md"), Path.of("doc/tools.md"))) {
             String said = Files.readString(at);
             Set<String> clauses = clausesOf(said);
             Matcher m = Pattern.compile("\\((\\d+(?:\\.\\d+){1,3})\\)").matcher(said);
@@ -314,6 +358,168 @@ final class SpecTest {
                 if (!clauses.contains(m.group(1))) {
                     wrong.add(at + " cites (" + m.group(1) + "), which is no clause of it");
                 }
+            }
+        }
+        assertTrue(wrong.isEmpty(), String.join("\n", wrong));
+    }
+
+    /** csv.md 5.4 writes the line of tools.md 7.4, from its tool's name to
+     *  its {@code <value>}, and the text after it as a name in a reported
+     *  line. */
+    @Test
+    void theLineOfTheCsvEmitterIsTheLineOfToolsSevenFour() throws IOException {
+        String tool = "ymxs-json-to-csv: ";
+        Matcher line = Pattern.compile("\n    " + Pattern.quote(tool) + "(.*)<value>\n")
+                .matcher(section(Path.of("doc/tools.md"), "**7.4**", "## 8."));
+        assertTrue(line.find(), "tools.md 7.4 has no line of " + tool);
+        String emitter = section(Path.of("doc/csv.md"), "**5.4**", "**5.5**")
+                .replaceAll("\\s+", " ");
+        assertTrue(emitter.contains("`" + line.group(1) + "` followed by the text, each line"
+                + " feed in it written as the two characters `\\n` and each carriage return as"
+                + " `\\r`"), "csv.md 5.4 reads " + emitter);
+    }
+
+    /** {@code at} from the first {@code from} to the first {@code to}
+     *  after it. */
+    private static String section(Path at, String from, String to) throws IOException {
+        String said = Files.readString(at);
+        int start = said.indexOf(from);
+        assertTrue(start >= 0, at + " has no " + from);
+        int end = said.indexOf(to, start + from.length());
+        assertTrue(end >= 0, at + " has no " + to + " after " + from);
+        return said.substring(start, end);
+    }
+
+    /** The lines the table of {@code section} reports: each code span in
+     *  the last cell of a row. */
+    private static List<String> lines(String section) {
+        List<String> out = new ArrayList<>();
+        for (String line : section.split("\n")) {
+            String row = line.strip();
+            if (row.length() < 2 || !row.startsWith("|") || !row.endsWith("|")) {
+                continue;
+            }
+            String last = row.substring(row.lastIndexOf('|', row.length() - 2) + 1,
+                    row.length() - 1);
+            Matcher span = Pattern.compile("`([^`]+)`").matcher(last);
+            while (span.find()) {
+                out.add(span.group(1));
+            }
+        }
+        return out;
+    }
+
+    /** {@code line} of a table as a regular expression: each word of
+     *  capital letters, {@code Rn} and {@code setRn} any text. */
+    private static String pattern(String line) {
+        StringBuilder out = new StringBuilder();
+        Matcher any = Pattern.compile("\\b(?:set)?Rn\\b|\\b[A-Z]+\\b").matcher(line);
+        int at = 0;
+        while (any.find()) {
+            out.append(Pattern.quote(line.substring(at, any.start()))).append(".*");
+            at = any.end();
+        }
+        return out.append(Pattern.quote(line.substring(at))).toString();
+    }
+
+    /** Whether {@code reported} is one of {@code lines} after any number
+     *  of the {@code prefixes}, each read as {@link #pattern} reads it. */
+    private static boolean carries(List<String> lines, List<String> prefixes,
+            String reported) {
+        String before = prefixes.isEmpty() ? "" : "(?:" + String.join("|",
+                prefixes.stream().map(SpecTest::pattern).toList()) + ")*";
+        for (String line : lines) {
+            if (Pattern.compile(before + pattern(line)).matcher(reported).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A copy of the lines {@code ParityTest} reads from the tools in its
+     * case of a source of other values a row than its target reads and its
+     * case of a name in a reported line, kept in step with it by hand, are
+     * lines of the documents: a line of a JSON input is a line of json.md
+     * 8.1, a line of a CSV input one of csv.md 5.1, and a line of the
+     * structure one of SPEC.md 1.11 after the prefixes of 1.12, each word
+     * of capital letters, {@code Rn} and {@code setRn} in the table
+     * matching any text. The line of a source of W values a row is an
+     * error of the form, so the table of SPEC.md 1.11 lacks it, and SPEC.md
+     * 1.12, json.md 8.1 and csv.md 5.1 write each line feed of a NAME as
+     * two characters.
+     */
+    @Test
+    void theDocumentsHaveTheLinesOfAWidthAndOfANameInAReportedLine() throws IOException {
+        Path json = Path.of("doc/json.md");
+        Path csv = Path.of("doc/csv.md");
+        String json81 = section(json, "**8.1**", "**8.2**");
+        String csv51 = section(csv, "**5.1**", "**5.2**");
+        String spec111 = section(SPEC, "**1.11", "**1.12");
+        String spec112 = section(SPEC, "**1.12", "\n---\n");
+        List<String> prefixes = new ArrayList<>();
+        Matcher prefix = Pattern.compile("`([^`]+: )`").matcher(spec112.replaceAll("\\s+", " "));
+        while (prefix.find()) {
+            prefixes.add(prefix.group(1));
+        }
+        assertTrue(prefixes.size() >= 4, "SPEC.md 1.12 read as " + prefixes.size()
+                + " prefixes");
+
+        String whole = ", and this form requires a whole number";
+        String started = ", is started by no row, and a source a tune does not run is"
+                + " dropped where this form is read";
+        String used = ", is used by no row, and a transformation a tune does not map"
+                + " through is dropped where this form is read";
+        List<String> ofJson = new ArrayList<>(List.of(
+                "a source of 1 values a row on setNoiseB, which reads 2",
+                "a source of 2 values a row on setR8, which reads 1",
+                "row 0 maps through transformation 2, and the tune has 1"));
+        List<String> ofCsv = new ArrayList<>(ofJson);
+        ofJson.add("Timer A's count at row 0 is \"x\"" + whole);
+        ofCsv.add("count is \"x\"" + whole);
+        List<String> ofStructure = new ArrayList<>(List.of(
+                "tune 1: row 0: R9 is 0 to 31, and this row sets it to 40"));
+        for (String escape : List.of("\\n", "\\r")) {
+            ofJson.add("ha" + escape + "lf at entry 1 is 1e1" + whole);
+            ofJson.add("a" + escape + "tone at row 1 is \"x\"" + whole);
+            ofJson.add("source 2, id" + escape + "le" + started);
+            ofJson.add("transformation 2, ot" + escape + "her" + used);
+            ofStructure.add("tune 1: transformation 1, ha" + escape + "lf: entry 2 is 300,"
+                    + " and an entry is 0 to 255");
+        }
+        ofCsv.add("source 2, id\\rle" + started);
+        ofCsv.add("transformation 2, ot\\rher" + used);
+        ofCsv.add("source a\\rtone has a row of several values, and version 3 has one value a"
+                + " row");
+
+        List<String> wrong = new ArrayList<>();
+        for (String one : ofJson) {
+            if (!carries(lines(json81), List.of(), one)) {
+                wrong.add("json.md 8.1 lacks the line " + one);
+            }
+        }
+        for (String one : ofCsv) {
+            if (!carries(lines(csv51), List.of(), one)) {
+                wrong.add("csv.md 5.1 lacks the line " + one);
+            }
+        }
+        for (String one : ofStructure) {
+            if (!carries(lines(spec111), prefixes, one)) {
+                wrong.add("SPEC.md 1.11 and 1.12 lack the line " + one);
+            }
+        }
+        for (String one : lines(spec111)) {
+            if (one.contains("a source of W values a row")) {
+                wrong.add("SPEC.md 1.11 has the line " + one + ", an error of the form");
+            }
+        }
+        Pattern name = Pattern.compile("NAME [^.;]*each line feed in it written as the two"
+                + " characters");
+        for (String[] one : new String[][] {{"SPEC.md 1.12", spec112}, {"json.md 8.1", json81},
+                {"csv.md 5.1", csv51}}) {
+            if (!name.matcher(one[1].replaceAll("\\s+", " ")).find()) {
+                wrong.add(one[0] + " defines NAME without \"each line feed in it written as"
+                        + " the two characters\"");
             }
         }
         assertTrue(wrong.isEmpty(), String.join("\n", wrong));

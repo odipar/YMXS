@@ -1,6 +1,7 @@
 package check_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -137,6 +138,406 @@ func TestADeferredStartBeginsWhereTheEffectBeforeItRunsOut(t *testing.T) {
 			[]string{"row 3: Timer A runs on R9, and this row sets it" + reckoned}},
 	} {
 		said := check.Writing(tune(one.rows, 50))
+		if strings.Join(said, "\n") != strings.Join(one.said, "\n") {
+			t.Errorf("%s: %q, and SPEC.md 6.3 reads %q", one.named, said, one.said)
+		}
+	}
+}
+
+// volume is the transformation Vn of SPEC.md 3.6.5: 16 entries, entry k is
+// k × n divided by 15, for the keys 0 to 15.
+func volume(n int) ymxs.Transformation {
+	entries := make([]int, 16)
+	for k := range entries {
+		entries[k] = k * n / 15
+	}
+	return ymxs.Transformation{Name: fmt.Sprintf("V%d", n), Entries: entries}
+}
+
+// wide is a transformation of 256 entries under a name, a key for each
+// value of a byte: entry k is k × n divided by 15.
+func wide(named string, n int) ymxs.Transformation {
+	entries := make([]int, 256)
+	for k := range entries {
+		entries[k] = k * n / 15
+	}
+	return ymxs.Transformation{Name: named, Entries: entries}
+}
+
+// first is the transformation cut to its first E entries, keys 0 to E - 1.
+func first(transformation ymxs.Transformation, e int) ymxs.Transformation {
+	transformation.Entries = transformation.Entries[:e]
+	return transformation
+}
+
+// on is a row of one operation on Timer A, and of no register.
+func on(effect ymxs.Effect) ymxs.Row {
+	return ymxs.Row{Registers: map[ymxs.Register]int{},
+		Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: effect}}
+}
+
+// voice is a start on setVoiceA of a note of these rows, through the
+// mapping.
+func voice(rows []ymxs.Three, mapping ymxs.Mapping) ymxs.StartTriple {
+	return ymxs.StartTriple{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
+		Source: ymxs.Triple{Name: "a note", Table: ymxs.Repeating(rows, 0)},
+		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
+			PlaceReset: true}, Mapping: mapping}
+}
+
+func lines(t *testing.T, named string, said, want []string) {
+	t.Helper()
+	if strings.Join(said, "\n") != strings.Join(want, "\n") {
+		t.Errorf("%s:\n%s\nand SPEC.md 1.12 reads\n%s", named, strings.Join(said, "\n"),
+			strings.Join(want, "\n"))
+	}
+}
+
+// The errors of a transformation are reported under its number in the
+// order the rows first map through it and its name (SPEC.md 1.9, 1.12 item
+// 2.3): the number of its entries where it is outside 1 to 256, then each
+// entry outside 0 to 255 in key order, before the lines of the rows.
+func TestTheErrorsOfATransformationComeBeforeTheRows(t *testing.T) {
+	none := ymxs.Transformation{Name: "none", Entries: []int{}}
+	long := wide("long", 15)
+	long.Entries = append(long.Entries, 300)
+	outside := wide("wide", 15)
+	outside.Entries[3], outside.Entries[1] = 256, -1
+	id := []ymxs.Part{ymxs.Identity{}, ymxs.Identity{}}
+	note := []ymxs.Three{{First: 1, Second: 1, Third: 15}}
+	rows := []ymxs.Row{
+		on(voice(note, ymxs.Mapped(append(id, outside)...))),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, none)...)}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, long)...)}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, outside)...)}),
+	}
+	rows[0].Registers[ymxs.R1] = 16
+	lines(t, "three transformations", check.Tune(tune(rows, 50)), []string{
+		"transformation 1, wide: entry 1 is -1, and an entry is 0 to 255",
+		"transformation 1, wide: entry 3 is 256, and an entry is 0 to 255",
+		"transformation 2, none: the transformation has 0 entries, and a transformation has" +
+			" 1 to 256",
+		"transformation 3, long: the transformation has 257 entries, and a transformation" +
+			" has 1 to 256",
+		"transformation 3, long: entry 256 is 300, and an entry is 0 to 255",
+		"row 0: R1 is 0 to 15, and this row sets it to 16",
+	})
+	for _, e := range []int{1, 16, 255, 256} {
+		if said := check.Transformation(first(wide("V15", 15), e)); len(said) != 0 {
+			t.Errorf("V15 of %d entries is free of the errors: %v", e, said)
+		}
+	}
+}
+
+// A value through a transformation of E entries, E from 1 to 256, is a key,
+// 0 to its last key E - 1 (SPEC.md 3.6.1, 3.6.5): above it, a start reports
+// the line of 1.11 with that last key, and so does a remap against each
+// start on its timer (1.12 items 2.4.2.3 and 2.4.2.4). A transformation of
+// 0 or 257 entries has the line of its count, and a value through it has
+// no key line, since that line rests on the count.
+func TestAValueIsAKeyOfTheTransformationItIsReadThrough(t *testing.T) {
+	id := []ymxs.Part{ymxs.Identity{}, ymxs.Identity{}}
+	volumes := volume(15)
+	one := ymxs.Transformation{Name: "one", Entries: []int{7}}
+	sixteen := []ymxs.Three{{First: 1, Second: 1, Third: 15}, {First: 1, Second: 1,
+		Third: 16}}
+	for _, each := range []struct {
+		named   string
+		rows    []ymxs.Three
+		through ymxs.Transformation
+		want    []string
+	}{
+		{"16 entries", sixteen, volumes, []string{
+			"a source on setVoiceA whose row 1 is 16, and a key is 0 to 15"}},
+		{"one entry", []ymxs.Three{{First: 1, Second: 1, Third: 0}, {First: 1, Second: 1,
+			Third: 1}}, one, []string{
+			"a source on setVoiceA whose row 1 is 1, and a key is 0 to 0"}},
+	} {
+		lines(t, each.named, check.Effect(voice(each.rows, ymxs.Mapped(append(id,
+			each.through)...))), each.want)
+	}
+
+	remapped := []ymxs.Row{
+		on(voice(sixteen, ymxs.Mapping{})),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, volumes)...)}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, wide("V15", 15))...)}),
+	}
+	lines(t, "a remap through 16 entries", check.Tune(tune(remapped, 50)), []string{
+		"row 1: Timer A: start of row 0: a source on setVoiceA whose row 1 is 16, and a key" +
+			" is 0 to 15"})
+
+	none := ymxs.Transformation{Name: "none", Entries: []int{}}
+	long := wide("long", 15)
+	long.Entries = append(long.Entries, 0)
+	high := []ymxs.Three{{First: 1, Second: 1, Third: 16}, {First: 1, Second: 1,
+		Third: 300}}
+	counted := []ymxs.Row{
+		on(voice(high, ymxs.Mapped(append(id, long)...))),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, none)...)}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, long)...)}),
+		{Effects: map[ymxs.Timer]ymxs.Effect{
+			ymxs.TimerB: voice(high, ymxs.Mapped(append(id, none)...))}},
+	}
+	lines(t, "0 and 257 entries", check.Tune(tune(counted, 50)), []string{
+		"transformation 1, long: the transformation has 257 entries, and a transformation" +
+			" has 1 to 256",
+		"transformation 2, none: the transformation has 0 entries, and a transformation has" +
+			" 1 to 256",
+	})
+}
+
+// Two transformations are one where their names are equal and their entries
+// equal in number and order (SPEC.md 3.6.2): a table of 16 entries and one of
+// 256 under one name are two transformations of the tune, numbered in the
+// order the rows first map through them (1.9).
+func TestTablesOf16And256EntriesUnderOneNameAreTwoTransformations(t *testing.T) {
+	short, whole := volume(15), wide("V15", 15)
+	if ymxs.TransformationEqual(short, whole) {
+		t.Error("V15 of 16 entries and V15 of 256 are one transformation")
+	}
+	id := []ymxs.Part{ymxs.Identity{}, ymxs.Identity{}}
+	rows := []ymxs.Row{
+		on(voice([]ymxs.Three{{First: 1, Second: 1, Third: 15}},
+			ymxs.Mapped(append(id, short)...))),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, whole)...)}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(append(id, volume(15))...)}),
+	}
+	built := tune(rows, 50)
+	listed := ymxs.Transformations(built)
+	if len(listed) != 2 || len(listed[0].Entries) != 16 || len(listed[1].Entries) != 256 {
+		t.Errorf("the tune maps through %d transformations, and SPEC.md 1.9 lists two: 16"+
+			" entries, then 256", len(listed))
+	}
+	lines(t, "two tables of V15", check.Tune(built), nil)
+}
+
+// The values of the source of a start are read through its mapping
+// (SPEC.md 1.11, 1.12 item 2.4.2.3): above the most of the register
+// through the identity, above the last key of a transformation of 1 to 256
+// entries, 255 for one of 256, in row order and within a row in value
+// order; then the number of parts; then each value through a
+// transformation mapped above the most of its register. A value outside the
+// keys of a transformation is not read through it, and an entry outside 0
+// to 255 is not read, while each other entry of that transformation is
+// (1.12).
+func TestTheSourceOfAStartIsReadThroughItsMapping(t *testing.T) {
+	loud := wide("loud", 15)
+	loud.Entries[15], loud.Entries[12] = 40, 33
+	broken := wide("broken", 15)
+	broken.Entries[15], broken.Entries[12] = 300, 33
+	rows := []ymxs.Three{{First: 300, Second: 16, Third: 15}, {First: 0, Second: 0,
+		Third: 256}, {First: 1, Second: 1, Third: 12}}
+	for _, one := range []struct {
+		named   string
+		mapping ymxs.Mapping
+		want    []string
+	}{
+		{"the identity", ymxs.Mapping{}, []string{
+			"a source on setVoiceA whose row 0 is 300, and the target is 0 to 255",
+			"a source on setVoiceA whose row 0 is 16, and the target is 0 to 15",
+			"a source on setVoiceA whose row 1 is 256, and the target is 0 to 31"}},
+		{"a transformation of the volume",
+			ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, loud), []string{
+				"a source on setVoiceA whose row 0 is 300, and the target is 0 to 255",
+				"a source on setVoiceA whose row 0 is 16, and the target is 0 to 15",
+				"a source on setVoiceA whose row 1 is 256, and a key is 0 to 255",
+				"value 2 of row 0 maps to 40 on setVoiceA, and the target is 0 to 31",
+				"value 2 of row 2 maps to 33 on setVoiceA, and the target is 0 to 31"}},
+		{"a transformation of each value",
+			ymxs.Mapped(wide("half", 7), wide("half", 7), loud), []string{
+				"a source on setVoiceA whose row 0 is 300, and a key is 0 to 255",
+				"a source on setVoiceA whose row 1 is 256, and a key is 0 to 255",
+				"value 2 of row 0 maps to 40 on setVoiceA, and the target is 0 to 31",
+				"value 2 of row 2 maps to 33 on setVoiceA, and the target is 0 to 31"}},
+		{"a transformation with an error",
+			ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, broken), []string{
+				"a source on setVoiceA whose row 0 is 300, and the target is 0 to 255",
+				"a source on setVoiceA whose row 0 is 16, and the target is 0 to 15",
+				"a source on setVoiceA whose row 1 is 256, and a key is 0 to 255",
+				"value 2 of row 2 maps to 33 on setVoiceA, and the target is 0 to 31"}},
+		{"two parts", ymxs.Mapped(ymxs.Identity{}, loud), []string{
+			"a mapping of 2 parts on setVoiceA, which reads 3"}},
+	} {
+		lines(t, one.named, check.Effect(voice(rows, one.mapping)), one.want)
+	}
+}
+
+// A remap is read against each start on its timer, at any row of the tune
+// before or after it (SPEC.md 1.11, 1.12 item 2.4.2.4): the number of
+// parts for each target in the order of the first start that connects it,
+// then each value above the last key of a transformation or through the
+// mapping above the most of its register, for each target and source in
+// the order of the first start that connects the two, prefixed with the
+// row of that start. A remap on a timer no row starts reads against none.
+func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
+	loud := wide("loud", 15)
+	loud.Entries[15] = 40
+	quiet := []ymxs.Three{{First: 1, Second: 1, Third: 12}}
+	high := []ymxs.Three{{First: 1, Second: 1, Third: 15}, {First: 1, Second: 1,
+		Third: 256}}
+	tone := ymxs.StartPair{Target: ymxs.SetTone{Voice: ymxs.VoiceA},
+		Source: ymxs.Pair{Name: "a tone", Table: ymxs.Repeating([]ymxs.Two{
+			{First: 200, Second: 15}}, 0)},
+		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
+			PlaceReset: true}}
+	through := ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, loud)
+	rows := []ymxs.Row{
+		on(voice(quiet, ymxs.Mapping{})),
+		on(ymxs.Remap{Mapping: through}),
+		on(tone),
+		on(voice(high, ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{},
+			wide("V0", 0)))),
+		on(ymxs.Remap{Mapping: ymxs.Mapping{}}),
+		on(voice(quiet, ymxs.Mapping{})),
+	}
+	lines(t, "two remaps", check.Tune(tune(rows, 50)), []string{
+		"row 1: Timer A: a mapping of 3 parts on setToneA, which reads 2",
+		"row 1: Timer A: start of row 3: value 2 of row 0 maps to 40 on setVoiceA, and the" +
+			" target is 0 to 31",
+		"row 1: Timer A: start of row 3: a source on setVoiceA whose row 1 is 256, and a key" +
+			" is 0 to 255",
+		"row 3: Timer A: a source on setVoiceA whose row 1 is 256, and a key is 0 to 255",
+		"row 4: Timer A: start of row 3: value 2 of row 1 maps to 256 on setVoiceA, and the" +
+			" target is 0 to 31",
+	})
+	idle := []ymxs.Row{on(ymxs.Remap{Mapping: ymxs.Mapped(loud)}), {}}
+	lines(t, "a remap of no start", check.Tune(tune(idle, 50)), nil)
+}
+
+// level is a start on setR8 on Timer A of a source of these values, one a
+// row, through the mapping.
+func level(named string, values []int, mapping ymxs.Mapping) ymxs.StartOne {
+	return ymxs.StartOne{Target: ymxs.Setting(ymxs.R8),
+		Source: ymxs.RepeatingSource(named, values, 0),
+		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
+			PlaceReset: true}, Mapping: mapping}
+}
+
+// Two sources of equal rows under two names are two sources (SPEC.md 1.9),
+// so a remap reads each, the lines of each prefixed with the row of the
+// first start that connects it (1.12 item 2.4.2.4); a later start of the
+// first source is the same connection, read once.
+func TestARemapReadsTwoSourcesOfEqualRowsUnderTheRowsOfTheirStarts(t *testing.T) {
+	volumes := volume(15)
+	rows := []ymxs.Row{
+		on(level("a", []int{16}, ymxs.Mapping{})),
+		on(level("b", []int{16}, ymxs.Mapping{})),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(volumes)}),
+		on(level("a", []int{16}, ymxs.Mapping{})),
+	}
+	lines(t, "two sources of 16", check.Tune(tune(rows, 50)), []string{
+		"row 2: Timer A: start of row 0: a source on setR8 whose row 0 is 16, and a key is" +
+			" 0 to 15",
+		"row 2: Timer A: start of row 1: a source on setR8 whose row 0 is 16, and a key is" +
+			" 0 to 15",
+	})
+	if said := check.Multi(ymxs.NewMulti(tune(rows, 50))); len(said) != 2 ||
+		said[0] != "tune 1: row 2: Timer A: start of row 0: a source on setR8 whose row 0"+
+			" is 16, and a key is 0 to 15" {
+		t.Errorf("a multi reports %q", said)
+	}
+}
+
+// The name of a source or of a transformation in a reported line has each
+// line feed as the two characters \n and each carriage return as \r, so
+// the line is one line (SPEC.md 1.12): in the prefix of a transformation,
+// and in the lines of an unstarted source and an unused transformation
+// (json.md 8.1, csv.md 5.1).
+func TestANameInAReportedLineIsOneLine(t *testing.T) {
+	for _, one := range []struct{ name, reported string }{
+		{"a\nb", `a\nb`}, {"a\rb", `a\rb`}, {"\r\n", `\r\n`}, {`a\nb`, `a\nb`},
+	} {
+		none := ymxs.Transformation{Name: one.name, Entries: []int{}}
+		built := tune([]ymxs.Row{on(level("s", []int{1}, ymxs.Mapped(none)))}, 50)
+		lines(t, one.reported, check.Tune(built), []string{"transformation 1, " +
+			one.reported + ": the transformation has 0 entries, and a transformation has 1" +
+			" to 256"})
+		source := ymxs.RepeatingSource(one.name, []int{1}, 0)
+		lines(t, one.reported, check.Declared([]ymxs.Source{source}, built), []string{
+			"source 1, " + one.reported + ", is started by no row, and a source a tune does" +
+				" not run is dropped where this form is read"})
+		unused := ymxs.Transformation{Name: one.name, Entries: []int{0}}
+		lines(t, one.reported, check.Used([]ymxs.Transformation{none, unused}, built),
+			[]string{"transformation 2, " + one.reported + ", is used by no row, and a" +
+				" transformation a tune does not map through is dropped where this form is" +
+				" read"})
+		if ymxs.Reported(one.name) != one.reported {
+			t.Errorf("%q is reported as %q", one.name, ymxs.Reported(one.name))
+		}
+	}
+}
+
+// An entry outside 0 to 255 leaves the other entries of its transformation
+// read (SPEC.md 1.12): through 16 entries of which entry 1 is 300, key 0
+// reaches entry 0, 40, above the most of R8, by a start and by a remap; key
+// 1 is not read, and value 20 is above the last key, 15.
+func TestAnEntryOutside0To255LeavesTheOtherEntriesRead(t *testing.T) {
+	v := ymxs.Transformation{Name: "v", Entries: []int{40, 300, 0, 1, 2, 3, 4, 5, 6, 7,
+		8, 9, 10, 11, 12, 13}}
+	rows := []ymxs.Row{
+		on(level("s", []int{0, 1, 20}, ymxs.Mapped(v))),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(v)}),
+	}
+	lines(t, "one entry of 300", check.Tune(tune(rows, 50)), []string{
+		"transformation 1, v: entry 1 is 300, and an entry is 0 to 255",
+		"row 0: Timer A: a source on setR8 whose row 2 is 20, and a key is 0 to 15",
+		"row 0: Timer A: value 0 of row 0 maps to 40 on setR8, and the target is 0 to 31",
+		"row 1: Timer A: start of row 0: value 0 of row 0 maps to 40 on setR8, and the" +
+			" target is 0 to 31",
+		"row 1: Timer A: start of row 0: a source on setR8 whose row 2 is 20, and a key is" +
+			" 0 to 15",
+	})
+	for _, one := range []struct{ key, written int }{{0, 40}, {2, 0}, {15, 13}} {
+		if written, read := ymxs.Through(v, one.key); !read || written != one.written {
+			t.Errorf("key %d reaches %d, %v, and entry %d is %d", one.key, written, read,
+				one.key, one.written)
+		}
+	}
+	for _, key := range []int{-1, 1, 16} {
+		if written, read := ymxs.Through(v, key); read {
+			t.Errorf("key %d is read as %d", key, written)
+		}
+	}
+}
+
+// A remap on an idle timer is the rule 5 line of a remap (SPEC.md 6.5),
+// with the suffix of the reckoning where the source has run out by it; a
+// remap leaves the effect running, its run and a pending start as they
+// were, and at the repeat row it leaves the line of rule 1(d) to be
+// reported (6.3).
+func TestARemapOnAnIdleTimerIsAWarning(t *testing.T) {
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	drum := ymxs.OnceSource("drum", []int{8, 12, 15, 13})
+	remap := ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Remap{}}}
+	idle := "remaps an effect that is idle: a mapping is set on a running effect, and" +
+		" this row leaves the timer as it is"
+	repeat := func(rows []ymxs.Row, at int) ymxs.Tune {
+		return ymxs.Tune{Title: "built", Writer: "check_test", Rate: 50,
+			Table: ymxs.Repeating(rows, at)}
+	}
+	for _, one := range []struct {
+		named string
+		tune  ymxs.Tune
+		said  []string
+	}{
+		{"before any start", repeat([]ymxs.Row{remap, slow(ymxs.R8, square)}, 1),
+			[]string{"row 0: Timer A " + idle}},
+		{"after a stop", repeat([]ymxs.Row{slow(ymxs.R8, square),
+			{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Stop{}}}, remap}, 0),
+			[]string{"row 2: Timer A " + idle}},
+		{"after the source has run out, in four frames", repeat([]ymxs.Row{
+			slow(ymxs.R8, drum), {}, {}, remap, remap, {}}, 0),
+			[]string{"row 4: Timer A " + idle + reckoned}},
+		{"on a running effect", repeat([]ymxs.Row{slow(ymxs.R8, square), remap,
+			sets(ymxs.R8), remap, sets(ymxs.R8)}, 1), []string{
+			"rows 2 to 4: Timer A runs on R8 from row 0, and 2 of them set it",
+			"the tune repeats to row 1, and Timer A runs on R8 when its last row has" +
+				" played: the wrap resumes with the timer running from the pass before"}},
+		{"with a start pending", repeat([]ymxs.Row{slow(ymxs.R8, square),
+			deferring(ymxs.R9, drum), remap, sets(ymxs.R9), {}}, 0),
+			[]string{"row 3: Timer A runs on R9, and this row sets it" + reckoned}},
+	} {
+		said := check.Writing(one.tune)
 		if strings.Join(said, "\n") != strings.Join(one.said, "\n") {
 			t.Errorf("%s: %q, and SPEC.md 6.3 reads %q", one.named, said, one.said)
 		}

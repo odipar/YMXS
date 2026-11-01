@@ -122,6 +122,34 @@ final class ReadTest {
         assertEquals(text, Text.write(Text.read(text)));
     }
 
+    /** A dump reads into version 7, every start through the mapping of no
+     *  parts, so the tune maps through no transformation (tools.md 9.1,
+     *  ym.md 6). */
+    @Test
+    void everyStartOfADumpHasTheMappingOfNoParts() {
+        Dumps dumped = new Dumps(8, 0, List.of()).set(2, 8, 12).set(3, 8, 12)
+                .set(4, 8, 12).set(5, 8, 12).set(6, 8, 9).set(7, 8, 9);
+        for (int f = 2; f <= 5; f++) {
+            dumped.slot0(f, 1, 0, 1, 100);
+        }
+        Tune tune = read(dumped);
+        int starts = 0;
+        for (var row : Tunes.rows(tune)) {
+            for (var effect : row.effects().values()) {
+                if (effect instanceof Start start) {
+                    assertEquals(Tunes.NO_PARTS, Tunes.mapping(start));
+                    starts++;
+                }
+            }
+        }
+        assertEquals(1, starts, "the square starts once");
+        assertEquals(List.of(), Tunes.transformations(tune));
+        String text = Text.write(Tunes.multi(tune)).replaceAll("\\s+", " ");
+        assertTrue(text.contains("\"version\": 7,"), text);
+        assertTrue(text.contains("\"transformations\": [],"), text);
+        assertTrue(text.contains("\"mapping\": [-1,-1,0,-1,-1,-1,-1,-1]"), text);
+    }
+
     @Test
     void anArchiveThatWillNotUnpackIsSaidToBeOne() {
         // an -lh5- header long enough to read as an archive, with no

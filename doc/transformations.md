@@ -128,7 +128,8 @@ reworded in the same change, so that *mapping* has one meaning.
 YMXR encodes an effect as four columns of the tune file, the target, the
 source, the control and the count (YMXR's SPEC.md, 1.8), and the eight
 bits of the control column are all assigned (YMXR's SPEC.md, 1.9.2). A
-table has 32 columns at most (YMXR's requirements.md, R3.4, R6.3). The
+table has 128 columns at most (YMXR's requirements.md, R3.4, raised from
+32 by odipar/YMXR#319). The
 general tick handler moves its row with one instruction from the source to
 the chip's data port, through a displacement patched into it, and reads
 and writes memory alone: a tick that writes a row costs 96 cycles (YMXR's
@@ -152,35 +153,48 @@ of an effect that maps it, and leaves every other tick as it is.
 - In a file where one subtune maps and another does not, the other runs
   the core with the lookup in: init patches a branch over the frame's
   reading of the mapping columns, 10 cycles a frame, and the binder packs
-  its table in an image of 30 columns apart from the 32 of the other. Its
+  its table in an image of 30 columns apart from the 34 of the other. Its
   ticks cost what they cost today.
 
 ### The columns
 
-A tune of version 10 has 32 columns. Columns 30 and 31 are a change of
-mapping each: bit 7 the set bit, bits 6 and 5 the effect, and bits 4 to 0
-the number of a transformation, 1 to 31, or 0 for the identity. A row that
-changes one effect's mapping and starts it starts the source through the
-new mapping; a row that changes it and leaves the source column unset is a
-remap. A start that leaves the mapping as it was keeps the effect's
-mapping, as it keeps the rate where it leaves the rate columns unset
-(YMXR's SPEC.md, 1.8.4), and a remap on an idle timer sets the mapping the
-next start through the kept mapping uses. The encoding maps one value a
-row: the one value of a target of one register, and the last value YMXS
-lists for a wider one, the volume of `setVoiceX` and `setNoiseX`, the
-shape of `setBuzzer` and the high byte of `setToneX` and `setEnvelope`.
+A tune of version 10 has 34 columns: column 30 + i is the mapping of
+effect i, bit 7 the set bit and bits 6 to 0 the number of a
+transformation, 1 to 127, or 0 for the identity. A row that sets it and
+the source column starts the source through that mapping; a row that sets
+it and leaves the source column unset is a remap. A start that leaves it
+unset keeps the effect's mapping, as it keeps the rate where it leaves the
+rate columns unset (YMXR's SPEC.md, 1.8.4), and a remap on an idle timer
+sets the mapping the next start keeps. The encoding maps one value a row:
+the one value of a target of one register, and the last value YMXS lists
+for a wider one, the volume of `setVoiceX` and `setNoiseX`, the shape of
+`setBuzzer` and the high byte of `setToneX` and `setEnvelope`.
 
-Three limits of the encoding, each a line a writer reports in place of a
-tune file: a row that changes the mapping of three effects or four; a tune
-of more than 31 transformations; a mapping of another value of a wider
-target, or of two values.
+Two limits of the encoding, each a line a writer reports in place of a
+tune file: a tune of more than 127 transformations, and a mapping of
+another value of a wider target, or of two values.
 
-The two columns cost a frame of a tune of version 10 their reads at the
-head, about 8 cycles a constant column and 12 a live one as the review
-counted them, and DTX3 a period of 32 where it is 30: a refill at unit 2
-is 16 units where it is 15, and the writer's rings are multiples of 32.
-The implementation measures the workspace and the advance on a tune of the
-kit.
+### What the columns cost
+
+Measured with four constant columns added to the tables of the eleven
+dumps under YMXR's `ym/test`, against their 30 columns of today:
+
+| | moves by |
+|---|---|
+| the costliest play call | -138 to +1,344 cycles; Turrican - world 4-3 reaches 5,706, 950 under YMXR's R4.5 of 6,656 |
+| the mean play call | -31 to +86 cycles |
+| the costliest advance | +60 to +566 cycles |
+| the workspace | -34 to +352 bytes |
+
+The cost is DTX's period: its packager sets the period at the column
+count or above (DTX, abi.md 4), so a refill at unit 2 is 17 units where
+it is 15, and the writer's rings are multiples of 34. The frame reads
+each mapping column at the head of its effect, 8 cycles a constant one
+and 12 a live one, and a live mapping column has its ring in the
+workspace, N + 48 bytes. A packager whose period is at least the live
+columns, a change of DTX's abi.md 4 and of its three packagers, leaves
+the costliest refill of a tune whose added columns are constant as it is:
+DTX's reader read every row of four tunes at such a period.
 
 ### The tables
 
@@ -282,7 +296,7 @@ the implementation counts.
 ### What else changes
 
 - The tools: both trees write version 10 where a row maps a value and 9
-  otherwise, read 7 to 10, and write bit 5, the two columns and the index;
+  otherwise, read 7 to 10, and write bit 5, the four columns and the index;
   the binder groups images by their column count.
 - The model in the rig maps the value each tick writes, and plays a fade,
   a mapped square, a mapped deferred start, a remap of a source the timer
@@ -298,8 +312,8 @@ the implementation counts.
 - [ ] YMXS: JSON, CSV and the record; the check; both trees; version 7
 - [ ] YMXS: the examples and the conformance kit gain a tune through
       transformations, a fade among them
-- [ ] YMXR: version 10, bit 5, the two columns and the index; the
-      readers, the binder and the converter
+- [ ] YMXR: version 10, bit 5, the four mapping columns and the index;
+      the readers, the binder and the converter
 - [ ] YMXR: the read of the patched displacement confirmed on a real ST
 - [ ] YMXR: the lookup instances, the slots, the remap and the
       `YMXR_MAP` cores; the model and the rig's tunes

@@ -88,7 +88,9 @@ func volume(n int) ymxs.Transformation {
 func fade() ymxs.Tune {
 	note := ymxs.Triple{Name: "a note", Table: ymxs.Repeating([]ymxs.Three{
 		{First: 163, Second: 2, Third: 15}, {First: 142, Second: 12, Third: 12}}, 0)}
-	start := ymxs.StartTriple{Target: ymxs.SetVoice{Voice: ymxs.VoiceA}, Source: note,
+	start := ymxs.Start{
+		Connection: ymxs.ThreeConnection{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
+			Source: note},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 			PlaceReset: true}}
 	remap := func(n int) ymxs.Row {
@@ -294,7 +296,7 @@ func TestAFileOfVersion6ReadsEveryStartWithTheMappingOfNoParts(t *testing.T) {
 		t.Fatalf("a file of version 6 with a mapping column reads: %v", err)
 	}
 	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerA].(ymxs.Start)
-	if parts := ymxs.StartMapping(start).Parts; len(parts) != 0 {
+	if parts := start.Mapping.Parts; len(parts) != 0 {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	written := text.Write(multi)

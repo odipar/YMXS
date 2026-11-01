@@ -312,7 +312,9 @@ func fade() ymxs.Multi {
 			Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerB: effect}}
 	}
 	rows := []ymxs.Row{
-		effect(ymxs.StartTriple{Target: ymxs.SetVoice{Voice: ymxs.VoiceA}, Source: note,
+		effect(ymxs.Start{
+			Connection: ymxs.ThreeConnection{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
+				Source: note},
 			Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 				PlaceReset: true}, Deferred: true,
 			Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, volume(15))}),
@@ -428,7 +430,7 @@ func TestAFileOfVersion6SkipsTheMappingAndHasNoTransformationBlock(t *testing.T)
 		t.Fatalf("a file of version 6 reads: %v", err)
 	}
 	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerB].(ymxs.Start)
-	if parts := ymxs.StartMapping(start).Parts; len(parts) != 0 {
+	if parts := start.Mapping.Parts; len(parts) != 0 {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	for _, one := range []struct{ named, tables, line string }{
@@ -510,7 +512,7 @@ func TestAnErrorOfTheFormOfAMappingIsItsLine(t *testing.T) {
 // writing, as a source name is (tools.md 7.4).
 func TestATransformationNameWithALineFeedIsAnErrorOfTheWriting(t *testing.T) {
 	multi := fade()
-	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerB].(ymxs.StartTriple)
+	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerB].(ymxs.Start)
 	named := volume(15)
 	named.Name = "V\n15"
 	start.Mapping = ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, named)
@@ -526,7 +528,7 @@ func TestATransformationNameWithALineFeedIsAnErrorOfTheWriting(t *testing.T) {
 // skips a blank line, and crosses back (csv.md 2.5, 6.4).
 func TestATransformationOfTheEmptyNameCrossesBack(t *testing.T) {
 	multi := fade()
-	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerB].(ymxs.StartTriple)
+	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerB].(ymxs.Start)
 	nameless := volume(15)
 	nameless.Name = ""
 	start.Mapping = ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, nameless)

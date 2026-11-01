@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
+import org.ymxs.YMXS.Connection;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
 import org.ymxs.YMXS.Mapping;
@@ -37,10 +38,10 @@ import org.ymxs.YMXS.Tune;
  * the inverse, for a caller that stops at the first.
  *
  * <p>A structure is bound by the two chips and the music: what fits a
- * register and what a timer counts. The type of a start pairs a source
- * with a target of its width (SPEC.md 1.1), and a check leaves the width
- * to the type. What a form can write belongs to that form, and no limit
- * of one appears here.
+ * register and what a timer counts. The type of a connection pairs a
+ * source with a target of its width (SPEC.md 1.1), and a check leaves the
+ * width to the type. What a form can write belongs to that form, and no
+ * limit of one appears here.
  *
  * <p>{@link #writing} is the other half: the rules of SPEC.md 6 read
  * across rows rather than within one, and a tune that breaks one of them
@@ -132,8 +133,8 @@ public final class Check {
     private static List<String> of(List<Started> starts, Effect effect) {
         return switch (effect) {
             case Start start -> {
-                List<String> said = new ArrayList<>(count(Tunes.count(start)));
-                said.addAll(rate(Tunes.prescaler(start), Tunes.count(start)));
+                List<String> said = new ArrayList<>(count(start.timing().count()));
+                said.addAll(rate(start.timing().prescaler(), start.timing().count()));
                 said.addAll(runs(start));
                 yield said;
             }
@@ -219,13 +220,13 @@ public final class Check {
      *  each value or none, and the entry a key reaches is within the
      *  register. A transformation of another number of entries has its
      *  line under its number, and this skips a value through it. The
-     *  source has the values a row its target reads, since the record of a
-     *  start pairs the two by width (SPEC.md 1.1). */
+     *  source has the values a row its target reads, since the connection
+     *  of a start pairs the two by width (SPEC.md 1.1). */
     private static List<String> runs(Start start) {
-        Target target = Tunes.target(start);
-        Source source = Tunes.source(start);
+        Target target = Tunes.target(start.connection());
+        Source source = Tunes.source(start.connection());
         List<String> said = new ArrayList<>(of(source));
-        Mapping mapping = Tunes.mapping(start);
+        Mapping mapping = start.mapping();
         if (!parted(mapping, target)) {
             said.add(parts(mapping, target));
             return said;
@@ -330,9 +331,8 @@ public final class Check {
         Set<Target> targets = new LinkedHashSet<>();
         Map<Connection, Integer> connected = new LinkedHashMap<>();
         for (Started one : starts) {
-            Target target = Tunes.target(one.start());
-            targets.add(target);
-            connected.putIfAbsent(new Connection(target, Tunes.source(one.start())), one.row());
+            targets.add(Tunes.target(one.start().connection()));
+            connected.putIfAbsent(one.start().connection(), one.row());
         }
         List<String> said = new ArrayList<>();
         for (Target target : targets) {
@@ -341,8 +341,8 @@ public final class Check {
             }
         }
         for (Map.Entry<Connection, Integer> two : connected.entrySet()) {
-            Target target = two.getKey().target();
-            Source source = two.getKey().source();
+            Target target = Tunes.target(two.getKey());
+            Source source = Tunes.source(two.getKey());
             if (parted(mapping, target)) {
                 for (String one : mapped(target, source, mapping, true)) {
                     said.add("start of row " + two.getValue() + ": " + one);
@@ -351,9 +351,6 @@ public final class Check {
         }
         return said;
     }
-
-    /** A target and the source a start connects to it. */
-    private record Connection(Target target, Source source) { }
 
     /**
      * What is wrong with the sources and the transformations a form
@@ -493,7 +490,7 @@ public final class Check {
         }
 
         Target target() {
-            return Tunes.target(start);
+            return Tunes.target(start.connection());
         }
 
         /** Whether a reading of this run rests on the reckoning: its end is
@@ -566,7 +563,7 @@ public final class Check {
                 case Start start -> {
                     place(at, timer, start);
                     Running runs = runs(timer, at);
-                    if (Tunes.deferred(start) && runs != null) {
+                    if (start.deferred() && runs != null) {
                         // the effect plays its source once from here, and
                         // the start follows it
                         runs.until = Math.min(runs.until, at + frames(runs.start));
@@ -617,7 +614,7 @@ public final class Check {
          *  one before it; {@code begun} where a pending start begins at a
          *  reckoned row. */
         private void starts(int at, Timer timer, Start start, boolean begun) {
-            shared(at, timer, Tunes.target(start), begun);
+            shared(at, timer, Tunes.target(start.connection()), begun);
             Running before = running.get(timer);
             if (before != null) {
                 collided(timer, before);
@@ -704,7 +701,7 @@ public final class Check {
          *  reset. After a start, the place keeps its number modulo the row
          *  count of the source a start connects (3.4.3). */
         private void place(int at, Timer timer, Start start) {
-            if (Tunes.placeReset(start) || started.contains(timer)) {
+            if (start.timing().placeReset() || started.contains(timer)) {
                 return;
             }
             say(at, timer, "starts a source without the place's reset, and this timer"
@@ -745,7 +742,7 @@ public final class Check {
         /** The row a start's source ends on, or no row where it
          *  repeats. */
         private int until(int at, Start start) {
-            if (Tunes.rows(Tunes.source(start)).repeat().isPresent()) {
+            if (Tunes.rows(Tunes.source(start.connection())).repeat().isPresent()) {
                 return Integer.MAX_VALUE;
             }
             return at + frames(start);
@@ -754,8 +751,8 @@ public final class Check {
         /** The frames a start's source runs for, played once at its
          *  rate (6.4). */
         private int frames(Start start) {
-            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start))),
-                    Tunes.prescaler(start), Tunes.count(start), tune.rate());
+            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start.connection()))),
+                    start.timing().prescaler(), start.timing().count(), tune.rate());
         }
 
         private List<Register> written(Target target) {

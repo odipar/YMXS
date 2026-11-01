@@ -19,6 +19,7 @@ import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
@@ -26,7 +27,6 @@ import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
@@ -120,10 +120,10 @@ final class TextTest {
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))));
+                Timer.D, new Start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.B, new StartOne(Tunes.setting(Register.R13), buzzer, new Timing(Prescaler.BY_50, 1, true, false), true, Tunes.NO_PARTS),
-                Timer.C, new StartOne(Tunes.setting(Register.R9), square, new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS))));
+                Timer.B, new Start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_50, 1, true, false), true, Tunes.NO_PARTS),
+                Timer.C, new Start(new OneConnection(Tunes.setting(Register.R9), square), new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS))));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.A, Tunes.bend(Prescaler.BY_4, 118),
                 Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true)))));
@@ -245,7 +245,7 @@ final class TextTest {
     /** The deferral of the start on Timer A at row {@code at} of the
      *  tune. */
     private static boolean deferred(Tune tune, int at) {
-        return Tunes.deferred(start(tune, at));
+        return start(tune, at).deferred();
     }
 
     /** The start on Timer A at row {@code at} of the tune. */
@@ -259,8 +259,8 @@ final class TextTest {
     /** A source whose rows differ in width, and one whose width differs
      *  from its target's registers, each an error of the form (json.md
      *  4.2, 8.1): the second is one unprefixed line, raised as the start
-     *  is read, since the record of a start pairs a source with a target
-     *  of its width (SPEC.md 1.1). */
+     *  is read, since the connection of a start pairs a source with a
+     *  target of its width (SPEC.md 1.1). */
     @Test
     void aSourceOfTwoShapesIsTurnedAway() {
         String mixed = """
@@ -360,7 +360,7 @@ final class TextTest {
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(
-                        Timer.B, new StartOne(Tunes.setting(Register.R9), square,
+                        Timer.B, new Start(new OneConnection(Tunes.setting(Register.R9), square),
                                 new Timing(Prescaler.BY_200, 192, true, true), false,
                                 Tunes.mapping(Fade.volumes(5))),
                         Timer.A, Fade.voice(Fade.NOTE, Fade.volume(10)))),
@@ -400,8 +400,9 @@ final class TextTest {
         Transformation short16 = Fade.volumes(15);
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(
-                new Row(Map.of(), Map.of(Timer.A, new StartOne(Tunes.setting(Register.R8),
-                        square, new Timing(Prescaler.BY_200, 192, true, true), false,
+                new Row(Map.of(), Map.of(Timer.A, new Start(
+                        new OneConnection(Tunes.setting(Register.R8), square),
+                        new Timing(Prescaler.BY_200, 192, true, true), false,
                         Tunes.mapping(short16)))),
                 new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(long256))))), 0));
         assertEquals(List.of(short16, long256), Tunes.transformations(tune));
@@ -458,8 +459,9 @@ final class TextTest {
         }
         Transformation levels = new Transformation("levels", entries);
         Tune tune = new Tune("keys", "", "TextTest", 50, Tunes.once(List.of(
-                new Row(Map.of(), Map.of(Timer.A, new StartOne(Tunes.setting(Register.R8),
-                        Tunes.repeating("keys", List.of(0, 31), 0),
+                new Row(Map.of(), Map.of(Timer.A, new Start(
+                        new OneConnection(Tunes.setting(Register.R8),
+                                Tunes.repeating("keys", List.of(0, 31), 0)),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
                         Tunes.mapping(levels)))),
                 new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.NO_PARTS))),
@@ -520,13 +522,13 @@ final class TextTest {
     void aMappingOfTheIdentityInEveryPartReadsBackAsNoParts() {
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(new Row(Map.of(),
-                Map.of(Timer.A, new StartOne(Tunes.setting(Register.R8), square,
+                Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), square),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
                         Tunes.mapping(Tunes.IDENTITY))))), 0));
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.replaceAll("\\s+", " ").contains("\"mapping\": [0]"), text);
         assertTrue(text.contains("\"transformations\": []"), text);
-        assertEquals(Tunes.NO_PARTS, Tunes.mapping(start(Text.read(text).tunes().get(0), 0)));
+        assertEquals(Tunes.NO_PARTS, start(Text.read(text).tunes().get(0), 0).mapping());
     }
 
     /** 256 entries of key divided by 2, as a JSON array. */
@@ -562,7 +564,7 @@ final class TextTest {
         Tune tune = Text.read(SEVEN).tunes().get(0);
         Transformation half = Tunes.transformations(tune).get(0);
         assertEquals("half", half.name());
-        assertEquals(Tunes.mapping(half), Tunes.mapping(start(tune, 0)));
+        assertEquals(Tunes.mapping(half), start(tune, 0).mapping());
         assertEquals(new Remap(Tunes.NO_PARTS), Tunes.rows(tune).get(1).effects().get(Timer.A));
         String timerB = SEVEN.replace("}}]}", "},\"timerB\":{\"shape\":[-1,3],"
                 + "\"mapping\":[-1,[1]]}}]}");
@@ -745,7 +747,7 @@ final class TextTest {
         String six = SEVEN.replace("\"version\":7", "\"version\":6")
                 .replace("\"shape\":[0,3]", "\"shape\":[0,-1]");
         Tune tune = Text.read(six).tunes().get(0);
-        assertEquals(Tunes.NO_PARTS, Tunes.mapping(start(tune, 0)));
+        assertEquals(Tunes.NO_PARTS, start(tune, 0).mapping());
         assertEquals(List.of(), Tunes.transformations(tune));
         String bare = six.replaceAll("\"transformations\":\\[.*?\\]}\\],", "")
                 .replace(",\"mapping\":[[1],0]", "");

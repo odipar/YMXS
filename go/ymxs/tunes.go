@@ -85,7 +85,7 @@ func Sources(tune Tune) []Source {
 			if !ok {
 				continue
 			}
-			source := StartSource(start)
+			source := ConnectionSource(start.Connection)
 			if indexOf(out, source) < 0 {
 				out = append(out, source)
 			}
@@ -444,139 +444,73 @@ func indexOf(sources []Source, source Source) int {
 	return -1
 }
 
+// -------------------------------------------------------- a connection
+
+// ConnectionTarget is the target a connection runs its source on.
+func ConnectionTarget(connection Connection) Target {
+	switch c := connection.(type) {
+	case OneConnection:
+		return c.Target
+	case TwoConnection:
+		return c.Target
+	case ThreeConnection:
+		return c.Target
+	}
+	panic(fmt.Sprintf("no connection %T", connection))
+}
+
+// ConnectionSource is the source a connection runs.
+func ConnectionSource(connection Connection) Source {
+	switch c := connection.(type) {
+	case OneConnection:
+		return c.Source
+	case TwoConnection:
+		return c.Source
+	case ThreeConnection:
+		return c.Source
+	}
+	panic(fmt.Sprintf("no connection %T", connection))
+}
+
 // ----------------------------------------------------------- an effect
 
-// StartTarget is the target a start runs its source on.
-func StartTarget(start Start) Target {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Target
-	case StartPair:
-		return s.Target
-	case StartTriple:
-		return s.Target
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartSource is the source a start runs.
-func StartSource(start Start) Source {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Source
-	case StartPair:
-		return s.Source
-	case StartTriple:
-		return s.Source
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartTiming is the rate a start writes, and the resets it performs with
-// it.
-func StartTiming(start Start) Timing {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Timing
-	case StartPair:
-		return s.Timing
-	case StartTriple:
-		return s.Timing
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartDeferred is the deferral: on a timer running an effect, the start
-// is pending until that effect's source has played its last row (SPEC.md
-// 3.5).
-func StartDeferred(start Start) bool {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Deferred
-	case StartPair:
-		return s.Deferred
-	case StartTriple:
-		return s.Deferred
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartMapping is the mapping a start connects its source through.
-func StartMapping(start Start) Mapping {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Mapping
-	case StartPair:
-		return s.Mapping
-	case StartTriple:
-		return s.Mapping
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
 // Starting is the start of the source on the target through the mapping,
-// the shape of the width they share. A reader of a form builds a start
-// this way, where the two come off text; code that names the shapes builds
-// the value. Where the source has other values a row than the target
-// reads, the error is the line of json.md 8.1 and csv.md 5.1, an error of
-// the form.
+// on the connection of the width they share. A reader of a form builds a
+// start this way, where the two come off text; code that names the
+// connection builds the value. Where the source has other values a row
+// than the target reads, the error is the line of json.md 8.1 and csv.md
+// 5.1, an error of the form.
 func Starting(target Target, source Source, timing Timing, deferred bool,
 	mapping Mapping) (Start, error) {
+	start := Start{Timing: timing, Deferred: deferred, Mapping: mapping}
 	one, okTarget := target.(OneTarget)
 	single, okSource := source.(Single)
 	if okTarget && okSource {
-		return StartOne{Target: one, Source: single, Timing: timing, Deferred: deferred,
-			Mapping: mapping}, nil
+		start.Connection = OneConnection{Target: one, Source: single}
+		return start, nil
 	}
 	two, okTarget := target.(TwoTarget)
 	pair, okSource := source.(Pair)
 	if okTarget && okSource {
-		return StartPair{Target: two, Source: pair, Timing: timing, Deferred: deferred,
-			Mapping: mapping}, nil
+		start.Connection = TwoConnection{Target: two, Source: pair}
+		return start, nil
 	}
 	three, okTarget := target.(ThreeTarget)
 	triple, okSource := source.(Triple)
 	if okTarget && okSource {
-		return StartTriple{Target: three, Source: triple, Timing: timing,
-			Deferred: deferred, Mapping: mapping}, nil
+		start.Connection = ThreeConnection{Target: three, Source: triple}
+		return start, nil
 	}
-	return nil, fmt.Errorf("a source of %d values a row on %s, which reads %d",
+	return Start{}, fmt.Errorf("a source of %d values a row on %s, which reads %d",
 		SourceColumns(source), TargetName(target), TargetColumns(target))
-}
-
-// TimerReset is the timer's reset: the timer stops, loads the count and
-// starts, so it begins a whole period at that count.
-func TimerReset(effect Effect) bool {
-	switch e := effect.(type) {
-	case Start:
-		return StartTiming(e).TimerReset
-	case Retune:
-		return e.Timing.TimerReset
-	case Stop, Remap:
-		return false
-	}
-	panic(fmt.Sprintf("no effect %T", effect))
-}
-
-// PlaceReset is the place's reset: the next tick reads the source's first
-// row.
-func PlaceReset(effect Effect) bool {
-	switch e := effect.(type) {
-	case Start:
-		return StartTiming(e).PlaceReset
-	case Retune:
-		return e.Timing.PlaceReset
-	case Stop, Remap:
-		return false
-	}
-	panic(fmt.Sprintf("no effect %T", effect))
 }
 
 // Struck is a struck note: the source from its first row, the timer from a
 // whole period, at the row.
 func Struck(target OneTarget, source Single, prescaler Prescaler, count int) Start {
-	return StartOne{Target: target, Source: source, Timing: Timing{
-		Prescaler: prescaler, Count: count, TimerReset: true, PlaceReset: true}}
+	return Start{Connection: OneConnection{Target: target, Source: source},
+		Timing: Timing{Prescaler: prescaler, Count: count, TimerReset: true,
+			PlaceReset: true}}
 }
 
 // Bend is a bend: the count changes and both resets stay clear.
@@ -591,7 +525,7 @@ func Bend(prescaler Prescaler, count int) Retune {
 func MappingOf(effect Effect) (Mapping, bool) {
 	switch e := effect.(type) {
 	case Start:
-		return StartMapping(e), true
+		return e.Mapping, true
 	case Remap:
 		return e.Mapping, true
 	}

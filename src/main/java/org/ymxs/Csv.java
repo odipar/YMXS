@@ -168,11 +168,12 @@ public final class Csv {
             }
             switch (effect) {
                 case Start start -> row(out, line, Json.START,
-                        Tunes.number(Tunes.target(start)), sources.indexOf(Tunes.source(start)) + 1,
-                        Chip.divides(Tunes.prescaler(start)), Tunes.count(start),
-                        Tunes.timerReset(start) ? 1 : 0, Tunes.placeReset(start) ? 1 : 0,
-                        Tunes.deferred(start) ? 1 : 0,
-                        mapping(Tunes.mapping(start), transformations));
+                        Tunes.number(Tunes.target(start.connection())),
+                        sources.indexOf(Tunes.source(start.connection())) + 1,
+                        Chip.divides(start.timing().prescaler()), start.timing().count(),
+                        start.timing().timerReset() ? 1 : 0, start.timing().placeReset() ? 1 : 0,
+                        start.deferred() ? 1 : 0,
+                        mapping(start.mapping(), transformations));
                 case Retune retune -> row(out, line, Json.RETUNE, "", "",
                         Chip.divides(retune.timing().prescaler()), retune.timing().count(),
                         retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0,

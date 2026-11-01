@@ -75,19 +75,19 @@ public interface YMXS {
 
     sealed interface Effect permits Start, Retune, Stop, Remap { }
 
-    sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
+    record Start(Connection connection, Timing timing, boolean deferred,
+                 Mapping mapping) implements Effect { }
+
+    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection { }
+
+    record OneConnection(OneTarget target, Single source) implements Connection { }
+
+    record TwoConnection(TwoTarget target, Pair source) implements Connection { }
+
+    record ThreeConnection(ThreeTarget target, Triple source) implements Connection { }
 
     record Timing(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) { }
-
-    record StartOne(OneTarget target, Single source, Timing timing,
-                    boolean deferred, Mapping mapping) implements Start { }
-
-    record StartPair(TwoTarget target, Pair source, Timing timing,
-                     boolean deferred, Mapping mapping) implements Start { }
-
-    record StartTriple(ThreeTarget target, Triple source, Timing timing,
-                       boolean deferred, Mapping mapping) implements Start { }
 
     record Retune(Timing timing) implements Effect { }
 
@@ -186,15 +186,18 @@ it and begins another: at its frame where `deferred` is clear, and where
 it is set at the tick that reads the last row of the source of that
 effect. Section 4 defines each operation as steps.
 
-**1.8 Targets, sources and mappings.** This version defines three kinds
-of target: `SetRegister`, one a register, named `setR0` to `setR13`;
-`SetTone`, `SetNoise` and `SetEnvelope`, two registers each; and
-`SetVoice` and `SetBuzzer`, three (3.1). It defines three kinds of source
-to match, `Single`, `Pair` and `Triple`: a text `name` and a `table` of
-one, two or three integers a row (3.2). A `Start` connects its source to
-its target through a `Mapping`: a `Part` for each value of a row, the
-`Identity` or a `Transformation`, a text `name` and 1 to 256 `entries`;
-or no parts, the identity in every part (3.6).
+**1.8 Targets, sources and mappings.** This version defines three kinds of
+target: `SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
+`SetNoise` and `SetEnvelope`, two registers each; and `SetVoice` and
+`SetBuzzer`, three (3.1). It defines three kinds of source to match,
+`Single`, `Pair` and `Triple`: a text `name` and a `table` of one, two or
+three integers a row (3.2). A `Connection` pairs a target with a source of
+the values a row the target reads: `OneConnection` of one value a row,
+`TwoConnection` of two and `ThreeConnection` of three. A `Start` connects
+the source of its connection to the target through a `Mapping`: a `Part`
+for each value of a row, the `Identity` or a `Transformation`, a text
+`name` and 1 to 256 `entries`; or no parts, the identity in every part
+(3.6).
 
 **1.9 The sources and the transformations of a tune.** The sources are
 the list this procedure produces from an empty list: read the rows from
@@ -405,11 +408,11 @@ registers are numbered 14 to 24, in the order of the table above:
 
 **3.2.1** A source is a name and a table (1.4) of one, two or three values a
 row, the values a row the target of every effect that runs it reads (3.1.1).
-Every `Start` of the structure connects such a source (1.1), and a reader
-reports a `Start` of a source of other values a row than its target reads
-as an error of the form (json.md 8.1, csv.md 5.1). The name is text for
-display and for reports, and distinguishes sources (1.9); a player reads
-the table alone.
+The `Connection` of every `Start` of the structure pairs a target with such
+a source (1.1), and a reader reports a `Start` of a source of other values a
+row than its target reads as an error of the form (json.md 8.1, csv.md 5.1).
+The name is text for display and for reports, and distinguishes sources
+(1.9); a player reads the table alone.
 
 **3.2.2** Value i of every row of a source is 0 to the most of register i of
 the target of every `Start` that connects it, where part i of a mapping is

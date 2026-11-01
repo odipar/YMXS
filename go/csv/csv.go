@@ -157,12 +157,12 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		}
 		switch e := effect.(type) {
 		case ymxs.Start:
-			timing := ymxs.StartTiming(e)
-			row(out, line, text.Start, ymxs.TargetNumber(ymxs.StartTarget(e)),
-				indexOf(sources, ymxs.StartSource(e))+1, ymxs.Divides(timing.Prescaler),
-				timing.Count, flagOf(timing.TimerReset), flagOf(timing.PlaceReset),
-				flagOf(ymxs.StartDeferred(e)), mappingCell(ymxs.StartMapping(e),
-					transformations))
+			row(out, line, text.Start,
+				ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection)),
+				indexOf(sources, ymxs.ConnectionSource(e.Connection))+1,
+				ymxs.Divides(e.Timing.Prescaler),
+				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset),
+				flagOf(e.Deferred), mappingCell(e.Mapping, transformations))
 		case ymxs.Retune:
 			row(out, line, text.Retune, "", "", ymxs.Divides(e.Timing.Prescaler),
 				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset), "",

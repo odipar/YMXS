@@ -8,11 +8,12 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
-import org.ymxs.YMXS.Timing;
+import org.ymxs.YMXS.Connection;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.OneTarget;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
@@ -30,17 +31,17 @@ import org.ymxs.YMXS.SetVoice;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
-import org.ymxs.YMXS.StartPair;
-import org.ymxs.YMXS.StartTriple;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
+import org.ymxs.YMXS.ThreeConnection;
 import org.ymxs.YMXS.ThreeTarget;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.TwoConnection;
 import org.ymxs.YMXS.TwoTarget;
 import org.ymxs.YMXS.Voice;
 
@@ -148,8 +149,9 @@ public final class Tunes {
         List<Source> out = new ArrayList<>();
         for (Row row : rows(tune)) {
             for (Effect effect : effects(row).values()) {
-                if (effect instanceof Start start && !out.contains(Tunes.source(start))) {
-                    out.add(Tunes.source(start));
+                if (effect instanceof Start start
+                        && !out.contains(source(start.connection()))) {
+                    out.add(source(start.connection()));
                 }
             }
         }
@@ -415,94 +417,56 @@ public final class Tunes {
 
     // ----------------------------------------------------------- an effect
 
-    // ------------------------------------------------------------ a start
-
-    /** The target a start runs its source on. */
-    public static Target target(Start start) {
-        return switch (start) {
-            case StartOne one -> one.target();
-            case StartPair pair -> pair.target();
-            case StartTriple triple -> triple.target();
-        };
-    }
-
-    /** The source a start runs. */
-    public static Source source(Start start) {
-        return switch (start) {
-            case StartOne one -> one.source();
-            case StartPair pair -> pair.source();
-            case StartTriple triple -> triple.source();
-        };
-    }
-
-    /** The rate a start writes, and the resets it performs with it. */
-    public static Timing timing(Start start) {
-        return switch (start) {
-            case StartOne one -> one.timing();
-            case StartPair pair -> pair.timing();
-            case StartTriple triple -> triple.timing();
-        };
-    }
-
-    /** The prescaler a start writes. */
-    public static Prescaler prescaler(Start start) {
-        return timing(start).prescaler();
-    }
-
-    /** The count a start writes. */
-    public static int count(Start start) {
-        return timing(start).count();
-    }
-
-    /** The timer's reset: the timer stops, loads the count and starts, so
-     *  it begins a whole period at that count. */
-    public static boolean timerReset(Effect effect) {
-        return switch (effect) {
-            case Start start -> timing(start).timerReset();
-            case Retune retune -> retune.timing().timerReset();
-            case Stop ignored -> false;
-            case Remap ignored -> false;
-        };
-    }
-
-    /** The place's reset: the next tick reads the source's first row. */
-    public static boolean placeReset(Effect effect) {
-        return switch (effect) {
-            case Start start -> timing(start).placeReset();
-            case Retune retune -> retune.timing().placeReset();
-            case Stop ignored -> false;
-            case Remap ignored -> false;
-        };
-    }
-
-    /** The deferral: on a timer running an effect, the start is pending
-     *  until that effect's source has played its last row (3.5). */
-    public static boolean deferred(Start start) {
-        return switch (start) {
-            case StartOne one -> one.deferred();
-            case StartPair pair -> pair.deferred();
-            case StartTriple triple -> triple.deferred();
-        };
-    }
-
-    /** The mapping a start connects its source through. */
-    public static Mapping mapping(Start start) {
-        return switch (start) {
-            case StartOne one -> one.mapping();
-            case StartPair pair -> pair.mapping();
-            case StartTriple triple -> triple.mapping();
-        };
-    }
-
     /** The mapping of a start or a remap, or null for a retune and a
      *  stop, which have none. */
     public static @Nullable Mapping mapping(Effect effect) {
         return switch (effect) {
-            case Start start -> mapping(start);
+            case Start start -> start.mapping();
             case Remap remap -> remap.mapping();
             case Retune ignored -> null;
             case Stop ignored -> null;
         };
+    }
+
+    // ------------------------------------------------------- a connection
+
+    /** The target of a connection of any width. */
+    public static Target target(Connection connection) {
+        return switch (connection) {
+            case OneConnection one -> one.target();
+            case TwoConnection two -> two.target();
+            case ThreeConnection three -> three.target();
+        };
+    }
+
+    /** The source of a connection of any width. */
+    public static Source source(Connection connection) {
+        return switch (connection) {
+            case OneConnection one -> one.source();
+            case TwoConnection two -> two.source();
+            case ThreeConnection three -> three.source();
+        };
+    }
+
+    /** The connection of {@code source} to {@code target}, the record of
+     *  the width they share.
+     *
+     * @throws IllegalArgumentException where the source has other values
+     *     a row than the target reads
+     */
+    private static Connection connection(Target target, Source source) {
+        if (target instanceof OneTarget one && source instanceof Single single) {
+            return new OneConnection(one, single);
+        }
+        if (target instanceof TwoTarget two && source instanceof Pair pair) {
+            return new TwoConnection(two, pair);
+        }
+        if (target instanceof ThreeTarget three && source instanceof Triple triple) {
+            return new ThreeConnection(three, triple);
+        }
+        throw new IllegalArgumentException("a source of " + columns(source)
+                + " values a row on " + name(target) + ", which reads "
+                + columns(target));
     }
 
     // ---------------------------------------------------------- a mapping
@@ -548,9 +512,9 @@ public final class Tunes {
     }
 
     /** The start of {@code source} on {@code target} through
-     *  {@code mapping}, the record of the width they share. A reader of a
-     *  form builds a start this way, where the two come off text; code
-     *  that names the shapes builds the record.
+     *  {@code mapping}, its connection the record of the width they share.
+     *  A reader of a form builds a start this way, where the two come off
+     *  text; code that names the shapes builds the record.
      *
      * @throws IllegalArgumentException where the source has other values
      *     a row than the target reads
@@ -558,27 +522,16 @@ public final class Tunes {
     public static Start starting(Target target, Source source, Prescaler prescaler,
             int count, boolean timerReset, boolean placeReset, boolean deferred,
             Mapping mapping) {
-        Timing timing = new Timing(prescaler, count, timerReset, placeReset);
-        if (target instanceof OneTarget one && source instanceof Single single) {
-            return new StartOne(one, single, timing, deferred, mapping);
-        }
-        if (target instanceof TwoTarget two && source instanceof Pair pair) {
-            return new StartPair(two, pair, timing, deferred, mapping);
-        }
-        if (target instanceof ThreeTarget three && source instanceof Triple triple) {
-            return new StartTriple(three, triple, timing, deferred, mapping);
-        }
-        throw new IllegalArgumentException("a source of " + columns(source)
-                + " values a row on " + name(target) + ", which reads "
-                + columns(target));
+        return new Start(connection(target, source),
+                new Timing(prescaler, count, timerReset, placeReset), deferred, mapping);
     }
 
     /** A struck note: the source from its first row, the timer from a
      *  whole period, at the row, through the mapping of no parts. */
     public static Start struck(OneTarget target, Single source, Prescaler prescaler,
             int count) {
-        return new StartOne(target, source, new Timing(prescaler, count, true, true), false,
-                NO_PARTS);
+        return new Start(new OneConnection(target, source),
+                new Timing(prescaler, count, true, true), false, NO_PARTS);
     }
 
     /** A bend: the count changes and both resets stay clear. */

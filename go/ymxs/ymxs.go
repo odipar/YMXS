@@ -87,48 +87,45 @@ type Timing struct {
 }
 
 // Start runs a source on a target through a mapping at that rate, from
-// this row on. Every start records the target, the mapping and the rate,
-// changed or not, since a start defines the effect rather than the fields
-// of it that differ.
-//
-// A start is a shape a width: each pairs a target with a source of the
-// values a row that target reads, so a source that fits its target is a
-// shape here rather than a rule a check reads.
+// this row on. Every start records the connection, the mapping and the
+// rate, changed or not, since a start defines the effect rather than the
+// fields of it that differ. The zero Mapping is the mapping of no parts,
+// the identity in every part.
 //
 // A start with Deferred set on a timer running an effect is pending until
 // the source of that effect has played its last row, and a tick performs it
 // there (SPEC.md 3.5).
-type Start interface {
-	Effect
-	start()
+type Start struct {
+	Connection Connection
+	Timing     Timing
+	Deferred   bool
+	Mapping    Mapping
 }
 
-// StartOne is a start of one value a row. The zero Mapping is the mapping
-// of no parts, the identity in every part.
-type StartOne struct {
-	Target   OneTarget
-	Source   Single
-	Timing   Timing
-	Deferred bool
-	Mapping  Mapping
+// Connection is the target a start runs its source on, and that source. A
+// connection is a shape a width: each pairs a target with a source of the
+// values a row that target reads, so a source that fits its target is a
+// shape here rather than a rule a check reads.
+type Connection interface {
+	connection()
 }
 
-// StartPair is a start of two values a row.
-type StartPair struct {
-	Target   TwoTarget
-	Source   Pair
-	Timing   Timing
-	Deferred bool
-	Mapping  Mapping
+// OneConnection is a target of one value a row and a source of one.
+type OneConnection struct {
+	Target OneTarget
+	Source Single
 }
 
-// StartTriple is a start of three values a row.
-type StartTriple struct {
-	Target   ThreeTarget
-	Source   Triple
-	Timing   Timing
-	Deferred bool
-	Mapping  Mapping
+// TwoConnection is a target of two values a row and a source of two.
+type TwoConnection struct {
+	Target TwoTarget
+	Source Pair
+}
+
+// ThreeConnection is a target of three values a row and a source of three.
+type ThreeConnection struct {
+	Target ThreeTarget
+	Source Triple
 }
 
 // Retune leaves the effect on its source and target, at the rate in this
@@ -150,21 +147,19 @@ type Remap struct {
 	Mapping Mapping
 }
 
-func (StartOne) effect()    {}
-func (StartPair) effect()   {}
-func (StartTriple) effect() {}
-func (Retune) effect()      {}
-func (Stop) effect()        {}
-func (Remap) effect()       {}
+func (Start) effect()  {}
+func (Retune) effect() {}
+func (Stop) effect()   {}
+func (Remap) effect()  {}
 
-func (StartOne) start()    {}
-func (StartPair) start()   {}
-func (StartTriple) start() {}
+func (OneConnection) connection()   {}
+func (TwoConnection) connection()   {}
+func (ThreeConnection) connection() {}
 
 // Target is the procedure a timer's tick calls with a source's row: it
-// that reads one row and writes it to the registers of the target, value i
-// to register i. A target is grouped by the values a row it reads, so a
-// start pairs it with a source of that width. A later version defines
+// reads one row and writes it to the registers of the target, value i to
+// register i. A target is grouped by the values a row it reads, so a
+// connection pairs it with a source of that width. A later version defines
 // targets reaching the MC68901 registers.
 type Target interface {
 	target()

@@ -20,8 +20,9 @@ func TestAStructureOutsideTheTwoChipsIsAFault(t *testing.T) {
 	square := ymxs.RepeatingSource("square 12", []int{12, 0}, 0)
 	rows := []ymxs.Row{
 		{Registers: map[ymxs.Register]int{ymxs.R1: 99}, Effects: map[ymxs.Timer]ymxs.Effect{
-			ymxs.TimerA: ymxs.StartOne{Target: ymxs.Setting(ymxs.R8), Source: square,
-				Timing: ymxs.Timing{Prescaler: ymxs.By4, Count: 256}}}},
+			ymxs.TimerA: ymxs.Start{
+				Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8), Source: square},
+				Timing:     ymxs.Timing{Prescaler: ymxs.By4, Count: 256}}}},
 	}
 	said := check.Tune(tune(rows, 50))
 	if len(said) != 2 {
@@ -70,7 +71,8 @@ const reckoned = ", which rests on how long a source that plays once runs, recko
 // by the reckoning (SPEC.md 6.4).
 func slow(register ymxs.Register, source ymxs.Single) ymxs.Row {
 	return ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{
-		ymxs.TimerA: ymxs.StartOne{Target: ymxs.Setting(register), Source: source,
+		ymxs.TimerA: ymxs.Start{
+			Connection: ymxs.OneConnection{Target: ymxs.Setting(register), Source: source},
 			Timing: ymxs.Timing{Prescaler: ymxs.By200, Count: 200, TimerReset: true,
 				PlaceReset: true}}}}
 }
@@ -79,7 +81,8 @@ func slow(register ymxs.Register, source ymxs.Single) ymxs.Row {
 // at one frame for every source of fifteen rows or fewer.
 func deferring(register ymxs.Register, source ymxs.Single) ymxs.Row {
 	return ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{
-		ymxs.TimerA: ymxs.StartOne{Target: ymxs.Setting(register), Source: source,
+		ymxs.TimerA: ymxs.Start{
+			Connection: ymxs.OneConnection{Target: ymxs.Setting(register), Source: source},
 			Timing: ymxs.Timing{Prescaler: ymxs.By4, Count: 100, TimerReset: true,
 				PlaceReset: true}, Deferred: true}}}
 }
@@ -178,9 +181,10 @@ func on(effect ymxs.Effect) ymxs.Row {
 
 // voice is a start on setVoiceA of a note of these rows, through the
 // mapping.
-func voice(rows []ymxs.Three, mapping ymxs.Mapping) ymxs.StartTriple {
-	return ymxs.StartTriple{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
-		Source: ymxs.Triple{Name: "a note", Table: ymxs.Repeating(rows, 0)},
+func voice(rows []ymxs.Three, mapping ymxs.Mapping) ymxs.Start {
+	return ymxs.Start{Connection: ymxs.ThreeConnection{
+		Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
+		Source: ymxs.Triple{Name: "a note", Table: ymxs.Repeating(rows, 0)}},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 			PlaceReset: true}, Mapping: mapping}
 }
@@ -375,9 +379,10 @@ func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
 	quiet := []ymxs.Three{{First: 1, Second: 1, Third: 12}}
 	high := []ymxs.Three{{First: 1, Second: 1, Third: 15}, {First: 1, Second: 1,
 		Third: 256}}
-	tone := ymxs.StartPair{Target: ymxs.SetTone{Voice: ymxs.VoiceA},
+	tone := ymxs.Start{Connection: ymxs.TwoConnection{
+		Target: ymxs.SetTone{Voice: ymxs.VoiceA},
 		Source: ymxs.Pair{Name: "a tone", Table: ymxs.Repeating([]ymxs.Two{
-			{First: 200, Second: 15}}, 0)},
+			{First: 200, Second: 15}}, 0)}},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 			PlaceReset: true}}
 	through := ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, loud)
@@ -406,9 +411,9 @@ func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
 
 // level is a start on setR8 on Timer A of a source of these values, one a
 // row, through the mapping.
-func level(named string, values []int, mapping ymxs.Mapping) ymxs.StartOne {
-	return ymxs.StartOne{Target: ymxs.Setting(ymxs.R8),
-		Source: ymxs.RepeatingSource(named, values, 0),
+func level(named string, values []int, mapping ymxs.Mapping) ymxs.Start {
+	return ymxs.Start{Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
+		Source: ymxs.RepeatingSource(named, values, 0)},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 			PlaceReset: true}, Mapping: mapping}
 }

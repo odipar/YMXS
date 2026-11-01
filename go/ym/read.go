@@ -213,8 +213,10 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 						lastTarget[i] == slot[i].Target
 					// every start through the mapping of no parts (ym.md
 					// 7.4 step 4)
-					here[timerOf[i]] = ymxs.StartOne{
-						Target: ymxs.Setting(slot[i].Target), Source: sounds.(ymxs.Single),
+					here[timerOf[i]] = ymxs.Start{
+						Connection: ymxs.OneConnection{
+							Target: ymxs.Setting(slot[i].Target),
+							Source: sounds.(ymxs.Single)},
 						Timing: ymxs.Timing{Prescaler: slot[i].Prescaler,
 							Count: slot[i].Count, TimerReset: stopped,
 							PlaceReset: !unmoved}, Mapping: ymxs.Mapping{}}

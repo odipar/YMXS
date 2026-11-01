@@ -85,7 +85,7 @@ func TestADumpIsWrittenAsVersion7ThroughTheMappingOfNoParts(t *testing.T) {
 	if !ok {
 		t.Fatalf("frame 0 reads as %#v", tune.Table.Rows[0].Effects)
 	}
-	if parts := ymxs.StartMapping(start).Parts; len(parts) != 0 {
+	if parts := start.Mapping.Parts; len(parts) != 0 {
 		t.Errorf("the start maps through %d parts", len(parts))
 	}
 	written := text.Write(ymxs.NewMulti(tune))

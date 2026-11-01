@@ -82,14 +82,15 @@ final class Record {
     /** The object of an operation, as the table of 7.4 lists it. */
     private static String operation(Tune tune, Effect effect) {
         return switch (effect) {
-            case Start start -> "{\"start\":{\"target\":\"" + Tunes.name(Tunes.target(start))
-                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start))
-                    + ",\"prescaler\":" + Chip.divides(Tunes.prescaler(start))
-                    + ",\"count\":" + Tunes.count(start)
-                    + ",\"timerReset\":" + Tunes.timerReset(start)
-                    + ",\"placeReset\":" + Tunes.placeReset(start)
-                    + ",\"deferred\":" + Tunes.deferred(start)
-                    + ",\"mapping\":" + mapping(tune, Tunes.mapping(start)) + "}}";
+            case Start start -> "{\"start\":{\"target\":\""
+                    + Tunes.name(Tunes.target(start.connection()))
+                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start.connection()))
+                    + ",\"prescaler\":" + Chip.divides(start.timing().prescaler())
+                    + ",\"count\":" + start.timing().count()
+                    + ",\"timerReset\":" + start.timing().timerReset()
+                    + ",\"placeReset\":" + start.timing().placeReset()
+                    + ",\"deferred\":" + start.deferred()
+                    + ",\"mapping\":" + mapping(tune, start.mapping()) + "}}";
             case Retune retune -> "{\"retune\":{\"prescaler\":"
                     + Chip.divides(retune.timing().prescaler())
                     + ",\"count\":" + retune.timing().count()

@@ -10,8 +10,8 @@ import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.SetVoice;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartTriple;
 import org.ymxs.YMXS.Three;
+import org.ymxs.YMXS.ThreeConnection;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Transformation;
@@ -55,7 +55,7 @@ final class Fade {
     /** A start of {@code source} on {@code setVoiceA} through
      *  {@code mapping}, at 64 ticks a second, both resets set. */
     static Start voice(Triple source, Mapping mapping) {
-        return new StartTriple(new SetVoice(Voice.A), source,
+        return new Start(new ThreeConnection(new SetVoice(Voice.A), source),
                 new Timing(Prescaler.BY_200, 192, true, true), false, mapping);
     }
 

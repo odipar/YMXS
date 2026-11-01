@@ -51,39 +51,39 @@ public interface YMXS {
      *  of four operations on it. */
     sealed interface Effect permits Start, Retune, Stop, Remap { }
 
-    /** The row runs {@code source} on {@code target} through
+    /** The row runs the source of {@code connection} on its target through
      *  {@code mapping} at that rate, from this row on. Every start records
-     *  the target, the mapping and the rate, changed or not, since a start
-     *  defines the effect rather than the fields of it that differ.
-     *
-     *  <p>A start is a shape a width: each pairs a target with a source
-     *  of the values a row that target reads, so a source that fits its
-     *  target is a shape here rather than a rule a check reads. A reader
-     *  that reads a start of any width reads this interface; one that
-     *  reads a width reads the record.
+     *  the connection, the mapping and the rate, changed or not, since a
+     *  start defines the effect rather than the fields of it that differ.
      *
      *  <p>A start with {@code deferred} set on a timer running an effect
      *  is pending until the source of that effect has played its last
      *  row, and a tick performs it there (3.5). */
-    sealed interface Start extends Effect permits StartOne, StartPair, StartTriple { }
+    record Start(Connection connection, Timing timing, boolean deferred,
+                 Mapping mapping) implements Effect { }
+
+    /** The target a start runs its source on, and that source. A
+     *  connection is a shape a width: each pairs a target with a source of
+     *  the values a row that target reads, so a source that fits its
+     *  target is a shape here rather than a rule a check reads. A reader
+     *  that reads a connection of any width reads this interface; one that
+     *  reads a width reads the record. */
+    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection { }
+
+    /** A connection of one value a row. */
+    record OneConnection(OneTarget target, Single source) implements Connection { }
+
+    /** A connection of two values a row. */
+    record TwoConnection(TwoTarget target, Pair source) implements Connection { }
+
+    /** A connection of three values a row. */
+    record ThreeConnection(ThreeTarget target, Triple source) implements Connection { }
 
     /** The rate a row writes the timer, and the two resets it performs
      *  with it: the prescaler and the count are the rate (3.3), and a
      *  start and a retune each record one of these. */
     record Timing(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) { }
-
-    /** A start of one value a row. */
-    record StartOne(OneTarget target, Single source, Timing timing,
-                    boolean deferred, Mapping mapping) implements Start { }
-
-    /** A start of two values a row. */
-    record StartPair(TwoTarget target, Pair source, Timing timing,
-                     boolean deferred, Mapping mapping) implements Start { }
-
-    /** A start of three values a row. */
-    record StartTriple(ThreeTarget target, Triple source, Timing timing,
-                       boolean deferred, Mapping mapping) implements Start { }
 
     /** The row leaves the effect on its source and target, at the rate in
      *  this record. A bend changes the count; a note struck again at the
@@ -102,9 +102,9 @@ public interface YMXS {
 
     /** What a timer's tick calls with a source's row: a procedure that
      *  reads one row and writes it to the registers below. A target is
-     *  grouped by the values a row it reads, so a start pairs it with a
-     *  source of that width. A later version defines targets reaching the
-     *  MC68901 registers. */
+     *  grouped by the values a row it reads, so a connection pairs it with
+     *  a source of that width. A later version defines targets reaching
+     *  the MC68901 registers. */
     sealed interface Target permits OneTarget, TwoTarget, ThreeTarget { }
 
     /** A target of one value a row. */

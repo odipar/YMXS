@@ -185,14 +185,14 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
 		switch e := effect.(type) {
 		case ymxs.Start:
 			shape[at] = Start
-			target[at] = ymxs.TargetNumber(ymxs.StartTarget(e))
-			source[at] = indexOf(sources, ymxs.StartSource(e)) + 1
-			prescaler[at] = ymxs.Divides(ymxs.StartTiming(e).Prescaler)
-			count[at] = ymxs.StartTiming(e).Count
-			timerReset[at] = flag(ymxs.StartTiming(e).TimerReset)
-			placeReset[at] = flag(ymxs.StartTiming(e).PlaceReset)
-			deferred[at] = flag(ymxs.StartDeferred(e))
-			mapping[at] = mappingCell(ymxs.StartMapping(e), transformations)
+			target[at] = ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection))
+			source[at] = indexOf(sources, ymxs.ConnectionSource(e.Connection)) + 1
+			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)
+			count[at] = e.Timing.Count
+			timerReset[at] = flag(e.Timing.TimerReset)
+			placeReset[at] = flag(e.Timing.PlaceReset)
+			deferred[at] = flag(e.Deferred)
+			mapping[at] = mappingCell(e.Mapping, transformations)
 		case ymxs.Retune:
 			shape[at] = Retune
 			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)

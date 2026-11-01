@@ -73,11 +73,13 @@ final class ReadTest {
         assertEquals(java.util.EnumSet.of(Timer.A), Tunes.timers(tune));
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(2).effects().get(Timer.A));
-        assertEquals(Tunes.setting(Register.R8), Tunes.target(start));
-        assertEquals(Prescaler.BY_4, Tunes.prescaler(start));
-        assertEquals(100, Tunes.count(start));
-        assertTrue(Tunes.timerReset(start), "the timer was stopped, so it runs a whole period");
-        assertTrue(Tunes.placeReset(start), "no wave ran before it, so the place goes to row 0");
+        assertEquals(Tunes.setting(Register.R8), Tunes.target(start.connection()));
+        assertEquals(Prescaler.BY_4, start.timing().prescaler());
+        assertEquals(100, start.timing().count());
+        assertTrue(start.timing().timerReset(), "the timer was stopped, so it runs a whole"
+                + " period");
+        assertTrue(start.timing().placeReset(), "no wave ran before it, so the place goes to"
+                + " row 0");
 
         for (int f = 3; f <= 5; f++) {
             assertTrue(Tunes.rows(tune).get(f).effects().isEmpty(),
@@ -106,7 +108,7 @@ final class ReadTest {
 
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(1).effects().get(Timer.D));
-        assertEquals(Tunes.setting(Register.R9), Tunes.target(start));
+        assertEquals(Tunes.setting(Register.R9), Tunes.target(start.connection()));
         assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
                 "a recording silences the tone and noise of its voice while it runs, which"
                         + " for voice B is bits 1 and 4");
@@ -137,7 +139,7 @@ final class ReadTest {
         for (var row : Tunes.rows(tune)) {
             for (var effect : row.effects().values()) {
                 if (effect instanceof Start start) {
-                    assertEquals(Tunes.NO_PARTS, Tunes.mapping(start));
+                    assertEquals(Tunes.NO_PARTS, start.mapping());
                     starts++;
                 }
             }

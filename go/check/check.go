@@ -7,10 +7,10 @@
 //
 // A structure is bound by the two chips and the music: what fits a
 // register, what a timer counts, and that a mapping writes each value of
-// it into its register. A start pairs a target with a source of the values
-// a row that target reads (ymxs.Start), and a form reports a source of
-// another width as an error of the form. What a form can write belongs to
-// that form, and no limit of one appears here.
+// it into its register. A connection pairs a target with a source of the
+// values a row that target reads (ymxs.Connection), and a form reports a
+// source of another width as an error of the form. What a form can write
+// belongs to that form, and no limit of one appears here.
 //
 // Writing is the other half: the rules of SPEC.md 6 read across rows
 // rather than within one, and a tune that breaks one of them plays, but
@@ -118,8 +118,8 @@ func rowOf(tune ymxs.Tune, row ymxs.Row) []string {
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
-		said := count(ymxs.StartTiming(e).Count)
-		said = append(said, rate(ymxs.StartTiming(e).Prescaler, ymxs.StartTiming(e).Count)...)
+		said := count(e.Timing.Count)
+		said = append(said, rate(e.Timing.Prescaler, e.Timing.Count)...)
 		return append(said, runs(e)...)
 	case ymxs.Retune:
 		return append(count(e.Timing.Count), rate(e.Timing.Prescaler, e.Timing.Count)...)
@@ -156,10 +156,11 @@ func Source(source ymxs.Source) []string {
 // key, its entry is compared with the register's most where that entry is
 // 0 to 255, and a value through a transformation of another number of
 // entries is skipped (ymxs.Through). The source has the values a row its
-// target reads (ymxs.Start).
+// target reads (ymxs.Connection).
 func runs(start ymxs.Start) []string {
-	target, source := ymxs.StartTarget(start), ymxs.StartSource(start)
-	mapping := ymxs.StartMapping(start)
+	target := ymxs.ConnectionTarget(start.Connection)
+	source := ymxs.ConnectionSource(start.Connection)
+	mapping := start.Mapping
 	named := ymxs.TargetName(target)
 	said := Source(source)
 	if reads := ymxs.TargetColumns(target); len(mapping.Parts) != 0 &&
@@ -210,7 +211,7 @@ func runs(start ymxs.Start) []string {
 // key, its entry is compared with the register's most where that entry is
 // 0 to 255, and a value through a transformation of another number of
 // entries is skipped (ymxs.Through). Each source has the values a row its
-// target reads (ymxs.Start).
+// target reads (ymxs.Connection).
 func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 	var starts []startAt
 	for at, row := range ymxs.Rows(tune) {
@@ -222,7 +223,7 @@ func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 	var said []string
 	var targets []ymxs.Target
 	for _, one := range starts {
-		target := ymxs.StartTarget(one.start)
+		target := ymxs.ConnectionTarget(one.start.Connection)
 		if indexOfTarget(targets, target) >= 0 {
 			continue
 		}
@@ -232,13 +233,14 @@ func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 				parts, ymxs.TargetName(target), reads))
 		}
 	}
-	var connected []ymxs.Start
+	var connected []ymxs.Connection
 	for _, one := range starts {
-		target, source := ymxs.StartTarget(one.start), ymxs.StartSource(one.start)
+		connection := one.start.Connection
+		target, source := ymxs.ConnectionTarget(connection), ymxs.ConnectionSource(connection)
 		seen := false
 		for _, before := range connected {
-			if ymxs.TargetEqual(ymxs.StartTarget(before), target) &&
-				ymxs.SourceEqual(ymxs.StartSource(before), source) {
+			if ymxs.TargetEqual(ymxs.ConnectionTarget(before), target) &&
+				ymxs.SourceEqual(ymxs.ConnectionSource(before), source) {
 				seen = true
 				break
 			}
@@ -246,7 +248,7 @@ func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 		if seen {
 			continue
 		}
-		connected = append(connected, one.start)
+		connected = append(connected, connection)
 		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
 			continue
 		}
@@ -436,7 +438,7 @@ type running struct {
 }
 
 func (r *running) target() ymxs.Target {
-	return ymxs.StartTarget(r.start)
+	return ymxs.ConnectionTarget(r.start.Connection)
 }
 
 // reckoned is whether a reading of this run rests on the reckoning: its end
@@ -598,7 +600,7 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		w.place(at, timer, e)
-		if runs, on := w.runs(timer, at); ymxs.StartDeferred(e) && on {
+		if runs, on := w.runs(timer, at); e.Deferred && on {
 			// the effect plays its source once from here, and the start
 			// follows it
 			runs.until = min(runs.until, at+w.frames(runs.start))
@@ -640,7 +642,7 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 // starts puts the effect of a start in the model from this row, replacing
 // the one before it; begun where a pending start begins at a reckoned row.
 func (w *writing) starts(at int, timer ymxs.Timer, start ymxs.Start, begun bool) {
-	w.shared(at, timer, ymxs.StartTarget(start), begun)
+	w.shared(at, timer, ymxs.ConnectionTarget(start.Connection), begun)
 	if before, on := w.running[timer]; on {
 		w.collided(timer, before)
 	}
@@ -653,7 +655,7 @@ func (w *writing) starts(at int, timer ymxs.Timer, start ymxs.Start, begun bool)
 // reset. After a start, the place keeps its number modulo the row count of
 // the source a start connects (SPEC.md 3.4.3).
 func (w *writing) place(at int, timer ymxs.Timer, start ymxs.Start) {
-	if ymxs.StartTiming(start).PlaceReset || w.started[timer] {
+	if start.Timing.PlaceReset || w.started[timer] {
 		return
 	}
 	w.say(at, timer, "starts a source without the place's reset, and this timer has"+
@@ -711,7 +713,8 @@ const reckoned = ", which rests on how long a source that plays once runs, recko
 
 // until is the row a start's source ends on, or no row where it repeats.
 func (w *writing) until(at int, start ymxs.Start) int {
-	if _, repeats := ymxs.SourceRows(ymxs.StartSource(start)).Repeat(); repeats {
+	rows := ymxs.SourceRows(ymxs.ConnectionSource(start.Connection))
+	if _, repeats := rows.Repeat(); repeats {
 		return math.MaxInt32
 	}
 	return at + w.frames(start)
@@ -720,9 +723,8 @@ func (w *writing) until(at int, start ymxs.Start) int {
 // frames is the frames a start's source runs for, played once at its rate
 // (SPEC.md 6.4).
 func (w *writing) frames(start ymxs.Start) int {
-	return ymxs.Frames(len(ymxs.SourceRows(ymxs.StartSource(start)).Rows),
-		ymxs.StartTiming(start).Prescaler,
-		ymxs.StartTiming(start).Count, w.tune.Rate)
+	return ymxs.Frames(len(ymxs.SourceRows(ymxs.ConnectionSource(start.Connection)).Rows),
+		start.Timing.Prescaler, start.Timing.Count, w.tune.Rate)
 }
 
 // written is the registers a target writes, value i of a row to register

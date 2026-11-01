@@ -248,14 +248,14 @@ public final class Json {
             switch (effect) {
                 case Start start -> {
                     shape.add(START);
-                    target.add(Tunes.number(Tunes.target(start)));
-                    source.add(sources.indexOf(Tunes.source(start)) + 1);
-                    prescaler.add(Chip.divides(Tunes.prescaler(start)));
-                    count.add(Tunes.count(start));
-                    timerReset.add(Tunes.timerReset(start) ? 1 : 0);
-                    placeReset.add(Tunes.placeReset(start) ? 1 : 0);
-                    deferred.add(Tunes.deferred(start) ? 1 : 0);
-                    mapping.add(mapping(Tunes.mapping(start), transformations));
+                    target.add(Tunes.number(Tunes.target(start.connection())));
+                    source.add(sources.indexOf(Tunes.source(start.connection())) + 1);
+                    prescaler.add(Chip.divides(start.timing().prescaler()));
+                    count.add(start.timing().count());
+                    timerReset.add(start.timing().timerReset() ? 1 : 0);
+                    placeReset.add(start.timing().placeReset() ? 1 : 0);
+                    deferred.add(start.deferred() ? 1 : 0);
+                    mapping.add(mapping(start.mapping(), transformations));
                 }
                 case Retune retune -> {
                     shape.add(RETUNE);

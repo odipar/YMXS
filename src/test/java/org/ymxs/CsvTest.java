@@ -15,12 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Tune;
 
@@ -243,7 +243,7 @@ final class CsvTest {
         if (!(tune.table().rows().get(at).effects().get(Timer.A) instanceof Start start)) {
             throw new AssertionError("row " + at + " starts Timer A");
         }
-        return Tunes.deferred(start);
+        return start.deferred();
     }
 
     @Test
@@ -267,7 +267,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, new StartOne(Tunes.setting(Register.R10), drum, new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))),
+                        Timer.D, new Start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));
@@ -551,7 +551,7 @@ final class CsvTest {
         YMXS.Transformation half = Tunes.transformations(tune).get(0);
         assertEquals("half", half.name());
         assertEquals(64, half.entries().get(128));
-        assertEquals(Tunes.mapping(half), Tunes.mapping(start(tune, 0)));
+        assertEquals(Tunes.mapping(half), start(tune, 0).mapping());
         assertEquals(new YMXS.Remap(Tunes.NO_PARTS),
                 Tunes.rows(tune).get(1).effects().get(Timer.A));
         assertEquals(Csv.read(SEVEN), Csv.read(SEVEN.replace("1,3,,,,,,,,0", "1,3,,,,,,,, 0 ")),
@@ -694,7 +694,7 @@ final class CsvTest {
 
     /** A source of 2 values a row on a target that reads 1 is an error of
      *  the form, one unprefixed line raised as the start is read, since
-     *  the record of a start pairs a source with a target of its width
+     *  the connection of a start pairs a source with a target of its width
      *  (SPEC.md 1.1, csv.md 5.1). */
     @Test
     void aSourceOfAnotherWidthThanItsTargetIsAnErrorOfTheForm() {
@@ -715,7 +715,7 @@ final class CsvTest {
         String six = SEVEN.replace("ymxs,7,1", "ymxs,6,1").replace("1,3,,,,,,,,0\n", "")
                 .replace(BLOCKS, "");
         Tune tune = Csv.read(six).tunes().get(0);
-        assertEquals(Tunes.NO_PARTS, Tunes.mapping(start(tune, 0)));
+        assertEquals(Tunes.NO_PARTS, start(tune, 0).mapping());
         assertEquals(List.of(), Tunes.transformations(tune));
         assertEquals(Csv.read(six), Csv.read(six.replace("1,1,0,1\n", "1,1,0,x\n")),
                 "a malformed mapping cell is skipped");

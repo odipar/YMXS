@@ -40,6 +40,34 @@ final class ParityTest {
     private static final List<String> READ_JSON =
             List.of("ymxs-check", "ymxs-json-to-csv", "ymxs-merge");
 
+    /** The line of tools.md 7.4 between the tool's name and the text, read
+     *  out of the document; the CSV emitter writes the text as a name in a
+     *  reported line (csv.md 5.4). */
+    private static final String UNWRITABLE = unwritable();
+
+    /** The indented line after the heading of tools.md 7.4, its tool's name
+     *  and its {@code <value>} cut. */
+    private static String unwritable() {
+        String tools;
+        try {
+            tools = Files.readString(Path.of("doc/tools.md"));
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+        String tool = "ymxs-json-to-csv: ";
+        String value = "<value>";
+        int at = tools.indexOf("**7.4**");
+        int line = tools.indexOf("\n    " + tool, at);
+        if (at < 0 || line < 0) {
+            throw new IllegalStateException("tools.md 7.4 has no line of " + tool);
+        }
+        String said = tools.substring(line + 5, tools.indexOf('\n', line + 1));
+        if (!said.endsWith(value)) {
+            throw new IllegalStateException("tools.md 7.4's line ends other than " + value);
+        }
+        return said.substring(tool.length(), said.length() - value.length());
+    }
+
     /** Where the Go tools are built, once for every test here. */
     private static @Nullable Path built;
 
@@ -201,13 +229,13 @@ final class ParityTest {
         String sourceRepeat = "\"name\": \"square 13\", \"repeat\": 0,";
         String start = "0,0,8,1,50,60,1,1";
         String retune = "1,1,,,50,61,0,0";
-        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 6,",
+        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 7,",
                 "\"rows\": 4,", "\"rate\": 50,")) {
             assertTrue(json.contains(each), "the example has " + each);
         }
         assertTrue(csv.contains(start) && csv.contains(retune), "the example starts and retunes");
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\": 6,",
+                new Wrong("ymxs-check", json.replace("\"version\": 7,",
                         "\"version\": 4294967300,"), "version is 4294967300" + whole),
                 new Wrong("ymxs-check", json.replace("\"rows\": 4,",
                         "\"rows\": 4294967300,"), "rows is 4294967300" + whole),
@@ -326,8 +354,8 @@ final class ParityTest {
      * A deferred start reads the same in both trees (SPEC.md 3.5): the
      * check of {@code doc/tunes/deferred.json} with R8 set at rows 5 and 6
      * reports the square's run to row 6 by the reckoning and the fall's
-     * from there (6.3, 6.4); a file of version 4 skips the
-     * {@code deferred} column, and a start of version 6 without it is one
+     * from there (6.3, 6.4); a reader skips the {@code deferred} column of
+     * a file of version 4, and a start of version 7 without it is one
      * error of the form (json.md 2.4, 8.1; csv.md 5.2).
      */
     @Test
@@ -337,7 +365,7 @@ final class ParityTest {
                 StandardCharsets.UTF_8);
         String r7 = "\"r7\": [62,-1,-1,-1,-1,-1,-1,-1]";
         String deferred = "\"deferred\": [0,-1,-1,-1,1,-1,-1,-1]";
-        String cells = ",placeReset,deferred\n";
+        String cells = ",placeReset,deferred,mapping\n";
         assertTrue(json.contains(r7) && json.contains(deferred) && csv.contains(cells),
                 "the example sets R7 alone and defers the start at row 4");
         byte[] sets = json.replace(r7, r7 + ",\n        \"r8\": [-1,-1,-1,-1,-1,12,12,-1]")
@@ -349,12 +377,625 @@ final class ParityTest {
         assertTrue(said.contains("row 5: Timer A runs on R8, and this row sets it" + reckoned)
                 && said.contains("row 6: Timer A runs on R8, and this row sets it" + reckoned),
                 said);
-        both("ymxs-check", json.replace("\"version\": 6", "\"version\": 4").getBytes());
-        both("ymxs-csv-to-json", csv.replace("ymxs,6,1", "ymxs,4,1").getBytes());
+        both("ymxs-check", json.replace("\"version\": 7", "\"version\": 4").getBytes());
+        both("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,4,1").getBytes());
         wrongInBothTrees(new Wrong("ymxs-check", json.replace(",\n        " + deferred, ""),
                 "Timer A has no \"deferred\" column"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(cells, ",placeReset\n"),
                 "true or false is \"\", and this form requires a whole number"));
+    }
+
+    /** The first {@code entries} entries of {@code half}, entry k the key
+     *  k divided by 2, separated by commas. */
+    private static String halves(int entries) {
+        StringBuilder out = new StringBuilder();
+        for (int key = 0; key < entries; key++) {
+            out.append(key > 0 ? "," : "").append(key / 2);
+        }
+        return out.toString();
+    }
+
+    /** A tune of version 7 in JSON: two rows, a square on R8 started at
+     *  row 0 through transformation 1, {@code half} of 256 entries, and
+     *  remapped at row 1 through the mapping of no parts. */
+    private static final String SEVEN_JSON = """
+            {"format":"ymxs","version":7,"tunes":[{"title":"","composer":"",
+            "writer":"t","rate":50,"rows":2,"repeat":0,
+            "sources":[{"name":"a tone","repeat":0,"values":[13,0]}],
+            "transformations":[{"name":"half","entries":[HALVES]}],
+            "timerA":{"shape":[0,3],"target":[8,-1],"source":[1,-1],
+            "prescaler":[50,-1],"count":[60,-1],"timerReset":[1,-1],"placeReset":[1,-1],
+            "deferred":[0,-1],"mapping":[[1],0]}}]}
+            """.replace("HALVES", halves(256));
+
+    /**
+     * A tune through transformations reads the same in both trees:
+     * {@code doc/tunes/fade.json} and the kit's {@code transformations.json}
+     * through the check, to CSV and back, and the two through ymxs-merge
+     * (SPEC.md 3.6; json.md 3.7, 6.7; csv.md 3.9, 3.11). The kit's file
+     * lists its transformations in another order than SPEC.md 1.9 numbers
+     * them, and the JSON written back numbers them by first use (json.md
+     * 3.8). A transformation of the empty name crosses to CSV as a row
+     * line of {@code ""} and back (csv.md 2.5, 6.4).
+     */
+    @Test
+    void aTuneThroughTransformationsReadsTheSameInBothTrees() throws Exception {
+        byte[] fade = file("doc/tunes/fade.json");
+        byte[] kit = file("doc/conformance/tunes/transformations.json");
+        for (byte[] json : List.of(fade, kit)) {
+            both("ymxs-check", json);
+            byte[] csv = both("ymxs-json-to-csv", json);
+            assertTrue(new String(csv, StandardCharsets.UTF_8)
+                    .contains("\n### transformation\nname\nV15\n"), "the CSV opens V15");
+            byte[] back = both("ymxs-csv-to-json", csv);
+            assertArrayEquals(both("ymxs-merge", json), back, "the JSON through CSV is the"
+                    + " JSON written again");
+        }
+        assertArrayEquals(fade, both("ymxs-csv-to-json", both("ymxs-json-to-csv", fade)),
+                "fade.json crosses to CSV and back byte for byte");
+        String renumbered = new String(both("ymxs-merge", kit), StandardCharsets.UTF_8);
+        assertTrue(renumbered.indexOf("\"name\": \"V15\"") < renumbered.indexOf(
+                "\"name\": \"V0\""), "V15 is transformation 1 by first use: " + renumbered);
+        byte[] together = new byte[fade.length + kit.length];
+        System.arraycopy(fade, 0, together, 0, fade.length);
+        System.arraycopy(kit, 0, together, fade.length, kit.length);
+        both("ymxs-merge", together);
+
+        String nameless = SEVEN_JSON.replace("\"name\":\"half\"", "\"name\":\"\"");
+        byte[] csv = both("ymxs-json-to-csv", nameless.getBytes(StandardCharsets.UTF_8));
+        assertTrue(new String(csv, StandardCharsets.UTF_8)
+                .contains("### transformation\nname\n\"\"\n"), "the empty name is \"\"");
+        assertArrayEquals(csv, both("ymxs-json-to-csv", both("ymxs-csv-to-json", csv)),
+                "the CSV crosses to JSON and back byte for byte");
+    }
+
+    /**
+     * Each condition of json.md 8.1 that version 7 adds is one line in
+     * both trees, X the value as JSON text, each number in it as written
+     * in the file; and a reader skips the transformations and the mapping
+     * column of a file of version 6 (json.md 2.4). A transformation name
+     * with a line feed, and one with a carriage return, is the one line of
+     * tools.md 7.4, the line feed written as the two characters {@code \n}
+     * and the carriage return as {@code \r}.
+     */
+    @Test
+    void eachErrorOfTheJsonFormOfVersion7IsOneLineInBothTrees() throws Exception {
+        String json = SEVEN_JSON;
+        both("ymxs-check", json.getBytes(StandardCharsets.UTF_8));
+        String transformations = "\"transformations\":[{\"name\":\"half\",\"entries\":["
+                + halves(256) + "]}],";
+        String other = "{\"name\":\"other\",\"entries\":[" + halves(256) + "]}";
+        String sources = "\"sources\":[{\"name\":\"a tone\",\"repeat\":0,\"values\":[13,0]}";
+        String entries = "\"entries\":[0,0,1,";
+        String mapping = "\"mapping\":[[1],0]";
+        String shape = "\"shape\":[0,3]";
+        for (String each : List.of(transformations, sources, entries, mapping, shape)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        assertTrue(both("ymxs-check", json.replace("\"version\":7", "\"version\":6")
+                .replace(shape, "\"shape\":[0,-1]").replace(entries, "\"entries\":[\"x\",")
+                .replace(mapping, "\"mapping\":\"x\"").getBytes(StandardCharsets.UTF_8))
+                .length > 0, "a reader skips the transformations and the mapping column of a"
+                + " file of version 6");
+        String array = ", and this form requires an array";
+        String requires = ", and this form requires 0 or an array of whole numbers";
+        String identity = ", and a mapping of the identity in every part is 0";
+        String unused = "transformation 2, other, is used by no row, and a transformation a"
+                + " tune does not map through is dropped where this form is read";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":8"),
+                        "version 8, and this reads 3, 4, 5, 6 or 7"),
+                new Wrong("ymxs-check", json.replace(transformations, ""),
+                        "transformations is null" + array),
+                new Wrong("ymxs-check", json.replace(transformations,
+                        "\"transformations\":{\"a\": 1.50},"),
+                        "transformations is {\"a\":1.50}" + array),
+                new Wrong("ymxs-check", json.replace(transformations,
+                        "\"transformations\":[5],"), "entries is null" + array),
+                new Wrong("ymxs-check", json.replace(transformations,
+                        "\"transformations\":[{\"name\":\"half\",\"entries\":\"x\"}],"),
+                        "entries is \"x\"" + array),
+                new Wrong("ymxs-check", json.replace("\"name\":\"half\",", ""),
+                        "name is null, and this form requires a text"),
+                new Wrong("ymxs-check", json.replace(entries, "\"entries\":[0,1e1,1,"),
+                        "half at entry 1 is 1e1, and this form requires a whole number"),
+                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":6"),
+                        "row 1 sets shape 3 on Timer A, and a shape is -1, 0, 1 or 2"),
+                new Wrong("ymxs-check", json.replace(shape, "\"shape\":[0,4]"),
+                        "row 1 sets shape 4 on Timer A, and a shape is -1, 0, 1, 2 or 3"),
+                new Wrong("ymxs-check", json.replace("," + mapping, ""),
+                        "Timer A has no \"mapping\" column"),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":0"),
+                        "Timer A's mapping is 0, and this form requires a column"),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[1]]"),
+                        "Timer A's mapping is 1 values long, and the tune has 2 rows"),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[1, 1.50],0]"),
+                        "Timer A's mapping at row 0 is [1,1.50]" + requires),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[1],\"x\"]"),
+                        "Timer A's mapping at row 1 is \"x\"" + requires),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[],0]"),
+                        "Timer A's mapping at row 0 is []" + identity),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[1],[-0, 0]]"),
+                        "Timer A's mapping at row 1 is [-0,0]" + identity),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[2],0]"),
+                        "row 0 maps through transformation 2, and the tune has 1"),
+                new Wrong("ymxs-check", json.replace(transformations,
+                        transformations.replace("]}],", "]}," + other + "],")), unused),
+                new Wrong("ymxs-check", json.replace(sources, sources
+                        + ",{\"name\":\"idle\",\"values\":[1]}").replace(transformations,
+                        transformations.replace("]}],", "]}," + other + "],")),
+                        "source 2, idle, is started by no row, and a source a tune does not"
+                                + " run is dropped where this form is read\n" + unused),
+                new Wrong("ymxs-json-to-csv", json.replace("\"name\":\"half\"",
+                        "\"name\":\"ha\\nlf\""), UNWRITABLE + "ha\\nlf"),
+                new Wrong("ymxs-json-to-csv", json.replace("\"name\":\"half\"",
+                        "\"name\":\"ha\\rlf\""), UNWRITABLE + "ha\\rlf"))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
+    /** The {@code transformations} of {@code SEVEN_JSON}, one
+     *  transformation named {@code name} of the entries {@code entries}. */
+    private static String transformation(String name, String entries) {
+        return "\"transformations\":[{\"name\":\"" + name + "\",\"entries\":[" + entries
+                + "]}],";
+    }
+
+    /**
+     * Each condition of SPEC.md 1.11 that version 7 adds is the same text
+     * in both trees, its lines in the order of 1.12: a transformation of
+     * 255 entries with an entry above 255; of 257 with one, and of 0, each
+     * with its count line and no line of a value of 300 through it, at the
+     * start and at the remap; a key above the last key of a table of 256
+     * entries, of 16 at the start, at the remap after it and at the remap
+     * before it, and of 1; a mapping of two parts on a target of one
+     * register; a value mapped above the most of the register, at the
+     * start and at the remap after it; and a remap read against the start
+     * after it. A remap reads each value once, in row order, each line of
+     * its values prefixed with the row of the start it is read against; a
+     * start reads the keys before the values mapped. The JSON reader reads
+     * a transformation of any number of entries (json.md 3.7). A
+     * transformation of 255 entries, each 0 to 255, reads clean, and so do
+     * a table of 16 entries and one of 256 under one name, two
+     * transformations (SPEC.md 3.6.2).
+     */
+    @Test
+    void eachErrorOfTheStructureOfVersion7IsOneLineInBothTrees() throws Exception {
+        String json = SEVEN_JSON;
+        String entries = "\"entries\":[0,0,1,1,2,";
+        String values = "\"values\":[13,0]";
+        String mapping = "\"mapping\":[[1],0]";
+        String timer = "\"timerA\":{\"shape\":[0,3],\"target\":[8,-1],\"source\":[1,-1],\n"
+                + "\"prescaler\":[50,-1],\"count\":[60,-1],\"timerReset\":[1,-1],"
+                + "\"placeReset\":[1,-1],\n\"deferred\":[0,-1],\"mapping\":[[1],0]}";
+        String half = transformation("half", halves(256));
+        for (String each : List.of(entries, values, mapping, timer, half)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        String sixteen = json.replace(half, transformation("half", halves(16)));
+        String remapped = "\"mapping\":[[1],[1]]";
+        String twice = json.replace(values, "\"values\":[300,0]").replace(mapping, remapped);
+        String before = "\"timerA\":{\"shape\":[3,0],\"target\":[-1,8],\"source\":[-1,1],"
+                + "\"prescaler\":[-1,50],\"count\":[-1,60],\"timerReset\":[-1,1],"
+                + "\"placeReset\":[-1,1],\"deferred\":[-1,0],";
+        StringBuilder up = new StringBuilder();
+        for (int key = 0; key < 16; key++) {
+            up.append(key > 0 ? "," : "").append(key + 40);
+        }
+        String at0 = "tune 1: row 0: Timer A: ";
+        String at1 = "tune 1: row 1: Timer A: ";
+        String remap0 = at0 + "start of row 1: ";
+        String remap1 = at1 + "start of row 0: ";
+        String counted = "tune 1: transformation 1, half: the transformation has ";
+        String most = ", and the target is 0 to 31";
+        String parts = "a mapping of 2 parts on setR8, which reads 1";
+        String key15 = "a source on setR8 whose row 0 is 16, and a key is 0 to 15";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", json.replace(entries, "\"entries\":[0,1,300,2,"),
+                        "tune 1: transformation 1, half: entry 2 is 300, and an entry is 0 to"
+                                + " 255"),
+                new Wrong("ymxs-check", twice.replace(half,
+                        transformation("half", halves(256) + ",300")),
+                        counted + "257 entries, and a transformation has 1 to 256\n"
+                                + "tune 1: transformation 1, half: entry 256 is 300, and an"
+                                + " entry is 0 to 255"),
+                new Wrong("ymxs-check", twice.replace(half, transformation("half", "")),
+                        counted + "0 entries, and a transformation has 1 to 256"),
+                new Wrong("ymxs-check", json.replace(values, "\"values\":[300,0]"),
+                        at0 + "a source on setR8 whose row 0 is 300, and a key is 0 to 255\n"
+                                + remap1 + "value 0 of row 0 maps to 300 on setR8" + most),
+                new Wrong("ymxs-check", sixteen.replace(values, "\"values\":[16,0]"),
+                        at0 + key15),
+                new Wrong("ymxs-check", sixteen.replace(values, "\"values\":[16,0]")
+                        .replace(mapping, "\"mapping\":[0,[1]]"), remap1 + key15),
+                new Wrong("ymxs-check", sixteen.replace(values, "\"values\":[16,0]")
+                        .replace(timer, before + mapping + "}"), remap0 + key15),
+                new Wrong("ymxs-check", json.replace(half, transformation("up", up.toString()))
+                        .replace(values, "\"values\":[0,16]")
+                        .replace(mapping, "\"mapping\":[0,[1]]"),
+                        remap1 + "value 0 of row 0 maps to 40 on setR8" + most + "\n"
+                                + remap1 + "a source on setR8 whose row 1 is 16, and a key is 0"
+                                + " to 15"),
+                new Wrong("ymxs-check", json.replace(half, transformation("one", "40"))
+                        .replace(values, "\"values\":[0,13]"),
+                        at0 + "a source on setR8 whose row 1 is 13, and a key is 0 to 0\n"
+                                + at0 + "value 0 of row 0 maps to 40 on setR8" + most),
+                new Wrong("ymxs-check", json.replace(mapping, "\"mapping\":[[1,1],[1,0]]"),
+                        at0 + parts + "\n" + at1 + parts),
+                new Wrong("ymxs-check", json.replace(values, "\"values\":[100,0]"),
+                        at0 + "value 0 of row 0 maps to 50 on setR8" + most + "\n"
+                                + remap1 + "value 0 of row 0 maps to 100 on setR8" + most),
+                new Wrong("ymxs-check", json.replace(timer, before
+                        + "\"mapping\":[[1,1],[1]]}"), at0 + parts))) {
+            wrongInBothTrees(wrong);
+        }
+
+        assertTrue(both("ymxs-check", json.replace(half, transformation("half", halves(255)))
+                .getBytes(StandardCharsets.UTF_8)).length > 0,
+                "a transformation of 255 entries, each 0 to 255, reads clean");
+        String two = json.replace(half, "\"transformations\":[{\"name\":\"half\",\"entries\":["
+                + halves(16) + "]},{\"name\":\"half\",\"entries\":[" + halves(256) + "]}],")
+                .replace(mapping, "\"mapping\":[[1],[2]]");
+        assertTrue(both("ymxs-check", two.getBytes(StandardCharsets.UTF_8)).length > 0,
+                "a table of 16 entries and one of 256, both named half, read clean");
+        String merged = new String(both("ymxs-merge", two.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8);
+        int first = merged.indexOf("\"name\": \"half\"");
+        assertTrue(first >= 0 && merged.indexOf("\"name\": \"half\"", first + 1) > first,
+                "a table of 16 entries and one of 256 named half are two transformations: "
+                        + merged);
+    }
+
+    /** A tune of version 7 in JSON: sources {@code a} and {@code b}, each
+     *  of one row of 16, started on R8 at rows 0 and 1, a remap at row 2
+     *  through {@code half} of 16 entries, and {@code a} started again at
+     *  row 3. */
+    private static final String EQUAL_ROWS = """
+            {"format":"ymxs","version":7,"tunes":[{"title":"","composer":"",
+            "writer":"t","rate":50,"rows":4,"repeat":0,
+            "sources":[{"name":"a","repeat":0,"values":[16]},
+            {"name":"b","repeat":0,"values":[16]}],
+            "transformations":[{"name":"half","entries":[HALVES]}],
+            "timerA":{"shape":[0,0,3,0],"target":[8,8,-1,8],"source":[1,2,-1,1],
+            "prescaler":[50,50,-1,50],"count":[60,60,-1,60],"timerReset":[1,1,-1,1],
+            "placeReset":[1,1,-1,1],"deferred":[0,0,-1,0],"mapping":[0,0,[1],0]}}]}
+            """.replace("HALVES", halves(16));
+
+    /**
+     * The prefixes of SPEC.md 1.12, and the entries a check reads, are the
+     * same in both trees. A line of a transformation is prefixed with its
+     * number of SPEC.md 1.9 and its name, in that number order, where the
+     * file lists the transformations in the other order. A line of the
+     * values of a remap is prefixed with the row of the start it is read
+     * against, one line for each source of equal rows under two names, at
+     * the first start that connects each. A value through a table of 16
+     * entries with entry 1 of 300 is read against the last key and through
+     * entry 0, at the start and at the remap.
+     */
+    @Test
+    void thePrefixesAndTheEntriesOfSpec112AreTheSameInBothTrees() throws Exception {
+        String json = SEVEN_JSON;
+        String half = transformation("half", halves(256));
+        String values = "\"values\":[13,0]";
+        String mapping = "\"mapping\":[[1],0]";
+        for (String each : List.of(half, values, mapping)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        String listed = json.replace(values, "\"values\":[1,2]")
+                .replace(mapping, "\"mapping\":[[2],[1]]");
+        StringBuilder spoilt = new StringBuilder("40,300");
+        for (int key = 2; key < 16; key++) {
+            spoilt.append(',').append(key - 2);
+        }
+        String most = ", and the target is 0 to 31";
+        String key15 = "a source on setR8 whose row 2 is 20, and a key is 0 to 15";
+        String forty = "value 0 of row 0 maps to 40 on setR8" + most;
+        String at0 = "tune 1: row 0: Timer A: ";
+        String remap = "tune 1: row 1: Timer A: start of row 0: ";
+        String equal = "a source on setR8 whose row 0 is 16, and a key is 0 to 15";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", listed.replace(half, "\"transformations\":["
+                        + "{\"name\":\"bad\",\"entries\":[1,2,300]},"
+                        + "{\"name\":\"good\",\"entries\":[1,2,3]}],"),
+                        "tune 1: transformation 2, bad: entry 2 is 300, and an entry is 0 to"
+                                + " 255"),
+                new Wrong("ymxs-check", listed.replace(half, "\"transformations\":["
+                        + "{\"name\":\"first\",\"entries\":[1,2,300]},"
+                        + "{\"name\":\"second\",\"entries\":[1,2,3,400]}],"),
+                        "tune 1: transformation 1, second: entry 3 is 400, and an entry is 0"
+                                + " to 255\n"
+                                + "tune 1: transformation 2, first: entry 2 is 300, and an"
+                                + " entry is 0 to 255"),
+                new Wrong("ymxs-check", EQUAL_ROWS,
+                        "tune 1: row 2: Timer A: start of row 0: " + equal + "\n"
+                                + "tune 1: row 2: Timer A: start of row 1: " + equal),
+                new Wrong("ymxs-check", json.replace(half, transformation("v", spoilt.toString()))
+                        .replace(values, "\"values\":[0,1,20]")
+                        .replace(mapping, "\"mapping\":[[1],[1]]"),
+                        "tune 1: transformation 1, v: entry 1 is 300, and an entry is 0 to 255\n"
+                                + at0 + key15 + "\n" + at0 + forty + "\n"
+                                + remap + forty + "\n" + remap + key15))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
+    /**
+     * A name in a reported line is one line in both trees, each line feed
+     * in it written as the two characters {@code \n} and each carriage
+     * return as {@code \r} (SPEC.md 1.12; json.md 8.1, csv.md 5.1). In JSON,
+     * for each of the two: a transformation with an entry of 300, through
+     * ymxs-check and through ymxs-json-to-csv, which reports the structure
+     * before the line of tools.md 7.4; a transformation with an entry of
+     * {@code 1e1}; a source with a value of {@code "x"}; and an unstarted
+     * source and an unused transformation. In CSV, where a line feed ends
+     * the line (csv.md 2.6), a carriage return: a transformation with an
+     * entry of 300, an unstarted source and an unused transformation, and a
+     * source of a row of several values in a file of version 3.
+     */
+    @Test
+    void aNameInAReportedLineIsOneLineInBothTrees() throws Exception {
+        String json = SEVEN_JSON;
+        String name = "\"name\":\"half\"";
+        String tone = "\"name\":\"a tone\"";
+        String entries = "\"entries\":[0,0,1,";
+        String values = "\"values\":[13,0]";
+        String sources = "\"sources\":[{\"name\":\"a tone\",\"repeat\":0,\"values\":[13,0]}";
+        String half = transformation("half", halves(256));
+        for (String each : List.of(name, tone, entries, values, sources, half)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        String csv = new String(both("ymxs-json-to-csv", json.getBytes(
+                StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+        String opens = "### transformation\nname\nhalf\n";
+        String keys = "### entry\nkey,entry\n0,0\n1,0\n2,1\n";
+        String registers = "\n### registers\n";
+        for (String each : List.of(opens, keys, registers)) {
+            assertTrue(csv.contains(each), "the tune has " + each);
+        }
+        assertTrue(THREE_CSV.contains("a tone,0\n"), "the tune of version 3 has a tone");
+        String high = ": entry 2 is 300, and an entry is 0 to 255";
+        String started = ", is started by no row, and a source a tune does not run is"
+                + " dropped where this form is read";
+        String used = ", is used by no row, and a transformation a tune does not map"
+                + " through is dropped where this form is read";
+        String whole = ", and this form requires a whole number";
+        List<Wrong> wrong = new ArrayList<>();
+        for (String escape : List.of("\\n", "\\r")) {
+            // the JSON escape of each character is its form in the line
+            String ha = "ha" + escape + "lf";
+            String idle = "id" + escape + "le";
+            String other = "ot" + escape + "her";
+            String at = "a" + escape + "tone";
+            String named = json.replace(name, "\"name\":\"" + ha + "\"");
+            String spoilt = named.replace(entries, "\"entries\":[0,0,300,");
+            wrong.add(new Wrong("ymxs-check", spoilt, "tune 1: transformation 1, " + ha + high));
+            wrong.add(new Wrong("ymxs-json-to-csv", spoilt,
+                    "tune 1: transformation 1, " + ha + high));
+            wrong.add(new Wrong("ymxs-check", named.replace(entries, "\"entries\":[0,1e1,1,"),
+                    ha + " at entry 1 is 1e1" + whole));
+            wrong.add(new Wrong("ymxs-check", json.replace(tone, "\"name\":\"" + at + "\"")
+                    .replace(values, "\"values\":[13,\"x\"]"), at + " at row 1 is \"x\"" + whole));
+            wrong.add(new Wrong("ymxs-check", json.replace(sources, sources
+                    + ",{\"name\":\"" + idle + "\",\"values\":[1]}").replace(half,
+                    half.replace("]}],", "]},{\"name\":\"" + other + "\",\"entries\":[0]}],")),
+                    "source 2, " + idle + started + "\ntransformation 2, " + other + used));
+        }
+        wrong.add(new Wrong("ymxs-csv-to-json", csv.replace(opens,
+                "### transformation\nname\nha\rlf\n").replace(keys,
+                "### entry\nkey,entry\n0,0\n1,0\n2,300\n"),
+                "tune 1: transformation 1, ha\\rlf" + high));
+        wrong.add(new Wrong("ymxs-csv-to-json", csv.replace(registers,
+                "\n### source\nname,repeat\nid\rle,0\n\n### value\nrow,value\n0,1\n\n"
+                        + "### transformation\nname\not\rher\n\n### entry\nkey,entry\n0,0\n"
+                        + registers),
+                "source 2, id\\rle" + started + "\ntransformation 2, ot\\rher" + used));
+        wrong.add(new Wrong("ymxs-csv-to-json", THREE_CSV.replace("a tone,0\n", "a\rtone,0\n")
+                .replace("row,value\n0,13\n1,0", "row,value1,value2\n0,13,1\n1,0,1"),
+                "source a\\rtone has a row of several values, and version 3 has one value a"
+                        + " row"));
+        for (Wrong one : wrong) {
+            wrongInBothTrees(one);
+        }
+    }
+
+    /**
+     * A start whose source has other values a row than its target reads is
+     * the one line of json.md 8.1 and csv.md 5.1 in both trees, read after
+     * the columns of the start, so the line of a register the same row sets
+     * above its most is left unreported (SPEC.md 3.2.1): a source of one
+     * value a row on {@code setNoiseB}, and of two on {@code setR8}, in
+     * each form. The register alone is its line of SPEC.md 1.11. Where a
+     * column of that start read after its target is an error of the form,
+     * the line of that column is the one line (json.md 7.1 step 8, csv.md
+     * 4.1 step 6): a mapping through transformation 2 of a tune of one
+     * transformation on {@code setNoiseB}, and a count of {@code "x"} on
+     * {@code setR8}, in each form. A source of no rows on {@code setNoiseB}
+     * is the line of a source of 1 values a row (json.md 4.2, csv.md 3.6):
+     * in JSON an empty {@code values}, and in CSV a source with no {@code
+     * value} block and one whose {@code value} block has no row line.
+     */
+    @Test
+    void aSourceOfOtherValuesARowThanItsTargetReadsIsOneLineInBothTrees() throws Exception {
+        String json = SEVEN_JSON;
+        String target = "\"target\":[8,-1]";
+        String values = "\"values\":[13,0]";
+        String count = "\"count\":[60,-1]";
+        String mapping = "\"mapping\":[[1],0]";
+        String timer = "\"timerA\":";
+        for (String each : List.of(target, values, count, mapping, timer)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        String csv = new String(both("ymxs-json-to-csv", json.getBytes(
+                StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+        String start = "0,0,8,1,50,60,1,1,0,1\n";
+        String rows = "row,value\n0,13\n1,0\n";
+        String block = "### value\n" + rows + "\n";
+        String registers = "### registers\nrow,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13\n";
+        for (String each : List.of(start, block, registers)) {
+            assertTrue(csv.contains(each), "the tune has " + each);
+        }
+        String r9 = json.replace(timer, "\"registers\":{\"r9\":[40,-1]},\n" + timer);
+        String r8 = json.replace(timer, "\"registers\":{\"r8\":[40,-1]},\n" + timer);
+        String one = "a source of 1 values a row on setNoiseB, which reads 2";
+        String two = "a source of 2 values a row on setR8, which reads 1";
+        String maps = "row 0 maps through transformation 2, and the tune has 1";
+        String pairs = "row,value1,value2\n0,13,1\n1,0,1\n";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-check", r9, "tune 1: row 0: R9 is 0 to 31, and this row sets it"
+                        + " to 40"),
+                new Wrong("ymxs-check", r9.replace(target, "\"target\":[23,-1]"), one),
+                new Wrong("ymxs-check", r8.replace(values, "\"values\":[[13,1],[0,1]]"), two),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,1\n")
+                        .replace(registers, registers + "0,,,,,,,,,,40,,,,\n"), one),
+                new Wrong("ymxs-csv-to-json", csv.replace(rows, pairs)
+                        .replace(registers, registers + "0,,,,,,,,,40,,,,,\n"), two),
+                new Wrong("ymxs-check", json.replace(target, "\"target\":[23,-1]")
+                        .replace(mapping, "\"mapping\":[[2],0]"), maps),
+                new Wrong("ymxs-check", json.replace(values, "\"values\":[[13,1],[0,1]]")
+                        .replace(count, "\"count\":[\"x\",-1]"),
+                        "Timer A's count at row 0 is \"x\", and this form requires a whole"
+                                + " number"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,2\n"),
+                        maps),
+                new Wrong("ymxs-csv-to-json", csv.replace(rows, pairs)
+                        .replace(start, "0,0,8,1,50,x,1,1,0,1\n"),
+                        "count is \"x\", and this form requires a whole number"),
+                new Wrong("ymxs-check", json.replace(values, "\"values\":[]")
+                        .replace(target, "\"target\":[23,-1]"), one),
+                new Wrong("ymxs-csv-to-json", csv.replace(block, "")
+                        .replace(start, "0,0,23,1,50,60,1,1,0,1\n"), one),
+                new Wrong("ymxs-csv-to-json", csv.replace(rows, "row,value\n")
+                        .replace(start, "0,0,23,1,50,60,1,1,0,1\n"), one))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
+    /**
+     * Each condition of csv.md 5.1 that version 7 adds is one line in both
+     * trees. White space is the Unicode property White_Space, so U+00A0
+     * splits a {@code mapping} cell and ends a whole number, and a whole
+     * number is of the digits 0 to 9 (csv.md 1.3, 1.7). A reader reads a
+     * transformation of any number of entries, an absent {@code entry}
+     * block for 0, and a count outside 1 to 256 is a line of the structure
+     * (csv.md 3.12; SPEC.md 1.11), as is a value of 16 through a table of
+     * 16 entries.
+     */
+    @Test
+    void eachErrorOfTheCsvFormOfVersion7IsOneLineInBothTrees() throws Exception {
+        String csv = new String(both("ymxs-json-to-csv", SEVEN_JSON.getBytes(
+                StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+        String opens = "### transformation\nname\nhalf\n";
+        String keys = "### entry\nkey,entry\n0,0\n1,0\n";
+        String values = "row,value\n0,13\n1,0\n";
+        String columns = ",placeReset,deferred,mapping\n";
+        String start = "0,0,8,1,50,60,1,1,0,1\n";
+        String remap = "1,3,,,,,,,,0\n";
+        for (String each : List.of(opens, keys, values, columns, start, remap)) {
+            assertTrue(csv.contains(each), "the tune has " + each);
+        }
+        assertTrue(both("ymxs-csv-to-json", csv.replace(values,
+                "row,value\n0,13\u00a0\n1,0\n").getBytes(StandardCharsets.UTF_8)).length > 0,
+                "a value followed by U+00A0 reads");
+        StringBuilder block = new StringBuilder("### entry\nkey,entry\n");
+        StringBuilder first = new StringBuilder("### entry\nkey,entry\n");
+        for (int key = 0; key < 256; key++) {
+            block.append(key).append(',').append(key / 2).append('\n');
+            if (key < 16) {
+                first.append(key).append(',').append(key / 2).append('\n');
+            }
+        }
+        assertTrue(csv.contains(block + "\n"), "the tune has the 256 entries of half");
+        String sixteen = csv.replace(block, first);
+        assertTrue(both("ymxs-csv-to-json", sixteen.getBytes(StandardCharsets.UTF_8))
+                .length > 0, "a transformation of 16 entries reads");
+        String part = ", and this form requires a whole number a part";
+        String counted = "tune 1: transformation 1, half: the transformation has ";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-csv-to-json", csv.replace(block + "\n", ""),
+                        counted + "0 entries, and a transformation has 1 to 256"),
+                new Wrong("ymxs-csv-to-json", csv.replace(block, block + "256,128\n"),
+                        counted + "257 entries, and a transformation has 1 to 256"),
+                new Wrong("ymxs-csv-to-json", sixteen.replace(values, "row,value\n0,16\n1,0\n"),
+                        "tune 1: row 0: Timer A: a source on setR8 whose row 0 is 16, and a key"
+                                + " is 0 to 15"),
+                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,8,1"),
+                        "version 8, and this reads 3, 4, 5, 6 or 7"),
+                new Wrong("ymxs-csv-to-json", csv.replace(opens, opens + "other\n"),
+                        "tune 1 opens a transformation with 2 rows, and one row opens it"),
+                new Wrong("ymxs-csv-to-json", csv.replace(opens, ""),
+                        "tune 1 opens entries before any transformation"),
+                new Wrong("ymxs-csv-to-json", csv.replace(keys,
+                        "### entry\nkey,entry\n0,0\n1,x\n"),
+                        "entry is \"x\", and this form requires a whole number"),
+                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,4,,,,,,,,0\n"),
+                        "row 1 sets shape 4 of an effect, and a shape is 0, 1, 2 or 3"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,1 x\n"),
+                        "mapping is \"1 x\"" + part),
+                new Wrong("ymxs-csv-to-json", csv.replace(start,
+                        "0,0,8,1,50,60,1,1,0,\u0661\n"), "mapping is \"\u0661\"" + part),
+                new Wrong("ymxs-csv-to-json", csv.replace(columns, ",placeReset,deferred\n"),
+                        "mapping is \"\"" + part),
+                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,3,,,,,,,,0 0\n"),
+                        "mapping is \"0 0\", and a mapping of the identity in every part is 0"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,2\n"),
+                        "row 0 maps through transformation 2, and the tune has 1"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,0\n"),
+                        "transformation 1, half, is used by no row, and a transformation a"
+                                + " tune does not map through is dropped where this form is"
+                                + " read"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start,
+                        "0,0,8,1,50,60,1,1,0,1\u00a01\n"),
+                        "tune 1: row 0: Timer A: a mapping of 2 parts on setR8, which reads 1"),
+                new Wrong("ymxs-csv-to-json", csv.replace(values,
+                        "row,value\n0,\u0661\u0663\n1,0\n"),
+                        "value is \"\u0661\u0663\", and this form requires a whole number"))) {
+            wrongInBothTrees(wrong);
+        }
+    }
+
+    /**
+     * In a CSV file of version 6 or before, a reader skips the
+     * {@code mapping} column and reads a {@code transformation} or an
+     * {@code entry} block as a block of any other name (csv.md 3.10, 4.1
+     * step 5): the first such block in file order is the line of the tools
+     * of 0.6.0, read before the cells of the block and before the timer
+     * blocks. Without the two blocks, a remap there is a shape outside 0
+     * to 2.
+     */
+    @Test
+    void aTransformationOrAnEntryBlockOfVersion6IsOneLineInBothTrees() throws Exception {
+        String csv = new String(both("ymxs-json-to-csv", SEVEN_JSON.getBytes(
+                StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+        String opens = "### transformation\nname\nhalf\n\n";
+        String keys = "### entry\nkey,entry\n0,0\n1,0\n";
+        String start = "0,0,8,1,50,60,1,1,0,1\n";
+        String remap = "1,3,,,,,,,,0\n";
+        for (String each : List.of(opens + keys, start, remap, "\n### registers\n")) {
+            assertTrue(csv.contains(each), "the tune has " + each);
+        }
+        String entries = csv.substring(csv.indexOf(keys), csv.indexOf("### registers\n"));
+        String six = csv.replace("ymxs,7,1", "ymxs,6,1");
+        String bare = six.replace(opens, "").replace(entries, "");
+        assertTrue(both("ymxs-csv-to-json", bare.replace(remap, "")
+                .replace(start, "0,0,8,1,50,60,1,1,0,x\n").getBytes(StandardCharsets.UTF_8))
+                .length > 0, "a reader skips the mapping column of a file of version 6");
+        String transformation = "tune 1 opens a \"### transformation\" table, which this form"
+                + " does not have";
+        String entry = "tune 1 opens a \"### entry\" table, which this form does not have";
+        for (Wrong wrong : List.of(
+                new Wrong("ymxs-csv-to-json", six, transformation),
+                new Wrong("ymxs-csv-to-json", six.replace(entries, ""), transformation),
+                new Wrong("ymxs-csv-to-json", six.replace(opens, ""), entry),
+                new Wrong("ymxs-csv-to-json", six.replace(opens, "")
+                        .replace(keys, "### entry\nkey,entry\n0,x\n1,0\n"), entry),
+                new Wrong("ymxs-csv-to-json", six.replace(opens + entries, entries + opens),
+                        entry),
+                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,4,1"),
+                        transformation),
+                new Wrong("ymxs-csv-to-json", bare,
+                        "row 1 sets shape 3 of an effect, and a shape is 0, 1 or 2"))) {
+            wrongInBothTrees(wrong);
+        }
     }
 
     /**
@@ -451,8 +1092,7 @@ final class ParityTest {
         String writer = "\"writer\": \"by hand\"";
         assertTrue(json.contains(writer), "the example has a writer");
         wrongInBothTrees(new Wrong("ymxs-json-to-csv",
-                json.replace(writer, "\"writer\": \"by\\nhand\""),
-                "a value with a line feed in it, which this form cannot write: by\nhand"));
+                json.replace(writer, "\"writer\": \"by\\nhand\""), UNWRITABLE + "by\\nhand"));
 
         // the two trees parse with two parsers, and share the prefix alone
         byte[] trailing = (json + "xyz").getBytes(StandardCharsets.UTF_8);

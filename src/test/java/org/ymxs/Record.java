@@ -5,13 +5,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Mapping;
+import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -48,8 +52,18 @@ final class Record {
                     + (repeat.isPresent() ? String.valueOf(repeat.getAsInt()) : "null")
                     + "}");
         }
+        // each transformation the list of its entries in key order (7.3)
+        StringJoiner transformations = new StringJoiner(",", "[", "]");
+        for (Transformation transformation : Tunes.transformations(tune)) {
+            StringJoiner entries = new StringJoiner(",", "[", "]");
+            for (int entry : transformation.entries()) {
+                entries.add(String.valueOf(entry));
+            }
+            transformations.add(entries.toString());
+        }
         return "{\"rate\":" + tune.rate() + ",\"timers\":" + timers
-                + ",\"sources\":" + sources + "}";
+                + ",\"sources\":" + sources + ",\"transformations\":" + transformations
+                + "}";
     }
 
     /** The line of a frame that reads {@code row} (7.4). */
@@ -68,20 +82,39 @@ final class Record {
     /** The object of an operation, as the table of 7.4 lists it. */
     private static String operation(Tune tune, Effect effect) {
         return switch (effect) {
-            case Start start -> "{\"start\":{\"target\":\"" + Tunes.name(Tunes.target(start))
-                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start))
-                    + ",\"prescaler\":" + Chip.divides(Tunes.prescaler(start))
-                    + ",\"count\":" + Tunes.count(start)
-                    + ",\"timerReset\":" + Tunes.timerReset(start)
-                    + ",\"placeReset\":" + Tunes.placeReset(start)
-                    + ",\"deferred\":" + Tunes.deferred(start) + "}}";
+            case Start start -> "{\"start\":{\"target\":\""
+                    + Tunes.name(Tunes.target(start.connection()))
+                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start.connection()))
+                    + ",\"prescaler\":" + Chip.divides(start.timing().prescaler())
+                    + ",\"count\":" + start.timing().count()
+                    + ",\"timerReset\":" + start.timing().timerReset()
+                    + ",\"placeReset\":" + start.timing().placeReset()
+                    + ",\"deferred\":" + start.deferred()
+                    + ",\"mapping\":" + mapping(tune, start.mapping()) + "}}";
             case Retune retune -> "{\"retune\":{\"prescaler\":"
                     + Chip.divides(retune.timing().prescaler())
                     + ",\"count\":" + retune.timing().count()
                     + ",\"timerReset\":" + retune.timing().timerReset()
                     + ",\"placeReset\":" + retune.timing().placeReset() + "}}";
             case Stop ignored -> "{\"stop\":{}}";
+            case Remap remap -> "{\"remap\":{\"mapping\":"
+                    + mapping(tune, remap.mapping()) + "}}";
         };
+    }
+
+    /** A mapping as 7.4 records it: 0 where every part is the identity,
+     *  the mapping of no parts included, and otherwise an array of a
+     *  number a part, 0 the identity and n transformation n (1.9). */
+    private static String mapping(Tune tune, Mapping mapping) {
+        if (Tunes.isIdentity(mapping)) {
+            return "0";
+        }
+        List<Transformation> transformations = Tunes.transformations(tune);
+        StringJoiner parts = new StringJoiner(",", "[", "]");
+        for (Part part : mapping.parts()) {
+            parts.add(String.valueOf(Tunes.number(transformations, part)));
+        }
+        return parts.toString();
     }
 
     /** One pass of the tune: the first line, then a frame a row (4.2). */

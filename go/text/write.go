@@ -5,7 +5,8 @@
 // A tune is written column by column. A register's column is one value a
 // row, and a timer's columns one value a row of the operation on that
 // effect, None where a row leaves it alone. Every column is as long as the
-// tune, so a row is one index across every column.
+// tune, so a row is one index across every column. A mapping column has
+// an array at a row whose mapping maps a value through a transformation.
 //
 // Where the line breaks is fixed here: a tune's figures are at the top
 // of the tune and each column is on one line, so a register's values
@@ -25,8 +26,14 @@ import (
 // Format is the name the tree calls itself by.
 const Format = "ymxs"
 
-// Version is the version of the structure this maps.
-const Version = 6
+// Version is the version of the structure this maps, and the version a
+// writer writes.
+const Version = 7
+
+// Mapped is the first version with transformations, mappings and a remap:
+// in a file of a version before it every start reads with the mapping of
+// no parts, and shape 3 is an error of the form (json.md 2.4).
+const Mapped = 7
 
 // Deferred is the first version with a start's deferred: in a file of a
 // version before it every start reads with it clear (json.md 2.4).
@@ -41,9 +48,15 @@ const Several = 4
 // this one to Version (json.md 2.4).
 const Oldest = 3
 
-// Reads is the versions a reader reads, as its report lists them.
-var Reads = strconv.Itoa(Oldest) + ", " + strconv.Itoa(Several) + ", " +
-	strconv.Itoa(Deferred) + " or " + strconv.Itoa(Version)
+// Reads is the versions a reader reads, as its report lists them: Oldest
+// to Version, "3, 4, 5, 6 or 7".
+var Reads = func() string {
+	var said []string
+	for version := Oldest; version < Version; version++ {
+		said = append(said, strconv.Itoa(version))
+	}
+	return strings.Join(said, ", ") + " or " + strconv.Itoa(Version)
+}()
 
 // None marks a column where the row left that value alone. It
 // is free for this, since it fits neither a register nor a part of an
@@ -55,10 +68,11 @@ const (
 	Start  = 0
 	Retune = 1
 	Stop   = 2
+	Remap  = 3
 )
 
 // Arrays this deep and shallower put each value on a separate line: the
-// tunes, the sources.
+// tunes, the sources, the transformations.
 const arrays = 4
 
 // Objects this deep and shallower put each field on a separate line: the
@@ -90,6 +104,7 @@ func Write(multi ymxs.Multi) string {
 func (w *writer) tune(tune ymxs.Tune, depth int) {
 	rows := ymxs.Rows(tune)
 	sources := ymxs.Sources(tune)
+	transformations := ymxs.Transformations(tune)
 	w.object(depth, func(o *entries) {
 		o.text("title", tune.Title)
 		o.text("composer", tune.Composer)
@@ -105,6 +120,18 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 					s.repeat("repeat", ymxs.SourceRows(source))
 					s.field("values", func() {
 						w.rows(depth+3, ymxs.SourceRows(source).Rows)
+					})
+				})
+			})
+		})
+		// json.md 3.7: name, then entries, 20 a line
+		o.field("transformations", func() {
+			w.array(depth+1, len(transformations), func(at int) {
+				transformation := transformations[at]
+				w.object(depth+2, func(t *entries) {
+					t.text("name", transformation.Name)
+					t.field("entries", func() {
+						w.values(depth+3, transformation.Entries)
 					})
 				})
 			})
@@ -126,15 +153,17 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				continue
 			}
 			o.field("timer"+timer.String(), func() {
-				w.timer(rows, sources, timer, depth+1)
+				w.timer(rows, sources, transformations, timer, depth+1)
 			})
 		}
 	})
 }
 
 // timer writes one timer's columns: the operation on that effect at every
-// row, and None where the row leaves it alone.
-func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer, depth int) {
+// row, and None where the row leaves it alone or the shape selects
+// another column (json.md 6.2).
+func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
+	transformations []ymxs.Transformation, timer ymxs.Timer, depth int) {
 	shape := make([]int, len(rows))
 	target := make([]int, len(rows))
 	source := make([]int, len(rows))
@@ -143,37 +172,38 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 	timerReset := make([]int, len(rows))
 	placeReset := make([]int, len(rows))
 	deferred := make([]int, len(rows))
+	mapping := make([]cell, len(rows))
 	for at, row := range rows {
+		shape[at], target[at], source[at] = None, None, None
+		prescaler[at], count[at] = None, None
+		timerReset[at], placeReset[at], deferred[at] = None, None, None
+		mapping[at] = cell{number: None}
 		effect, on := row.Effects[timer]
 		if !on {
-			shape[at], target[at], source[at] = None, None, None
-			prescaler[at], count[at] = None, None
-			timerReset[at], placeReset[at], deferred[at] = None, None, None
 			continue
 		}
 		switch e := effect.(type) {
 		case ymxs.Start:
 			shape[at] = Start
-			target[at] = ymxs.TargetNumber(ymxs.StartTarget(e))
-			source[at] = indexOf(sources, ymxs.StartSource(e)) + 1
-			prescaler[at] = ymxs.Divides(ymxs.StartTiming(e).Prescaler)
-			count[at] = ymxs.StartTiming(e).Count
-			timerReset[at] = flag(ymxs.StartTiming(e).TimerReset)
-			placeReset[at] = flag(ymxs.StartTiming(e).PlaceReset)
-			deferred[at] = flag(ymxs.StartDeferred(e))
-		case ymxs.Retune:
-			shape[at] = Retune
-			target[at], source[at] = None, None
+			target[at] = ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection))
+			source[at] = indexOf(sources, ymxs.ConnectionSource(e.Connection)) + 1
 			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)
 			count[at] = e.Timing.Count
 			timerReset[at] = flag(e.Timing.TimerReset)
 			placeReset[at] = flag(e.Timing.PlaceReset)
-			deferred[at] = None
+			deferred[at] = flag(e.Deferred)
+			mapping[at] = mappingCell(e.Mapping, transformations)
+		case ymxs.Retune:
+			shape[at] = Retune
+			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)
+			count[at] = e.Timing.Count
+			timerReset[at] = flag(e.Timing.TimerReset)
+			placeReset[at] = flag(e.Timing.PlaceReset)
 		case ymxs.Stop:
 			shape[at] = Stop
-			target[at], source[at] = None, None
-			prescaler[at], count[at] = None, None
-			timerReset[at], placeReset[at], deferred[at] = None, None, None
+		case ymxs.Remap:
+			shape[at] = Remap
+			mapping[at] = mappingCell(e.Mapping, transformations)
 		}
 	}
 	w.object(depth, func(o *entries) {
@@ -190,7 +220,34 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source, timer ymxs.Timer,
 				w.values(depth+1, one.column)
 			})
 		}
+		o.field("mapping", func() {
+			w.mapping(depth+1, mapping)
+		})
 	})
+}
+
+// cell is one value of a mapping column: a whole number, or an array of
+// the numbers of the parts where parts is set (json.md 6.7).
+type cell struct {
+	number int
+	parts  []int
+}
+
+// mappingCell is a mapping as its column has it: 0 where every part is
+// the identity, the mapping of no parts included, and otherwise the
+// number of each part in part order, 0 the identity and n transformation
+// n (json.md 6.7). The list is the tune's (ymxs.Transformations), which has
+// every transformation of every mapping of the tune in it, so an error of
+// ymxs.PartNumbers is a fault of this package and panics.
+func mappingCell(mapping ymxs.Mapping, transformations []ymxs.Transformation) cell {
+	if ymxs.IsIdentity(mapping) {
+		return cell{}
+	}
+	parts, err := ymxs.PartNumbers(mapping, transformations)
+	if err != nil {
+		panic(err)
+	}
+	return cell{parts: parts}
 }
 
 // Name is the name of a register in a form: r0 to r13.
@@ -288,7 +345,6 @@ func (w *writer) array(depth, values int, write func(int)) {
 	w.b.WriteByte(']')
 }
 
-// values writes a column at that depth: one line, wrapping at Wrap.
 // rows writes a source's rows: a number where the source has one value a
 // row, and an array of its values where it has more (json.md 4.1).
 func (w *writer) rows(depth int, rows [][]int) {
@@ -306,6 +362,22 @@ func (w *writer) rows(depth int, rows [][]int) {
 	})
 }
 
+// mapping writes a mapping column at that depth: 20 values a line, an
+// array among them 20 numbers a line at the depth below (json.md 9.6).
+func (w *writer) mapping(depth int, column []cell) {
+	w.array(depth, len(column), func(at int) {
+		if depth > arrays && at > 0 && at%Wrap == 0 {
+			w.newline(depth)
+		}
+		if column[at].parts == nil {
+			w.b.WriteString(strconv.Itoa(column[at].number))
+			return
+		}
+		w.values(depth+1, column[at].parts)
+	})
+}
+
+// values writes a column at that depth: one line, wrapping at Wrap.
 func (w *writer) values(depth int, column []int) {
 	w.array(depth, len(column), func(at int) {
 		if depth > arrays && at > 0 && at%Wrap == 0 {

@@ -1,8 +1,8 @@
 # Reading a YM dump
 
 `ym-to-ymxs` ([tools.md](tools.md) 9) converts a YM3!, YM3b, YM5! or YM6!
-register dump into a tune. This document defines the dump layout, errors and
-mapping from frames to rows, sources and effects. Terms follow
+register dump into a tune. This document defines the dump layout, the
+errors, and how frames become rows, sources and effects. Terms follow
 [SPEC.md](SPEC.md). Note: its figures were measured on dumps read this way.
 
 ---
@@ -252,15 +252,15 @@ left it):
    `Stop`, and the slot running becomes off.
 4. Where i is on, it *starts* where f is RR, or i is a recording, or its
    kind, its target or its source differs from the slot running's. A start
-   is a `Start` of the target, source, prescaler and count of i,
-   `timerReset` set where f is RR, the slot running is off, or the slot
-   running is a recording and f is at or after its end frame; `placeReset`
-   clear where f is other than RR, i is a square wave, the kind of the last
-   start is a square wave and its target is the target of i, and set
-   otherwise. The slot running becomes i, the source running its source, the
-   kind and target of the last start those of i; for a recording, its end
-   frame is f plus the frames of its source at its prescaler, its count and
-   H (SPEC.md 6.4).
+   is a `Start` of the target, source, prescaler and count of i, with the
+   mapping of no parts (SPEC.md 3.6.3), `timerReset` set where f is RR, the
+   slot running is off, or the slot running is a recording and f is at or
+   after its end frame; `placeReset` clear where f is other than RR, i is a
+   square wave, the kind of the last start is a square wave and its target
+   is the target of i, and set otherwise. The slot running becomes i, the
+   source running its source, the kind and target of the last start those
+   of i; for a recording, its end frame is f plus the frames of its source
+   at its prescaler, its count and H (SPEC.md 6.4).
 5. Where i is on, step 4 is false, and its prescaler or count differs from
    the one last written: a `Retune` of its prescaler and count with both
    resets clear.

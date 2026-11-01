@@ -17,8 +17,10 @@
 //
 // A tune opens with a tune table, and the tables after it belong to that
 // tune until the next tune table; a source opens with a source table, and
-// the values after it belong to that source. A table therefore needs no
-// column for its tune or its source: position determines that.
+// the values after it belong to that source; a transformation opens with a
+// transformation table, and the entries after it belong to that
+// transformation. A table therefore needs no column for its tune, its
+// source or its transformation: position determines that.
 package csv
 
 import (
@@ -93,6 +95,18 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 		}
 	}
 
+	// each transformation in number order, a transformation block then an
+	// entry block (csv.md 3.1)
+	transformations := ymxs.Transformations(tune)
+	for _, transformation := range transformations {
+		table(out, "transformation", "name")
+		row(out, transformation.Name)
+		table(out, "entry", "key", "entry")
+		for key, entry := range transformation.Entries {
+			row(out, key, entry)
+		}
+	}
+
 	named := []any{"registers", "row"}
 	for _, register := range ymxs.Registers {
 		named = append(named, text.Name(register))
@@ -115,14 +129,15 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 	}
 
 	for _, timer := range ymxs.Timers {
-		acts(out, timer, rows, sources)
+		acts(out, timer, rows, sources, transformations)
 	}
 }
 
-// acts puts one timer's table down, where some row acts on that timer. The
+// acts writes one timer's block, where some row acts on that timer. The
 // values are the ones the JSON form writes, and a cell is empty where that
 // form writes -1.
-func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymxs.Source) {
+func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymxs.Source,
+	transformations []ymxs.Transformation) {
 	any := false
 	for _, row := range rows {
 		if _, on := row.Effects[timer]; on {
@@ -134,7 +149,7 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		return
 	}
 	table(out, "timer"+timer.String(), "row", "shape", "target", "source",
-		"prescaler", "count", "timerReset", "placeReset", "deferred")
+		"prescaler", "count", "timerReset", "placeReset", "deferred", "mapping")
 	for line, one := range rows {
 		effect, on := one.Effects[timer]
 		if !on {
@@ -142,17 +157,44 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		}
 		switch e := effect.(type) {
 		case ymxs.Start:
-			row(out, line, text.Start, ymxs.TargetNumber(ymxs.StartTarget(e)),
-				indexOf(sources, ymxs.StartSource(e))+1, ymxs.Divides(ymxs.StartTiming(e).Prescaler), ymxs.StartTiming(e).Count,
-				flagOf(ymxs.StartTiming(e).TimerReset), flagOf(ymxs.StartTiming(e).PlaceReset),
-				flagOf(ymxs.StartDeferred(e)))
+			row(out, line, text.Start,
+				ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection)),
+				indexOf(sources, ymxs.ConnectionSource(e.Connection))+1,
+				ymxs.Divides(e.Timing.Prescaler),
+				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset),
+				flagOf(e.Deferred), mappingCell(e.Mapping, transformations))
 		case ymxs.Retune:
 			row(out, line, text.Retune, "", "", ymxs.Divides(e.Timing.Prescaler),
-				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset), "")
+				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset), "",
+				"")
 		case ymxs.Stop:
-			row(out, line, text.Stop, "", "", "", "", "", "", "")
+			row(out, line, text.Stop, "", "", "", "", "", "", "", "")
+		case ymxs.Remap:
+			row(out, line, text.Remap, "", "", "", "", "", "", "",
+				mappingCell(e.Mapping, transformations))
 		}
 	}
+}
+
+// mappingCell is the mapping cell of a start or a remap (csv.md 6.3): 0 for
+// a mapping whose every part is the identity, the mapping of no parts
+// included, and otherwise the number of each part in order, separated by
+// one space. The list is the tune's (ymxs.Transformations), which has every
+// transformation of every mapping of the tune in it, so an error of
+// ymxs.PartNumbers is a fault of this package and panics past Write.
+func mappingCell(mapping ymxs.Mapping, transformations []ymxs.Transformation) string {
+	if ymxs.IsIdentity(mapping) {
+		return "0"
+	}
+	numbers, err := ymxs.PartNumbers(mapping, transformations)
+	if err != nil {
+		panic(err)
+	}
+	var said []string
+	for _, number := range numbers {
+		said = append(said, strconv.Itoa(number))
+	}
+	return strings.Join(said, " ")
 }
 
 // table opens a table and names its columns, after a blank line.
@@ -168,13 +210,17 @@ func table(out *strings.Builder, named ...any) {
 }
 
 // row puts one row down, each cell quoted where it has a comma, a quote or
-// a leading or trailing space.
+// a leading or trailing white space, and a row of one empty cell as "": a
+// reader skips a blank line (2.1, 2.5).
 func row(out *strings.Builder, cells ...any) {
 	for at, one := range cells {
 		if at > 0 {
 			out.WriteByte(',')
 		}
 		out.WriteString(cell(said(one)))
+	}
+	if len(cells) == 1 && said(cells[0]) == "" {
+		out.WriteString(`""`)
 	}
 	out.WriteByte('\n')
 }
@@ -191,8 +237,8 @@ func said(value any) string {
 
 func cell(value string) string {
 	if strings.ContainsAny(value, "\n\r") {
-		panic(unwritable("a value with a line feed in it, which this form cannot write: " +
-			value))
+		panic(unwritable("a value with a line feed or a carriage return in it, which this " +
+			"form cannot write: " + ymxs.Reported(value)))
 	}
 	quote := strings.ContainsAny(value, ",\"") || value != strings.TrimSpace(value) ||
 		strings.HasPrefix(value, "#")
@@ -317,6 +363,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	var repeats []int
 	var repeating []bool
 	var values [][][]int
+	var transformations []ymxs.Transformation
 	// A count below 1 is a tune of no rows, an error of the structure
 	// (SPEC.md 1.11), and a line of the form reports the count as read.
 	registers := make([]map[ymxs.Register]int, max(count, 0))
@@ -378,6 +425,33 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 				}
 				values[len(values)-1] = append(values[len(values)-1], made)
 			}
+		case "transformation", "entry":
+			// in a file of version 6 or before each is a block of any other
+			// name (csv.md 3.10, 4.1 step 5)
+			if version < text.Mapped {
+				return ymxs.Tune{}, foreign(number, one.name)
+			}
+			if one.name == "transformation" {
+				if len(one.rows) != 1 {
+					return ymxs.Tune{}, fmt.Errorf("tune %d opens a transformation with %d"+
+						" rows, and one row opens it", number, len(one.rows))
+				}
+				transformations = append(transformations, ymxs.Transformation{
+					Name: one.of(one.rows[0], "name"), Entries: []int{}})
+				continue
+			}
+			if len(transformations) == 0 {
+				return ymxs.Tune{}, fmt.Errorf("tune %d opens entries before any"+
+					" transformation", number)
+			}
+			last := &transformations[len(transformations)-1]
+			for _, line := range one.rows {
+				entry, err := whole(one.of(line, "entry"), "entry")
+				if err != nil {
+					return ymxs.Tune{}, err
+				}
+				last.Entries = append(last.Entries, entry)
+			}
 		case "registers":
 			for _, line := range one.rows {
 				at, err := rowAt(count, one.of(line, "row"),
@@ -399,8 +473,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			}
 		default:
 			if !strings.HasPrefix(one.name, "timer") {
-				return ymxs.Tune{}, fmt.Errorf("tune %d opens a \"%s\" table, which this form"+
-					" does not have", number, Table+one.name)
+				return ymxs.Tune{}, foreign(number, one.name)
 			}
 			acts = append(acts, one)
 		}
@@ -427,7 +500,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
-			effect, err := effectOf(one, line, sources, at, version)
+			effect, err := effectOf(one, line, sources, transformations, at, version)
 			if err != nil {
 				return ymxs.Tune{}, err
 			}
@@ -452,10 +525,18 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	}
 	tune := ymxs.Tune{Title: told.of(one, "title"), Composer: told.of(one, "composer"),
 		Writer: told.of(one, "writer"), Rate: rate, Table: table}
-	if wrong := check.Declared(sources, tune); len(wrong) != 0 {
+	wrong := append(check.Declared(sources, tune), check.Used(transformations, tune)...)
+	if len(wrong) != 0 {
 		return ymxs.Tune{}, errors.New(strings.Join(wrong, "\n"))
 	}
 	return tune, nil
+}
+
+// foreign is the error of a block of tune number, its name outside those
+// csv.md 4.1 step 5 reads in a file of that version (5.1).
+func foreign(number int, name string) error {
+	return fmt.Errorf("tune %d opens a \"%s\" table, which this form does not have",
+		number, Table+name)
 }
 
 // shaped reads the rows of a source against one another and against the
@@ -465,11 +546,11 @@ func shaped(name string, rows [][]int, version int) error {
 	for _, row := range rows {
 		if len(row) != len(rows[0]) {
 			return fmt.Errorf("source %s has rows of %d and of %d values, and a source"+
-				" has one shape", name, len(rows[0]), len(row))
+				" has one shape", ymxs.Reported(name), len(rows[0]), len(row))
 		}
 		if len(row) > 1 && version < text.Several {
 			return fmt.Errorf("source %s has a row of several values, and version %d"+
-				" has one value a row", name, version)
+				" has one value a row", ymxs.Reported(name), version)
 		}
 	}
 	return nil
@@ -487,16 +568,19 @@ func timerOf(table string, tune int) (ymxs.Timer, error) {
 		tune, Table+table, ymxs.Timers[len(ymxs.Timers)-1])
 }
 
-// effectOf is one row's operation on the effect of one timer, its target
-// and its deferral read against the version (json.md 2.4).
-func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
-	version int) (ymxs.Effect, error) {
+// effectOf is one row's operation on the effect of one timer, its target,
+// its deferral and its mapping read against the version (json.md 2.4), in
+// the order of csv.md 4.1 step 6. A start then has its source verified
+// against its target, for the values a row the target reads
+// (ymxs.Starting), an error of the form.
+func effectOf(acts *block, one []string, sources []ymxs.Source,
+	transformations []ymxs.Transformation, at int, version int) (ymxs.Effect, error) {
 	shape, err := whole(acts.of(one, "shape"), "shape")
 	if err != nil {
 		return nil, err
 	}
-	switch shape {
-	case text.Start:
+	switch {
+	case shape == text.Start:
 		number, err := whole(acts.of(one, "source"), "source")
 		if err != nil {
 			return nil, err
@@ -532,8 +616,15 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 				return nil, err
 			}
 		}
-		return ymxs.Starting(run, sources[number-1], timing, deferred)
-	case text.Retune:
+		var mapping ymxs.Mapping
+		if version >= text.Mapped {
+			mapping, err = mappingOf(acts.of(one, "mapping"), transformations, at)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ymxs.Starting(run, sources[number-1], timing, deferred, mapping)
+	case shape == text.Retune:
 		by, err := prescaler(acts, one)
 		if err != nil {
 			return nil, err
@@ -547,11 +638,59 @@ func effectOf(acts *block, one []string, sources []ymxs.Source, at int,
 			return nil, err
 		}
 		return ymxs.Retune{Timing: timing}, nil
-	case text.Stop:
+	case shape == text.Stop:
 		return ymxs.Stop{}, nil
+	case shape == text.Remap && version >= text.Mapped:
+		mapping, err := mappingOf(acts.of(one, "mapping"), transformations, at)
+		if err != nil {
+			return nil, err
+		}
+		return ymxs.Remap{Mapping: mapping}, nil
 	}
-	return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d or %d",
-		at, shape, text.Start, text.Retune, text.Stop)
+	if version < text.Mapped {
+		return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d"+
+			" or %d", at, shape, text.Start, text.Retune, text.Stop)
+	}
+	return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d, %d"+
+		" or %d", at, shape, text.Start, text.Retune, text.Stop, text.Remap)
+}
+
+// mappingOf is the mapping of a mapping cell at a row (csv.md 3.10): the
+// cell split at each run of white space, then verified as whole numbers,
+// one or more; of several, a number other than 0 among them; each number
+// 0 to M, in that order. A cell of one number, 0, is the mapping of no
+// parts, and any other cell the parts of its numbers, 0 the identity and n
+// transformation n.
+func mappingOf(cell string, transformations []ymxs.Transformation, at int) (ymxs.Mapping,
+	error) {
+	parts := strings.Fields(cell)
+	numbers := make([]int, len(parts))
+	for i, part := range parts {
+		number, err := strconv.ParseInt(part, 10, 32)
+		if err != nil {
+			parts = nil
+			break
+		}
+		numbers[i] = int(number)
+	}
+	if len(parts) == 0 {
+		return ymxs.Mapping{}, fmt.Errorf("mapping is \"%s\", and this form requires a"+
+			" whole number a part", cell)
+	}
+	if len(numbers) == 1 && numbers[0] == 0 {
+		return ymxs.Mapping{}, nil
+	}
+	identity := true
+	for _, number := range numbers {
+		if number != 0 {
+			identity = false
+		}
+	}
+	if identity {
+		return ymxs.Mapping{}, fmt.Errorf("mapping is \"%s\", and a mapping of the"+
+			" identity in every part is 0", cell)
+	}
+	return text.Resolved(numbers, transformations, at)
 }
 
 func prescaler(acts *block, one []string) (ymxs.Prescaler, error) {
@@ -574,8 +713,8 @@ func rowAt(rows int, said, what string) (int, error) {
 }
 
 // whole reads a whole number as csv.md 1.7 defines it: an optional sign and
-// decimal digits, -2,147,483,648 to 2,147,483,647, with the white space
-// around it removed.
+// the digits 0 to 9, -2,147,483,648 to 2,147,483,647, with the white space
+// around it removed, white space the Unicode property White_Space (1.3).
 func whole(said, what string) (int, error) {
 	at, err := strconv.ParseInt(strings.TrimSpace(said), 10, 32)
 	if err != nil {

@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 6,
+  "version": 7,
   "tunes": [
     {
       "title": "Circus Attractions #2",
@@ -10,6 +10,7 @@
       "rows": 4,
       "repeat": 0,
       "sources": [],
+      "transformations": [],
       "registers": {
         "r0": [163,142,251,89],
         "r1": [2,12,4,2],

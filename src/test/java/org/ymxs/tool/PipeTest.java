@@ -186,8 +186,8 @@ final class PipeTest {
 
     /**
      * Every line tools.md quotes of a run against the run that writes it.
-     * The figures in them - 2,098 rows and 4 sources, 766 characters in
-     * and 482 out, the two warnings of the tune of SPEC.md 6.6 - move
+     * The figures in them - 2,098 rows and 4 sources, 828 characters in
+     * and 494 out, the two warnings of the tune of SPEC.md 6.6 - move
      * with the tunes beside them, and no check read one back.
      */
     @Test
@@ -221,5 +221,47 @@ final class PipeTest {
         assertTrue(missing.isEmpty(), () -> "tools.md quotes a line no run"
                 + " writes:\n" + String.join("\n", missing) + "\nthe runs wrote:\n"
                 + said);
+    }
+
+    /** A JSON array of 256 entries, each 0. */
+    private static String silent() {
+        return "[" + String.join(",", java.util.Collections.nCopies(256, "0")) + "]";
+    }
+
+    /** tools.md 4.1 and 4.5: an unstarted source and an unused
+     *  transformation are one text, the line of the source first and the
+     *  name of the tool before it alone. */
+    @Test
+    void anUnusedTransformationIsOneTextAfterTheUnstartedSources() throws Exception {
+        String json = "{\"format\":\"ymxs\",\"version\":7,\"tunes\":[{\"title\":\"\","
+                + "\"composer\":\"\",\"writer\":\"t\",\"rate\":50,\"rows\":1,\"repeat\":0,"
+                + "\"sources\":[{\"name\":\"spare\",\"values\":[1]}],"
+                + "\"transformations\":[{\"name\":\"quiet\",\"entries\":" + silent() + "}]}]}";
+        Ran ran = pipe(json.getBytes(StandardCharsets.UTF_8), "ymxs-check");
+        assertEquals(1, ran.exit(), ran.said());
+        assertEquals("", ran.out(), "standard output stays empty");
+        assertEquals("ymxs-check: source 1, spare, is started by no row, and a source a tune"
+                + " does not run is dropped where this form is read\n"
+                + "transformation 1, quiet, is used by no row, and a transformation a tune"
+                + " does not map through is dropped where this form is read\n", ran.said());
+    }
+
+    /** tools.md 7.4: a transformation name with a line feed in it is an
+     *  error of ymxs-json-to-csv, one line, the line feed in it written as
+     *  the two characters {@code \n}. */
+    @Test
+    void aTransformationNameWithALineFeedStopsTheCsvEmitter() throws Exception {
+        String json = "{\"format\":\"ymxs\",\"version\":7,\"tunes\":[{\"title\":\"\","
+                + "\"composer\":\"\",\"writer\":\"t\",\"rate\":50,\"rows\":1,\"repeat\":0,"
+                + "\"sources\":[{\"name\":\"low\",\"repeat\":0,\"values\":[0]}],"
+                + "\"transformations\":[{\"name\":\"two\\nlines\",\"entries\":" + silent()
+                + "}],\"timerA\":{\"shape\":[0],\"target\":[8],\"source\":[1],"
+                + "\"prescaler\":[200],\"count\":[192],\"timerReset\":[1],\"placeReset\":[1],"
+                + "\"deferred\":[0],\"mapping\":[[1]]}}]}";
+        Ran ran = pipe(json.getBytes(StandardCharsets.UTF_8), "ymxs-json-to-csv");
+        assertEquals(1, ran.exit(), ran.said());
+        assertEquals("", ran.out(), "standard output stays empty");
+        assertEquals("ymxs-json-to-csv: a value with a line feed or a carriage return in"
+                + " it, which this form cannot write: two\\nlines\n", ran.said());
     }
 }

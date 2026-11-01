@@ -66,9 +66,12 @@ the pipe a stage at a time.
 | row | one entry of a table |
 | tune | a title, a composer, a writer, a rate and a table of rows |
 | multi | a list of tunes, numbered from 1; the host selects a tune by number |
-| effect | the source connected to a target on a timer, at the rate of its prescaler and count |
+| effect | the source connected to a target on a timer through a mapping, at the rate of its prescaler and count |
 | source | a name and a table of one, two or three values a row |
 | target | a procedure the player calls at a tick with one row of a source |
+| transformation | a name and a list of 1 to 256 entries, each 0 to 255: entry k is the value written where the value read is k |
+| mapping | a list of parts, each the identity or a transformation, part i for value i of a row |
+| identity | the part of a mapping that writes each value as it is |
 | host | the program that selects a tune and calls the player once a frame |
 | YM5 or YM6 dump | a file of sixteen bytes a frame, one a register of the YM2149 |
 | YM3 dump | a file of fourteen bytes a frame, R0 to R13, the frames opening it |
@@ -85,7 +88,7 @@ flowchart TD
     reader --> data[(Tune and sources)]
     host[Host] -->|frame at tune rate| frame[Player: read tune row]
     data -.-> frame
-    frame --> operations[Start / Retune / Stop]
+    frame --> operations[Start / Retune / Stop / Remap]
     operations --> registers[Write row registers]
     registers --> ym[YM2149]
     operations -->|configure| mfp[MFP timers]
@@ -114,8 +117,11 @@ whose texts are free of line feeds and carriage returns. A player's
 binary layout is defined by that player.
 
 [`example.json`](doc/tunes/example.json) appears in both form documents
-and as recorder output in SPEC.md 7. [tools.md](doc/tools.md) covers
-conversion, checking and merging; [ym.md](doc/ym.md) defines YM import.
+and as recorder output in SPEC.md 7. [`fade.json`](doc/tunes/fade.json)
+fades voice A through sixteen transformations, a `Remap` a frame, and
+then maps the volume of a chord alone (SPEC.md 3.6.5, json.md 10.3).
+[tools.md](doc/tools.md) covers conversion, checking and merging;
+[ym.md](doc/ym.md) defines YM import.
 [doc/conformance](doc/conformance) is the kit an independent recorder is
 written against, and the runs against it.
 
@@ -132,7 +138,7 @@ written against, and the runs against it.
 | [`Csv`](src/main/java/org/ymxs/Csv.java) | CSV, defined in [csv.md](doc/csv.md) |
 | [`tool/`](src/main/java/org/ymxs/tool) [`bin/`](bin) | the five tools, defined in [tools.md](doc/tools.md) |
 | [`ym/`](src/main/java/org/ymxs/ym) | a YM register dump read into the structure, defined in [ym.md](doc/ym.md) |
-| [`doc/tunes/`](doc/tunes) | eight files of tunes as JSON, two as CSV as well; the tests read every one back |
+| [`doc/tunes/`](doc/tunes) | nine files of tunes as JSON, two as CSV as well; the tests read every one back |
 | [`go/`](go) | the same five tools in Go, the executables of a release |
 
 The records have accessors alone. Functions use exhaustive pattern

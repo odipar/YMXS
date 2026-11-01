@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 7,
   "tunes": [
     {
       "title": "First",
@@ -10,6 +10,7 @@
       "rows": 2,
       "repeat": 0,
       "sources": [],
+      "transformations": [],
       "registers": {
         "r0": [
           1,
@@ -42,6 +43,7 @@
           ]
         }
       ],
+      "transformations": [],
       "registers": {
         "r0": [
           9,
@@ -87,6 +89,16 @@
         ],
         "placeReset": [
           1,
+          -1,
+          -1
+        ],
+        "deferred": [
+          0,
+          -1,
+          -1
+        ],
+        "mapping": [
+          0,
           -1,
           -1
         ]

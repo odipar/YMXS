@@ -14,9 +14,11 @@
  *  Tune    a title, a composer, a writer, a rate, and its Table of Rows
  *  Table   rows, and the row they repeat to: a tune's and a source's
  *  Row     the Registers it sets, and the Effect it puts on each Timer
- *  Effect  Start, Retune or Stop: the three operations on one
+ *  Effect  Start, Retune, Stop or Remap: the four operations on one
  *  Target  what a tick calls with a source's row, sealed on SetRegister
  *  Source  what a tick advances a Table of, sealed on Single
+ *  Mapping a Part for each value of a row: the Identity or a
+ *          Transformation of 1 to 256 entries
  * </pre>
  *
  * <p>Those records have no methods beyond their accessors. A structure is
@@ -27,10 +29,13 @@
  * compiling until they read it.
  *
  * <p>A tune's sources are the ones its rows start, in first-start order.
- * Only a source started by some row belongs to the tune.
+ * Only a source started by some row belongs to the tune. Its
+ * transformations are the ones the mappings of its rows use, in the
+ * order the rows map through them.
  *
- * <p>An effect is a source connected to a target on one timer, so a row
- * sets one on a {@link org.ymxs.YMXS.Timer} and the timer is the effect.
+ * <p>An effect is a source connected to a target on one timer through a
+ * mapping, so a row sets one on a {@link org.ymxs.YMXS.Timer} and the
+ * timer is the effect.
  *
  * <p>A row lists what it sets, and the rest is left alone. A register no
  * row has set keeps the value the chip was left at; a register a row set

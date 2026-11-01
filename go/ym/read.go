@@ -211,11 +211,15 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 					unmoved := !keyframe && slot[i].Kind == Square &&
 						lastKind[i] == Square && lastRan[i] &&
 						lastTarget[i] == slot[i].Target
-					here[timerOf[i]] = ymxs.StartOne{
-						Target: ymxs.Setting(slot[i].Target), Source: sounds.(ymxs.Single),
+					// every start through the mapping of no parts (ym.md
+					// 7.4 step 4)
+					here[timerOf[i]] = ymxs.Start{
+						Connection: ymxs.OneConnection{
+							Target: ymxs.Setting(slot[i].Target),
+							Source: sounds.(ymxs.Single)},
 						Timing: ymxs.Timing{Prescaler: slot[i].Prescaler,
 							Count: slot[i].Count, TimerReset: stopped,
-							PlaceReset: !unmoved}}
+							PlaceReset: !unmoved}, Mapping: ymxs.Mapping{}}
 					running[i] = slot[i]
 					runs[i] = sounds
 					lastKind[i] = slot[i].Kind

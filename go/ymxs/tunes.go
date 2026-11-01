@@ -1,6 +1,9 @@
 package ymxs
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // What is read off a structure, read rather than stored. Every function
 // here is pure: it reads a structure and returns a value, leaving its
@@ -82,7 +85,7 @@ func Sources(tune Tune) []Source {
 			if !ok {
 				continue
 			}
-			source := StartSource(start)
+			source := ConnectionSource(start.Connection)
 			if indexOf(out, source) < 0 {
 				out = append(out, source)
 			}
@@ -91,8 +94,8 @@ func Sources(tune Tune) []Source {
 	return out
 }
 
-// SourceNumber is the number a form writes for the source, 1 upward. The
-// error says where no row of the tune starts it.
+// SourceNumber is the number a form writes for the source, 1 upward. It
+// returns an error where no row of the tune starts the source.
 func SourceNumber(tune Tune, source Source) (int, error) {
 	at := indexOf(Sources(tune), source)
 	if at < 0 {
@@ -101,8 +104,8 @@ func SourceNumber(tune Tune, source Source) (int, error) {
 	return at + 1, nil
 }
 
-// SourceAt is source number, 1 upward. The error says where the tune runs
-// no such source.
+// SourceAt is source number, 1 upward. It returns an error where the
+// number is outside 1 to the count of the tune's sources.
 func SourceAt(tune Tune, number int) (Source, error) {
 	all := Sources(tune)
 	if number < 1 || number > len(all) {
@@ -139,8 +142,9 @@ func NewMulti(tune Tune) Multi {
 	return Multi{Tunes: []Tune{tune}}
 }
 
-// TuneAt is tune number, 1 upward, the number a host selects. The error
-// says where the multi has no such tune.
+// TuneAt is tune number, 1 upward, the number a host selects. It returns
+// an error where the number is outside 1 to the count of the multi's
+// tunes.
 func TuneAt(multi Multi, number int) (Tune, error) {
 	if number < 1 || number > len(multi.Tunes) {
 		return Tune{}, fmt.Errorf("no tune %d: the multi has %d", number, len(multi.Tunes))
@@ -279,6 +283,18 @@ func SourceName(source Source) string {
 	panic(fmt.Sprintf("no source %T", source))
 }
 
+// Reported is a name of a source or of a transformation in a reported line
+// (SPEC.md 1.12), or the text in the line of the CSV emitter (csv.md 5.4):
+// the text with each line feed written as the two characters \n and each
+// carriage return as \r, so the line is one line. The check, the readers
+// of both forms and the CSV emitter write every such text through it.
+func Reported(name string) string {
+	return breaks.Replace(name)
+}
+
+// breaks writes a line feed as \n and a carriage return as \r.
+var breaks = strings.NewReplacer("\n", `\n`, "\r", `\r`)
+
 // SourceRows is the rows of the source, a value a register of the target
 // that runs it, and the row they repeat to. A source of one value a row
 // reads as a row of one.
@@ -346,7 +362,7 @@ func SourceOf(name string, rows [][]int, repeat int, repeats bool) (Source, erro
 	for _, row := range rows {
 		if len(row) != width {
 			return nil, fmt.Errorf("source %s has rows of %d and of %d values, and a"+
-				" source has one shape", name, width, len(row))
+				" source has one shape", Reported(name), width, len(row))
 		}
 	}
 	switch width {
@@ -373,7 +389,7 @@ func SourceOf(name string, rows [][]int, repeat int, repeats bool) (Source, erro
 		return Triple{Name: name, Table: tableOf(values, repeat, repeats)}, nil
 	}
 	return nil, fmt.Errorf("source %s has %d values a row, and a source has one, two"+
-		" or three", name, width)
+		" or three", Reported(name), width)
 }
 
 func tableOf[T any](rows []T, repeat int, repeats bool) Table[T] {
@@ -428,125 +444,243 @@ func indexOf(sources []Source, source Source) int {
 	return -1
 }
 
+// -------------------------------------------------------- a connection
+
+// ConnectionTarget is the target a connection runs its source on.
+func ConnectionTarget(connection Connection) Target {
+	switch c := connection.(type) {
+	case OneConnection:
+		return c.Target
+	case TwoConnection:
+		return c.Target
+	case ThreeConnection:
+		return c.Target
+	}
+	panic(fmt.Sprintf("no connection %T", connection))
+}
+
+// ConnectionSource is the source a connection runs.
+func ConnectionSource(connection Connection) Source {
+	switch c := connection.(type) {
+	case OneConnection:
+		return c.Source
+	case TwoConnection:
+		return c.Source
+	case ThreeConnection:
+		return c.Source
+	}
+	panic(fmt.Sprintf("no connection %T", connection))
+}
+
 // ----------------------------------------------------------- an effect
 
-// StartTarget is the target a start runs its source on.
-func StartTarget(start Start) Target {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Target
-	case StartPair:
-		return s.Target
-	case StartTriple:
-		return s.Target
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartSource is the source a start runs.
-func StartSource(start Start) Source {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Source
-	case StartPair:
-		return s.Source
-	case StartTriple:
-		return s.Source
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartTiming is the rate a start writes, and the resets it performs with
-// it.
-func StartTiming(start Start) Timing {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Timing
-	case StartPair:
-		return s.Timing
-	case StartTriple:
-		return s.Timing
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// StartDeferred is the deferral: on a timer running an effect, the start
-// is pending until that effect's source has played its last row (SPEC.md
-// 3.5).
-func StartDeferred(start Start) bool {
-	switch s := start.(type) {
-	case StartOne:
-		return s.Deferred
-	case StartPair:
-		return s.Deferred
-	case StartTriple:
-		return s.Deferred
-	}
-	panic(fmt.Sprintf("no start %T", start))
-}
-
-// Starting is the start of the source on the target, the shape of the
-// width they share. A reader of a form builds a start this way, where the
-// two come off text; code that names the shapes builds the value. The
-// error says where the source has other values a row than the target
-// reads.
-func Starting(target Target, source Source, timing Timing, deferred bool) (Start, error) {
+// Starting is the start of the source on the target through the mapping,
+// on the connection of the width they share. A reader of a form builds a
+// start this way, where the two come off text; code that names the
+// connection builds the value. Where the source has other values a row
+// than the target reads, the error is the line of json.md 8.1 and csv.md
+// 5.1, an error of the form.
+func Starting(target Target, source Source, timing Timing, deferred bool,
+	mapping Mapping) (Start, error) {
+	start := Start{Timing: timing, Deferred: deferred, Mapping: mapping}
 	one, okTarget := target.(OneTarget)
 	single, okSource := source.(Single)
 	if okTarget && okSource {
-		return StartOne{Target: one, Source: single, Timing: timing, Deferred: deferred}, nil
+		start.Connection = OneConnection{Target: one, Source: single}
+		return start, nil
 	}
 	two, okTarget := target.(TwoTarget)
 	pair, okSource := source.(Pair)
 	if okTarget && okSource {
-		return StartPair{Target: two, Source: pair, Timing: timing, Deferred: deferred}, nil
+		start.Connection = TwoConnection{Target: two, Source: pair}
+		return start, nil
 	}
 	three, okTarget := target.(ThreeTarget)
 	triple, okSource := source.(Triple)
 	if okTarget && okSource {
-		return StartTriple{Target: three, Source: triple, Timing: timing,
-			Deferred: deferred}, nil
+		start.Connection = ThreeConnection{Target: three, Source: triple}
+		return start, nil
 	}
-	return nil, fmt.Errorf("a source of %d values a row on %s, which reads %d",
+	return Start{}, fmt.Errorf("a source of %d values a row on %s, which reads %d",
 		SourceColumns(source), TargetName(target), TargetColumns(target))
-}
-
-// TimerReset is the timer's reset: the timer stops, loads the count and
-// starts, so it begins a whole period at that count.
-func TimerReset(effect Effect) bool {
-	switch e := effect.(type) {
-	case Start:
-		return StartTiming(e).TimerReset
-	case Retune:
-		return e.Timing.TimerReset
-	case Stop:
-		return false
-	}
-	panic(fmt.Sprintf("no effect %T", effect))
-}
-
-// PlaceReset is the place's reset: the next tick reads the source's first
-// row.
-func PlaceReset(effect Effect) bool {
-	switch e := effect.(type) {
-	case Start:
-		return StartTiming(e).PlaceReset
-	case Retune:
-		return e.Timing.PlaceReset
-	case Stop:
-		return false
-	}
-	panic(fmt.Sprintf("no effect %T", effect))
 }
 
 // Struck is a struck note: the source from its first row, the timer from a
 // whole period, at the row.
 func Struck(target OneTarget, source Single, prescaler Prescaler, count int) Start {
-	return StartOne{Target: target, Source: source, Timing: Timing{
-		Prescaler: prescaler, Count: count, TimerReset: true, PlaceReset: true}}
+	return Start{Connection: OneConnection{Target: target, Source: source},
+		Timing: Timing{Prescaler: prescaler, Count: count, TimerReset: true,
+			PlaceReset: true}}
 }
 
 // Bend is a bend: the count changes and both resets stay clear.
 func Bend(prescaler Prescaler, count int) Retune {
 	return Retune{Timing: Timing{Prescaler: prescaler, Count: count}}
+}
+
+// ---------------------------------------------------------- a mapping
+
+// MappingOf is the mapping of a start or a remap, and whether the effect
+// is one of the two.
+func MappingOf(effect Effect) (Mapping, bool) {
+	switch e := effect.(type) {
+	case Start:
+		return e.Mapping, true
+	case Remap:
+		return e.Mapping, true
+	}
+	return Mapping{}, false
+}
+
+// Mapped is the mapping of these parts, part i for value i of a row.
+func Mapped(parts ...Part) Mapping {
+	return Mapping{Parts: parts}
+}
+
+// IsIdentity is whether every part of the mapping is the identity, the
+// mapping of no parts included. A form writes such a mapping as 0.
+func IsIdentity(mapping Mapping) bool {
+	for _, part := range mapping.Parts {
+		if _, identity := part.(Identity); !identity {
+			return false
+		}
+	}
+	return true
+}
+
+// PartAt is part i of a mapping of no parts or of a part for each value:
+// the identity for every value of the mapping of no parts (SPEC.md 3.6.3).
+// Past the last part of a mapping of another number of parts, an error of
+// SPEC.md 1.11, it is the identity too.
+func PartAt(mapping Mapping, i int) Part {
+	if i < 0 || i >= len(mapping.Parts) {
+		return Identity{}
+	}
+	return mapping.Parts[i]
+}
+
+// TransformationEqual is whether two transformations are one: the same
+// name over the same entries in number and order (SPEC.md 3.6.2). Equal
+// entries under two names are two transformations.
+func TransformationEqual(a, b Transformation) bool {
+	if a.Name != b.Name || len(a.Entries) != len(b.Entries) {
+		return false
+	}
+	for at, entry := range a.Entries {
+		if b.Entries[at] != entry {
+			return false
+		}
+	}
+	return true
+}
+
+// LastKey is the largest key of the transformation, E - 1 for E entries
+// (SPEC.md 3.6.1). The second result is false where E is outside 1 to
+// MostEntries: that count is an error of SPEC.md 1.11, and the line of a
+// value above the last key rests on it (1.12).
+func LastKey(transformation Transformation) (int, bool) {
+	entries := len(transformation.Entries)
+	return entries - 1, entries >= 1 && entries <= MostEntries
+}
+
+// MostEntries is the most entries of a transformation: a key is a byte, 0 to
+// MostEntry.
+const MostEntries = 256
+
+// MostEntry is the largest entry of a transformation, and the largest last
+// key.
+const MostEntry = 255
+
+// Through is the value written for the value read through the part
+// (SPEC.md 3.6.4): the value itself through the identity, and entry k
+// through a transformation, k the value read. By SPEC.md 1.12, a value
+// through a transformation of 1 to 256 entries is read against its last
+// key; where the value is a key, its entry is compared with the register's
+// most where that entry is 0 to 255, and a value through a transformation
+// of another number of entries is skipped. Through returns that entry, and
+// the check compares it with the register's most; MostEntries and
+// MostEntry are 256 and 255. The second result is true through the
+// identity, and through a transformation of 1 to 256 entries where the
+// value is a key and entry k is 0 to 255. An entry outside that range at
+// another key leaves entry k read.
+func Through(part Part, value int) (int, bool) {
+	switch p := part.(type) {
+	case Identity:
+		return value, true
+	case Transformation:
+		last, counted := LastKey(p)
+		if !counted || value < 0 || value > last {
+			return 0, false
+		}
+		entry := p.Entries[value]
+		if entry < 0 || entry > MostEntry {
+			return 0, false
+		}
+		return entry, true
+	}
+	panic(fmt.Sprintf("no part %T", part))
+}
+
+// Transformations is the transformations this tune maps through, in the
+// order of SPEC.md 1.9: the rows from row 0, within a row the timers A to
+// D, and of a start or a remap each part of its mapping from part 0 that
+// is a transformation new to the list.
+func Transformations(tune Tune) []Transformation {
+	var out []Transformation
+	for _, row := range Rows(tune) {
+		for _, one := range Effects(row) {
+			mapping, ok := MappingOf(one.Effect)
+			if !ok {
+				continue
+			}
+			for _, part := range mapping.Parts {
+				transformation, ok := part.(Transformation)
+				if ok && transformationAt(out, transformation) < 0 {
+					out = append(out, transformation)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// TransformationNumber is the number a form writes for the transformation,
+// 1 upward. It returns an error where no row of the tune maps through the
+// transformation.
+func TransformationNumber(tune Tune, transformation Transformation) (int, error) {
+	at := transformationAt(Transformations(tune), transformation)
+	if at < 0 {
+		return 0, fmt.Errorf("no row of this tune maps through that transformation")
+	}
+	return at + 1, nil
+}
+
+// PartNumbers is the number of each part of the mapping in part order, as
+// a form writes it: 0 the identity, and n transformation n of the list,
+// 1 upward. Where the list lacks a transformation of the mapping, the
+// error reports the first one by its name.
+func PartNumbers(mapping Mapping, transformations []Transformation) ([]int, error) {
+	out := make([]int, len(mapping.Parts))
+	for at, part := range mapping.Parts {
+		transformation, ok := part.(Transformation)
+		if !ok {
+			continue
+		}
+		found := transformationAt(transformations, transformation)
+		if found < 0 {
+			return nil, fmt.Errorf("no row of this tune maps through %s",
+				transformation.Name)
+		}
+		out[at] = found + 1
+	}
+	return out, nil
+}
+
+func transformationAt(transformations []Transformation, transformation Transformation) int {
+	for i, one := range transformations {
+		if TransformationEqual(one, transformation) {
+			return i
+		}
+	}
+	return -1
 }

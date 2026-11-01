@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 7,
   "tunes": [
     {
       "title": "Four rows, one square",
@@ -19,6 +19,7 @@
           ]
         }
       ],
+      "transformations": [],
       "registers": {
         "r0": [
           163,
@@ -91,6 +92,18 @@
         "placeReset": [
           1,
           0,
+          -1,
+          -1
+        ],
+        "deferred": [
+          0,
+          -1,
+          -1,
+          -1
+        ],
+        "mapping": [
+          0,
+          -1,
           -1,
           -1
         ]

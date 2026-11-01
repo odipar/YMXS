@@ -3,25 +3,30 @@ package org.ymxs;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
+import org.ymxs.YMXS.Connection;
 import org.ymxs.YMXS.Effect;
+import org.ymxs.YMXS.Identity;
+import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
-import org.ymxs.YMXS.OneTarget;
+import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
-import org.ymxs.YMXS.SetRegister;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
-import org.ymxs.YMXS.StartOne;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.Timer;
+import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -33,9 +38,10 @@ import org.ymxs.YMXS.Tune;
  * the inverse, for a caller that stops at the first.
  *
  * <p>A structure is bound by the two chips and the music: what fits a
- * register, what a timer counts, and that an effect hands a source's row
- * to a target of that same shape. What a form can write belongs to that
- * form, and no limit of one appears here.
+ * register and what a timer counts. The type of a connection pairs a
+ * source with a target of its width (SPEC.md 1.1), and a check leaves the
+ * width to the type. What a form can write belongs to that form, and no
+ * limit of one appears here.
  *
  * <p>{@link #writing} is the other half: the rules of SPEC.md 6 read
  * across rows rather than within one, and a tune that breaks one of them
@@ -60,7 +66,10 @@ public final class Check {
         return said;
     }
 
-    /** What is wrong with {@code tune}, or an empty list. */
+    /** What is wrong with {@code tune}, or an empty list, in the order of
+     *  SPEC.md 1.12: the rate, the table, the transformations, then the
+     *  rows. The lines of a transformation are prefixed with its number
+     *  and its name, the name through {@link #named}. */
     public static List<String> of(Tune tune) {
         List<String> said = new ArrayList<>();
         if (tune.rate() < 1) {
@@ -68,17 +77,39 @@ public final class Check {
                     + " second");
         }
         said.addAll(table(tune.table(), "the tune"));
+        List<Transformation> transformations = Tunes.transformations(tune);
+        for (int at = 0; at < transformations.size(); at++) {
+            for (String one : of(transformations.get(at))) {
+                said.add("transformation " + (at + 1) + ", "
+                        + named(transformations.get(at).name()) + ": " + one);
+            }
+        }
+        // a remap is read against every start on its timer, at any row
         List<Row> rows = tune.table().rows();
+        Map<Timer, List<Started>> starts = new EnumMap<>(Timer.class);
         for (int at = 0; at < rows.size(); at++) {
-            for (String one : of(rows.get(at))) {
+            for (Map.Entry<Timer, Effect> one : rows.get(at).effects().entrySet()) {
+                if (one.getValue() instanceof Start start) {
+                    starts.computeIfAbsent(one.getKey(), timer -> new ArrayList<>())
+                            .add(new Started(at, start));
+                }
+            }
+        }
+        for (int at = 0; at < rows.size(); at++) {
+            for (String one : of(starts, rows.get(at))) {
                 said.add("row " + at + ": " + one);
             }
         }
         return said;
     }
 
-    /** What is wrong with {@code row}, or an empty list. */
-    public static List<String> of(Row row) {
+    /** A start and the row it is at. */
+    private record Started(int row, Start start) { }
+
+    /** What is wrong with one row, or an empty list: its registers, then
+     *  its operation on each timer, {@code starts} the starts of the tune
+     *  on each timer in row order. */
+    private static List<String> of(Map<Timer, List<Started>> starts, Row row) {
         List<String> said = new ArrayList<>();
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             int most = Chip.most(one.getKey());
@@ -88,20 +119,22 @@ public final class Check {
             }
         }
         for (Map.Entry<Timer, Effect> one : Tunes.effects(row).entrySet()) {
-            for (String wrong : of(one.getValue())) {
+            for (String wrong : of(starts.getOrDefault(one.getKey(), List.of()),
+                    one.getValue())) {
                 said.add("Timer " + one.getKey() + ": " + wrong);
             }
         }
         return said;
     }
 
-    /** What is wrong with one row's operation on one effect, or an empty
-     *  list. */
-    public static List<String> of(Effect effect) {
+    /** What is wrong with one row's operation on the effect of a timer, or
+     *  an empty list. A remap is read against {@code starts}, every start
+     *  on its timer in row order. */
+    private static List<String> of(List<Started> starts, Effect effect) {
         return switch (effect) {
             case Start start -> {
-                List<String> said = new ArrayList<>(count(Tunes.count(start)));
-                said.addAll(rate(Tunes.prescaler(start), Tunes.count(start)));
+                List<String> said = new ArrayList<>(count(start.timing().count()));
+                said.addAll(rate(start.timing().prescaler(), start.timing().count()));
                 said.addAll(runs(start));
                 yield said;
             }
@@ -111,7 +144,57 @@ public final class Check {
                 yield said;
             }
             case Stop ignored -> List.of();
+            case Remap remap -> remaps(starts, remap.mapping());
         };
+    }
+
+    /** What is wrong with a transformation, or an empty list: the number
+     *  of its entries where it is outside 1 to 256, then each entry outside
+     *  a byte in key order. */
+    public static List<String> of(Transformation transformation) {
+        List<String> said = new ArrayList<>();
+        List<Integer> entries = transformation.entries();
+        if (!sized(transformation)) {
+            said.add("the transformation has " + entries.size() + " entries, and a"
+                    + " transformation has 1 to " + MOST_ENTRIES);
+        }
+        for (int key = 0; key < entries.size(); key++) {
+            if (entries.get(key) < 0 || entries.get(key) > MOST_ENTRY) {
+                said.add("entry " + key + " is " + entries.get(key) + ", and an entry is 0 to "
+                        + MOST_ENTRY);
+            }
+        }
+        return said;
+    }
+
+    /** The most entries of a transformation, so that a key is a byte
+     *  (SPEC.md 3.6.1, 3.6.5). */
+    private static final int MOST_ENTRIES = 256;
+
+    /** The most an entry of a transformation is, the most of a byte
+     *  (SPEC.md 3.6.1). */
+    private static final int MOST_ENTRY = 255;
+
+    /** Whether a transformation has 1 to 256 entries, so that it has a
+     *  last key, the number of its entries less one (SPEC.md 3.6.1). */
+    private static boolean sized(Transformation transformation) {
+        int entries = transformation.entries().size();
+        return entries >= 1 && entries <= MOST_ENTRIES;
+    }
+
+    /** The last key of a transformation of 1 to 256 entries: its keys are
+     *  0 to this (SPEC.md 3.6.1). */
+    private static int lastKey(Transformation transformation) {
+        return transformation.entries().size() - 1;
+    }
+
+    /** The line of value {@code value} of row {@code at} of a source on
+     *  {@code target}, above the last key of the transformation it is
+     *  read through. */
+    private static String key(Target target, int at, int value,
+                              Transformation transformation) {
+        return "a source on " + Tunes.name(target) + " whose row " + at + " is " + value
+                + ", and a key is 0 to " + lastKey(transformation);
     }
 
     /** What is wrong with a source, or an empty list. A source's values
@@ -131,24 +214,102 @@ public final class Check {
         return said;
     }
 
-    /** What a start must satisfy: the target reads the row shape the
-     *  source writes, and the source's values fit that register. */
+    /** What a start must satisfy, in the order of SPEC.md 1.12: each
+     *  value is within its register through the identity and a key through
+     *  a transformation of 1 to 256 entries, the mapping has a part for
+     *  each value or none, and the entry a key reaches is within the
+     *  register. A transformation of another number of entries has its
+     *  line under its number, and this skips a value through it. The
+     *  source has the values a row its target reads, since the connection
+     *  of a start pairs the two by width (SPEC.md 1.1). */
     private static List<String> runs(Start start) {
-        List<String> said = new ArrayList<>(of(Tunes.source(start)));
-        if (Tunes.columns(Tunes.target(start)) != Tunes.columns(Tunes.source(start))) {
-            said.add("a source of " + Tunes.columns(Tunes.source(start)) + " values a row on "
-                    + Tunes.name(Tunes.target(start)) + ", which reads "
-                    + Tunes.columns(Tunes.target(start)));
+        Target target = Tunes.target(start.connection());
+        Source source = Tunes.source(start.connection());
+        List<String> said = new ArrayList<>(of(source));
+        Mapping mapping = start.mapping();
+        if (!parted(mapping, target)) {
+            said.add(parts(mapping, target));
             return said;
         }
-        List<Integer> mosts = Tunes.mosts(Tunes.target(start));
-        List<List<Integer>> rows = Tunes.rows(Tunes.source(start)).rows();
+        List<Integer> mosts = Tunes.mosts(target);
+        List<List<Integer>> rows = Tunes.rows(source).rows();
+        List<Part> through = Tunes.parts(mapping, Tunes.columns(target));
         for (int at = 0; at < rows.size(); at++) {
             List<Integer> row = rows.get(at);
             for (int value = 0; value < row.size(); value++) {
-                if (row.get(value) > mosts.get(value)) {
-                    said.add("a source on " + Tunes.name(Tunes.target(start)) + " whose row "
-                            + at + " is " + row.get(value) + ", and the target is 0 to "
+                if (through.get(value) instanceof Transformation transformation) {
+                    if (sized(transformation) && row.get(value) > lastKey(transformation)) {
+                        said.add(key(target, at, row.get(value), transformation));
+                    }
+                } else if (row.get(value) > mosts.get(value)) {
+                    said.add("a source on " + Tunes.name(target) + " whose row " + at
+                            + " is " + row.get(value) + ", and the target is 0 to "
+                            + mosts.get(value));
+                }
+            }
+        }
+        said.addAll(mapped(target, source, mapping, false));
+        return said;
+    }
+
+    /** Whether a mapping has a part for each value the target reads, or
+     *  none (SPEC.md 3.6.3). */
+    private static boolean parted(Mapping mapping, Target target) {
+        return mapping.parts().isEmpty()
+                || mapping.parts().size() == Tunes.columns(target);
+    }
+
+    /** The line of a mapping of another number of parts than the values
+     *  its target reads. */
+    private static String parts(Mapping mapping, Target target) {
+        return "a mapping of " + mapping.parts().size() + " parts on " + Tunes.name(target)
+                + ", which reads " + Tunes.columns(target);
+    }
+
+    /**
+     * The values of {@code source} written through {@code mapping} above
+     * the most of their register of {@code target}, in row order and
+     * within a row in value order. A value through a transformation of 1
+     * to 256 entries is read against its last key; where the value is a
+     * key, its entry is compared with the register's most where that
+     * entry is 0 to 255, and a value through a transformation of another
+     * number of entries is skipped (SPEC.md 1.12). Where {@code remap} is
+     * set, this reads a value through the identity too, and reports a
+     * value above the last key at its place in that order; a start reports
+     * both in the pass before the number of parts.
+     */
+    private static List<String> mapped(Target target, Source source, Mapping mapping,
+                                       boolean remap) {
+        List<String> said = new ArrayList<>();
+        List<Integer> mosts = Tunes.mosts(target);
+        List<Part> through = Tunes.parts(mapping, Tunes.columns(target));
+        List<List<Integer>> rows = Tunes.rows(source).rows();
+        for (int at = 0; at < rows.size(); at++) {
+            List<Integer> row = rows.get(at);
+            for (int value = 0; value < row.size(); value++) {
+                int written;
+                if (through.get(value) instanceof Transformation transformation) {
+                    if (!sized(transformation) || row.get(value) < 0) {
+                        continue;
+                    }
+                    if (row.get(value) > lastKey(transformation)) {
+                        if (remap) {
+                            said.add(key(target, at, row.get(value), transformation));
+                        }
+                        continue;
+                    }
+                    written = Tunes.written(transformation, row.get(value));
+                    if (written < 0 || written > MOST_ENTRY) {
+                        continue;
+                    }
+                } else if (remap) {
+                    written = row.get(value);
+                } else {
+                    continue;
+                }
+                if (written > mosts.get(value)) {
+                    said.add("value " + value + " of row " + at + " maps to " + written
+                            + " on " + Tunes.name(target) + ", and the target is 0 to "
                             + mosts.get(value));
                 }
             }
@@ -157,30 +318,96 @@ public final class Check {
     }
 
     /**
-     * What is wrong with the sources a form declares beside the tune its
-     * rows make, or an empty list.
+     * What a remap must satisfy against {@code starts}, every start on
+     * its timer, before it or after it (SPEC.md 1.11, 1.12 item 2.4.2.4,
+     * 3.6.5): for each target in the row order of the first start that
+     * connects it, the number of parts; then for each target and source
+     * in the row order of the first start that connects the two, prefixed
+     * {@code start of row S: }, S the row of that start, the values above
+     * the last key of a transformation of 1 to 256 entries and the values
+     * written above the register's most, in row order.
+     */
+    private static List<String> remaps(List<Started> starts, Mapping mapping) {
+        Set<Target> targets = new LinkedHashSet<>();
+        Map<Connection, Integer> connected = new LinkedHashMap<>();
+        for (Started one : starts) {
+            targets.add(Tunes.target(one.start().connection()));
+            connected.putIfAbsent(one.start().connection(), one.row());
+        }
+        List<String> said = new ArrayList<>();
+        for (Target target : targets) {
+            if (!parted(mapping, target)) {
+                said.add(parts(mapping, target));
+            }
+        }
+        for (Map.Entry<Connection, Integer> two : connected.entrySet()) {
+            Target target = Tunes.target(two.getKey());
+            Source source = Tunes.source(two.getKey());
+            if (parted(mapping, target)) {
+                for (String one : mapped(target, source, mapping, true)) {
+                    said.add("start of row " + two.getValue() + ": " + one);
+                }
+            }
+        }
+        return said;
+    }
+
+    /**
+     * What is wrong with the sources and the transformations a form
+     * declares beside the tune its rows make, or an empty list: a line for
+     * each source no row starts, in the declared order, then one for each
+     * transformation no row maps through, each name through
+     * {@link #named}.
      *
-     * <p>A form numbers its sources and names them, where the structure
-     * reaches a source through the row that starts it ({@link
-     * Tunes#sources}). So a form may declare one no row starts, which is
-     * dropped where the form is read.
+     * <p>A form numbers its sources and its transformations and names
+     * them, where the structure reaches a source through the row that
+     * starts it ({@link Tunes#sources}) and a transformation through the
+     * mapping that uses it ({@link Tunes#transformations}). So a form may
+     * declare one no row uses, which is dropped where the form is read.
      *
      * <p>A name reaches a reader of the form and no more: an effect
      * names its source by the number of the table it is in, in JSON
      * and in CSV alike, so two sources under one name are told apart by
-     * those numbers and are no fault.
+     * those numbers and are no fault, and the same for two
+     * transformations.
      */
-    public static List<String> declared(List<Source> declared, Tune tune) {
+    public static List<String> declared(List<Source> declared,
+                                        List<Transformation> transformations, Tune tune) {
         List<String> said = new ArrayList<>();
         List<Source> run = Tunes.sources(tune);
         for (int at = 0; at < declared.size(); at++) {
             if (!run.contains(declared.get(at))) {
-                said.add("source " + (at + 1) + ", " + Tunes.name(declared.get(at))
+                said.add("source " + (at + 1) + ", " + named(Tunes.name(declared.get(at)))
                         + ", is started by no row, and a source a tune does not run is"
                         + " dropped where this form is read");
             }
         }
+        List<Transformation> used = Tunes.transformations(tune);
+        for (int at = 0; at < transformations.size(); at++) {
+            if (!used.contains(transformations.get(at))) {
+                said.add("transformation " + (at + 1) + ", "
+                        + named(transformations.get(at).name()) + ", is used by no row, and"
+                        + " a transformation a tune does not map through is dropped where"
+                        + " this form is read");
+            }
+        }
         return said;
+    }
+
+    /** The name of a source or of a transformation, or the text of the
+     *  CSV emitter's line, in a reported line: each line feed as the two
+     *  characters {@code \n} and each carriage return as {@code \r}, so a
+     *  line with such a text in it is one line (SPEC.md 1.12, json.md 8.1,
+     *  csv.md 5.1, 5.4). The check, the readers of both forms and the CSV
+     *  emitter write every such text through this. */
+    public static String named(String name) {
+        return name.replace("\n", "\\n").replace("\r", "\\r");
+    }
+
+    /** {@link #declared(List, List, Tune)} of a form that declares no
+     *  transformation. */
+    public static List<String> declared(List<Source> declared, Tune tune) {
+        return declared(declared, List.of(), tune);
     }
 
     /** What a rate must satisfy: a 68000 services the ticks it comes to.
@@ -263,7 +490,7 @@ public final class Check {
         }
 
         Target target() {
-            return Tunes.target(start);
+            return Tunes.target(start.connection());
         }
 
         /** Whether a reading of this run rests on the reckoning: its end is
@@ -336,7 +563,7 @@ public final class Check {
                 case Start start -> {
                     place(at, timer, start);
                     Running runs = runs(timer, at);
-                    if (Tunes.deferred(start) && runs != null) {
+                    if (start.deferred() && runs != null) {
                         // the effect plays its source once from here, and
                         // the start follows it
                         runs.until = Math.min(runs.until, at + frames(runs.start));
@@ -352,6 +579,16 @@ public final class Check {
                         say(at, timer, "retunes an effect that is idle: a rate written"
                                 + " to a timer with no source on it starts that timer"
                                 + " with no source to run", reckoned(timer, at));
+                    }
+                }
+                case Remap ignored -> {
+                    // the effect, its run and a pending start are as they
+                    // were (6.3 step 2(d))
+                    Running runs = runs(timer, at);
+                    if (runs == null) {
+                        say(at, timer, "remaps an effect that is idle: a mapping is set on"
+                                + " a running effect, and this row leaves the timer as it"
+                                + " is", reckoned(timer, at));
                     }
                 }
                 case Stop ignored -> {
@@ -377,7 +614,7 @@ public final class Check {
          *  one before it; {@code begun} where a pending start begins at a
          *  reckoned row. */
         private void starts(int at, Timer timer, Start start, boolean begun) {
-            shared(at, timer, Tunes.target(start), begun);
+            shared(at, timer, Tunes.target(start.connection()), begun);
             Running before = running.get(timer);
             if (before != null) {
                 collided(timer, before);
@@ -425,8 +662,11 @@ public final class Check {
             int to = tune.table().repeat().getAsInt();
             int last = rows.size() - 1;
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
+                // a remap at the repeat row leaves the effect running from
+                // the pass before, as a row that leaves the timer alone does
+                Effect there = rows.get(to).effects().get(one.getKey());
                 if (last >= one.getValue().until
-                        || Tunes.effects(rows.get(to)).containsKey(one.getKey())) {
+                        || there != null && !(there instanceof Remap)) {
                     continue;
                 }
                 said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
@@ -461,7 +701,7 @@ public final class Check {
          *  reset. After a start, the place keeps its number modulo the row
          *  count of the source a start connects (3.4.3). */
         private void place(int at, Timer timer, Start start) {
-            if (Tunes.placeReset(start) || started.contains(timer)) {
+            if (start.timing().placeReset() || started.contains(timer)) {
                 return;
             }
             say(at, timer, "starts a source without the place's reset, and this timer"
@@ -502,7 +742,7 @@ public final class Check {
         /** The row a start's source ends on, or no row where it
          *  repeats. */
         private int until(int at, Start start) {
-            if (Tunes.rows(Tunes.source(start)).repeat().isPresent()) {
+            if (Tunes.rows(Tunes.source(start.connection())).repeat().isPresent()) {
                 return Integer.MAX_VALUE;
             }
             return at + frames(start);
@@ -511,8 +751,8 @@ public final class Check {
         /** The frames a start's source runs for, played once at its
          *  rate (6.4). */
         private int frames(Start start) {
-            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start))),
-                    Tunes.prescaler(start), Tunes.count(start), tune.rate());
+            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start.connection()))),
+                    start.timing().prescaler(), start.timing().count(), tune.rate());
         }
 
         private List<Register> written(Target target) {

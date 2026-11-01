@@ -73,11 +73,13 @@ final class ReadTest {
         assertEquals(java.util.EnumSet.of(Timer.A), Tunes.timers(tune));
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(2).effects().get(Timer.A));
-        assertEquals(Tunes.setting(Register.R8), Tunes.target(start));
-        assertEquals(Prescaler.BY_4, Tunes.prescaler(start));
-        assertEquals(100, Tunes.count(start));
-        assertTrue(Tunes.timerReset(start), "the timer was stopped, so it runs a whole period");
-        assertTrue(Tunes.placeReset(start), "no wave ran before it, so the place goes to row 0");
+        assertEquals(Tunes.setting(Register.R8), Tunes.target(start.connection()));
+        assertEquals(Prescaler.BY_4, start.timing().prescaler());
+        assertEquals(100, start.timing().count());
+        assertTrue(start.timing().timerReset(), "the timer was stopped, so it runs a whole"
+                + " period");
+        assertTrue(start.timing().placeReset(), "no wave ran before it, so the place goes to"
+                + " row 0");
 
         for (int f = 3; f <= 5; f++) {
             assertTrue(Tunes.rows(tune).get(f).effects().isEmpty(),
@@ -106,7 +108,7 @@ final class ReadTest {
 
         Start start = assertInstanceOf(Start.class,
                 Tunes.rows(tune).get(1).effects().get(Timer.D));
-        assertEquals(Tunes.setting(Register.R9), Tunes.target(start));
+        assertEquals(Tunes.setting(Register.R9), Tunes.target(start.connection()));
         assertEquals(0b010010, Tunes.rows(tune).get(1).registers().get(Register.R7),
                 "a recording silences the tone and noise of its voice while it runs, which"
                         + " for voice B is bits 1 and 4");
@@ -120,6 +122,34 @@ final class ReadTest {
         String text = Text.write(multi);
         assertEquals(multi, Text.read(text));
         assertEquals(text, Text.write(Text.read(text)));
+    }
+
+    /** A dump reads into version 7, every start through the mapping of no
+     *  parts, so the tune maps through no transformation (tools.md 9.1,
+     *  ym.md 6). */
+    @Test
+    void everyStartOfADumpHasTheMappingOfNoParts() {
+        Dumps dumped = new Dumps(8, 0, List.of()).set(2, 8, 12).set(3, 8, 12)
+                .set(4, 8, 12).set(5, 8, 12).set(6, 8, 9).set(7, 8, 9);
+        for (int f = 2; f <= 5; f++) {
+            dumped.slot0(f, 1, 0, 1, 100);
+        }
+        Tune tune = read(dumped);
+        int starts = 0;
+        for (var row : Tunes.rows(tune)) {
+            for (var effect : row.effects().values()) {
+                if (effect instanceof Start start) {
+                    assertEquals(Tunes.NO_PARTS, start.mapping());
+                    starts++;
+                }
+            }
+        }
+        assertEquals(1, starts, "the square starts once");
+        assertEquals(List.of(), Tunes.transformations(tune));
+        String text = Text.write(Tunes.multi(tune)).replaceAll("\\s+", " ");
+        assertTrue(text.contains("\"version\": 7,"), text);
+        assertTrue(text.contains("\"transformations\": [],"), text);
+        assertTrue(text.contains("\"mapping\": [-1,-1,0,-1,-1,-1,-1,-1]"), text);
     }
 
     @Test

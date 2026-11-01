@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 4,
+  "version": 7,
   "tunes": [
     {
       "title": "Targets of several registers",
@@ -61,6 +61,7 @@
           ]
         }
       ],
+      "transformations": [],
       "registers": {
         "r7": [
           56,
@@ -117,6 +118,18 @@
           -1,
           -1,
           -1
+        ],
+        "deferred": [
+          0,
+          -1,
+          -1,
+          -1
+        ],
+        "mapping": [
+          0,
+          -1,
+          -1,
+          -1
         ]
       },
       "timerB": {
@@ -159,6 +172,18 @@
         "placeReset": [
           -1,
           1,
+          -1,
+          -1
+        ],
+        "deferred": [
+          -1,
+          0,
+          -1,
+          -1
+        ],
+        "mapping": [
+          -1,
+          0,
           -1,
           -1
         ]
@@ -204,6 +229,18 @@
           -1,
           -1,
           1,
+          -1
+        ],
+        "deferred": [
+          -1,
+          -1,
+          0,
+          -1
+        ],
+        "mapping": [
+          -1,
+          -1,
+          0,
           -1
         ]
       }

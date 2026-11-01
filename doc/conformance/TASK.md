@@ -25,11 +25,13 @@ order, `sort_keys` left at its default.
 **3. The tunes.** Each is a `.json` under `tunes/`; `SOURCES.md` lists
 what each reaches and is left out of a run against this kit, since the
 record of a tune beside it has the lines a recorder produces.
-`four-timers.json`, `registers.json` and `several.json` break a rule of
-`SPEC.md` 6, which a checker reports as a warning, and every other tune
-satisfies every rule: `registers.json` sets a register an effect runs on,
-and the frame's line records the write (7.4); the other two wrap with
-timers running.
+`four-timers.json`, `registers.json`, `several.json` and
+`transformations.json` break a rule of `SPEC.md` 6, which a checker
+reports as a warning, and every other tune satisfies every rule:
+`registers.json` sets a register an effect runs on, and the frame's line
+records the write (7.4); `four-timers.json` and `several.json` wrap with
+timers running; `transformations.json` wraps with a timer running that
+its repeat row remaps, and remaps a timer outside the tune.
 
 | file | the tune of it | lines |
 |---|---|---:|
@@ -43,6 +45,7 @@ timers running.
 | `several.json` | 1 | 9 |
 | `multi.json` | 2 | 6 |
 | `deferred.json` | 1 | 17 |
+| `transformations.json` | 1 | 12 |
 
 **4. The rules.**
 

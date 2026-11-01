@@ -18,13 +18,71 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.6.0` beside `v0.6.0`.
+version of it is a tag of that directory: `go/v0.7.0` beside `v0.7.0`.
 
-A player pins a version of this format: the structure's version is 6, a
-writer writes 6 and a reader reads 6, 5, 4 and 3, and a release's number
-names the tools rather than the format.
+A player pins a version of this format: the structure's version is 7, a
+writer writes 7 and a reader reads 7, 6, 5, 4 and 3, and a release's
+number names the tools rather than the format.
 
 ## Published
+
+### 0.7.0, 2026-11-01
+
+<https://github.com/odipar/YMXS/releases/tag/v0.7.0>, built from the commit
+tagged `v0.7.0`.
+
+The structure's version is 7: a transformation maps the values of a source
+on their way to the target (SPEC.md 3.6). A transformation is a name and 1
+to 256 entries, each 0 to 255, and a source value through it is a key, at
+most its last key. A mapping has a part for each value of a row, the
+identity or a transformation; each `Start` has one, and a new operation,
+`Remap`, sets the mapping of the effect a timer runs, as a `Retune` sets its
+rate. A fade is a `Remap` a frame. A writer writes 7, and a reader reads 7,
+6, 5, 4 and 3.
+
+- **The structure.** `Start` is one record of a `Connection`, its timing,
+  the deferred flag and its mapping, and `OneConnection`, `TwoConnection`
+  and `ThreeConnection` each pair a target with a source of its width
+  (SPEC.md 1.1).
+- **The errors.** A table of E entries, E outside 1 to 256, or with an
+  entry outside 0 to 255; a key above the last key, through a `Start` and
+  through a `Remap`; a mapping of another number of parts than its target
+  reads; an entry mapped above the register's most (SPEC.md 1.11). A remap
+  on an idle timer breaks rule 5. The lines of a transformation are
+  prefixed `transformation F, NAME: `, and those of a remap's values `start
+  of row S: `; a name in a line writes a line feed as `\n` and a carriage
+  return as `\r`.
+- **The forms.** JSON has `transformations` after `sources`, a `mapping`
+  column after `deferred`, and `shape` 3 for a remap; CSV has
+  `transformation` and `entry` blocks and a `mapping` cell (json.md 3.7,
+  csv.md 3.11, 3.12). A file of version 6 or before reads as before: a
+  reader skips the `mapping` column and, in JSON, `transformations`, and in
+  CSV a `transformation` or an `entry` block there is the error of a block
+  of any other name, as in 0.6.0. A source of other values a row than its
+  target reads is an error of the form, where the tools reported it
+  already (json.md 8.1, csv.md 5.1). The CSV emitter reports a value with a
+  line feed or a carriage return in it on one line.
+- **The Go module.** `ymxs.Start` is a struct of a `Connection`, the
+  timing, the deferred flag and the mapping, in place of `StartOne`,
+  `StartPair` and `StartTriple`; `ConnectionTarget` and `ConnectionSource`
+  read a connection; `StartTiming`, `StartDeferred`, `StartMapping`,
+  `TimerReset` and `PlaceReset` are gone, and a caller reads the fields.
+  `Starting` has a fifth parameter, the mapping, and a caller of it changes
+  with it; `Remap` is a fourth effect; `PartNumbers` returns an error for a
+  transformation the list lacks; `text.Version` is 7.
+- **The examples.** `doc/tunes/fade.json` is a fade of sixteen remaps
+  through `V15` to `V0`, of 16 entries each, and the kit gains a tune
+  through transformations; the examples and the kit's tunes are version 7.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release and
+of 0.6.0 write the same tune in 12 dumps of 12, but for the version, an
+empty `transformations` and a `mapping` column of 0 at each start.
+`ymxs-check` exits and reports the same on the ten tunes of the kit and the
+eight example tunes of 0.6.0, each read as version 6, and
+`ymxs-csv-to-json` reads the two CSV examples of 0.6.0 into the same tune,
+its count of characters out larger by the new keys.
+
+Checks: `bin/suite` green, 209 tests and 0 skipped.
 
 ### 0.6.0, 2026-10-30
 

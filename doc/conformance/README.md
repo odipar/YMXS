@@ -28,12 +28,20 @@ once, every register column, R7's six bits, a row that sets a register an
 effect runs on, a tune that wraps, a tune that plays once, a multi whose
 second tune runs at another rate, the targets of two and three registers
 with the sources of two and three values a row they run, a deferred start,
-and transformations: a start through one, a fade of remaps, a remap at the
-repeat row, a target of three registers through a mapping, transformations
-of 16 entries and of 256, keys above the most of a register, two
-transformations of one name, equal entries under two names, a remap on a
-timer outside the tune, and a file that lists its transformations in
-another order than SPEC.md 1.9 numbers them.
+and transformation cases:
+
+- Identity defaults and starts through lookup tables.
+- Fades by remapping, including a remap at the repeat row.
+- Separate mapping parts for a target of several registers.
+- Lookup transformations of 16 entries and of 256, with keys above
+  register limits.
+- Equal names with different entries and equal entries under different
+  names.
+- Remaps on timers outside the tune.
+- File numbering different from recorder numbering (SPEC.md 1.9).
+
+The record contains frame operations and transformation entries; it
+excludes tick output.
 
 **5. The exercise.** Initial condition: an implementer whose reading
 excludes this repository and every implementation of the structure.

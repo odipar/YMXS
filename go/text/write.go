@@ -1,19 +1,17 @@
-// Package text writes a multi as JSON and reads it back (doc/json.md). It
-// is one encoding of the structure rather than the structure
-// itself, and so stays outside the ymxs package.
+// Package text reads and writes YMXS JSON (doc/json.md).
 //
-// A tune is written column by column. A register's column is one value a
-// row, and a timer's columns one value a row of the operation on that
-// effect, None where a row leaves it alone. Every column is as long as the
-// tune, so a row is one index across every column. A mapping column has
-// an array at a row whose mapping maps a value through a transformation.
+// Tune data is encoded as columns: index i across the columns is tune
+// row i. Timer columns contain starts, retunes, stops or remaps. A
+// mapping cell is 0 for identity at every value, or an array of part
+// numbers when transformation lookups are used.
 //
-// Where the line breaks is fixed here: a tune's figures are at the top
-// of the tune and each column is on one line, so a register's values
-// are read across a line and the columns are compared down the file. A
-// long column wraps at Wrap values, within the width of a screen. The rule
-// is depth: the outer structures break their lines, and what is inside
-// those is one item a line.
+// Transformation numbers refer to the tune's transformation list.
+// Writers list transformations in order of first use; readers resolve
+// numbers in file order. Identity-only mappings read back as the zero
+// Mapping.
+//
+// Layout follows json.md 9: outer objects use one field per line, while
+// long numeric arrays wrap at Wrap values.
 package text
 
 import (
@@ -233,12 +231,11 @@ type cell struct {
 	parts  []int
 }
 
-// mappingCell is a mapping as its column has it: 0 where every part is
-// the identity, the mapping of no parts included, and otherwise the
-// number of each part in part order, 0 the identity and n transformation
-// n (json.md 6.7). The list is the tune's (ymxs.Transformations), which has
-// every transformation of every mapping of the tune in it, so an error of
-// ymxs.PartNumbers is a fault of this package and panics.
+// mappingCell encodes an mapping with only identity parts as 0.
+// Otherwise, it writes an array of part numbers: 0 for Identity and the
+// transformation number for a lookup (json.md 6.7). The supplied list
+// must include every transformation used by the mapping; a missing one
+// panics.
 func mappingCell(mapping ymxs.Mapping, transformations []ymxs.Transformation) cell {
 	if ymxs.IsIdentity(mapping) {
 		return cell{}

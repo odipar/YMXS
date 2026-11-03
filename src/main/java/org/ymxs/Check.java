@@ -197,9 +197,11 @@ public final class Check {
                 + ", and a key is 0 to " + lastKey(transformation);
     }
 
-    /** What is wrong with a source, or an empty list. A source's values
-     *  are read against the target that runs it, so this reads only what
-     *  is decidable without one. */
+    /**
+     * Checks the source table and negative values. Register limits and
+     * lookup-key limits depend on a start's target and mapping; use the
+     * tune check for those.
+     */
     public static List<String> of(Source source) {
         List<String> said = new ArrayList<>(table(Tunes.rows(source), "the source"));
         List<List<Integer>> rows = Tunes.rows(source).rows();
@@ -214,14 +216,13 @@ public final class Check {
         return said;
     }
 
-    /** What a start must satisfy, in the order of SPEC.md 1.12: each
-     *  value is within its register through the identity and a key through
-     *  a transformation of 1 to 256 entries, the mapping has a part for
-     *  each value or none, and the entry a key reaches is within the
-     *  register. A transformation of another number of entries has its
-     *  line under its number, and this skips a value through it. The
-     *  source has the values a row its target reads, since the connection
-     *  of a start pairs the two by width (SPEC.md 1.1). */
+    /**
+     * Validates the source, then the mapping's part count. With a valid
+     * part count, checks identity values against register limits and
+     * lookup keys against transformation lengths, then checks selected
+     * entries against register limits. Invalid transformation lengths
+     * and entries are reported separately (SPEC.md 1.12).
+     */
     private static List<String> runs(Start start) {
         Target target = Tunes.target(start.connection());
         Source source = Tunes.source(start.connection());
@@ -267,16 +268,13 @@ public final class Check {
     }
 
     /**
-     * The values of {@code source} written through {@code mapping} above
-     * the most of their register of {@code target}, in row order and
-     * within a row in value order. A value through a transformation of 1
-     * to 256 entries is read against its last key; where the value is a
-     * key, its entry is compared with the register's most where that
-     * entry is 0 to 255, and a value through a transformation of another
-     * number of entries is skipped (SPEC.md 1.12). Where {@code remap} is
-     * set, this reads a value through the identity too, and reports a
-     * value above the last key at its place in that order; a start reports
-     * both in the pass before the number of parts.
+     * Reports mapped values above their target register limits, in
+     * source-row and value order. Skip lookups with an invalid entry
+     * count, key or selected entry (SPEC.md 1.12).
+     *
+     * <p>For a remap, also check identity values and report keys
+     * outside the lookup table here. A start checks those before this
+     * pass.
      */
     private static List<String> mapped(Target target, Source source, Mapping mapping,
                                        boolean remap) {
@@ -318,14 +316,12 @@ public final class Check {
     }
 
     /**
-     * What a remap must satisfy against {@code starts}, every start on
-     * its timer, before it or after it (SPEC.md 1.11, 1.12 item 2.4.2.4,
-     * 3.6.5): for each target in the row order of the first start that
-     * connects it, the number of parts; then for each target and source
-     * in the row order of the first start that connects the two, prefixed
-     * {@code start of row S: }, S the row of that start, the values above
-     * the last key of a transformation of 1 to 256 entries and the values
-     * written above the register's most, in row order.
+     * Checks this mapping against every start on the timer, including
+     * earlier and later starts. First report incorrect part counts once
+     * per target. Then check each distinct target/source connection in
+     * first-start order, prefixing its errors with {@code start of row
+     * S: }. Check keys and mapped register values in source-row and
+     * value order (SPEC.md 1.12).
      */
     private static List<String> remaps(List<Started> starts, Mapping mapping) {
         Set<Target> targets = new LinkedHashSet<>();
@@ -353,23 +349,14 @@ public final class Check {
     }
 
     /**
-     * What is wrong with the sources and the transformations a form
-     * declares beside the tune its rows make, or an empty list: a line for
-     * each source no row starts, in the declared order, then one for each
-     * transformation no row maps through, each name through
-     * {@link #named}.
+     * Reports unused declarations: unstarted sources in declared order,
+     * then transformations unused by any start or remap in declared
+     * order. Names are escaped through {@link #named}.
      *
-     * <p>A form numbers its sources and its transformations and names
-     * them, where the structure reaches a source through the row that
-     * starts it ({@link Tunes#sources}) and a transformation through the
-     * mapping that uses it ({@link Tunes#transformations}). So a form may
-     * declare one no row uses, which is dropped where the form is read.
-     *
-     * <p>A name reaches a reader of the form and no more: an effect
-     * names its source by the number of the table it is in, in JSON
-     * and in CSV alike, so two sources under one name are told apart by
-     * those numbers and are no fault, and the same for two
-     * transformations.
+     * <p>The structure includes sources and transformations only
+     * through operations that use them. An unused declaration would be
+     * lost on reading. File numbers identify declarations; duplicate
+     * names are valid.
      */
     public static List<String> declared(List<Source> declared,
                                         List<Transformation> transformations, Tune tune) {

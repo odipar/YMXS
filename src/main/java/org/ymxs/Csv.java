@@ -50,10 +50,11 @@ import org.ymxs.YMXS.Two;
  * row here, with a column a register, and an empty cell is a register the
  * row does not set.
  *
- * <p>A tune opens with a `tune` table, and the tables after it belong to
- * that tune until the next `tune` table; a source opens with a `source`
- * table, and the values after it belong to that source. A table therefore
- * needs no column for its tune or its source: position determines that.
+ * <p>Blocks after a tune block belong to that tune. Value blocks append
+ * rows to the preceding source; entry blocks append lookup entries to
+ * the preceding transformation. Position determines these relationships.
+ * A mapping cell is 0 for identity at every value, or space-separated
+ * part numbers when transformation lookups are used.
  */
 public final class Csv {
 
@@ -185,9 +186,11 @@ public final class Csv {
         }
     }
 
-    /** The cell of a mapping (6.3): {@code 0} where every part is the
-     *  identity, the mapping of no parts included, and otherwise the
-     *  number of each part, separated by one space. */
+    /**
+     * Encodes an mapping with only identity parts as the cell 0.
+     * Otherwise, writes space-separated part numbers: 0 for identity
+     * and the transformation number for a lookup (csv.md 6.3).
+     */
     private static String mapping(Mapping mapping, List<Transformation> transformations) {
         if (Tunes.isIdentity(mapping)) {
             return "0";
@@ -533,11 +536,10 @@ public final class Csv {
     }
 
     /**
-     * The mapping of a {@code mapping} cell (3.10): the whole numbers in
-     * it, split at each run of white space, verified one or more, of
-     * several a number other than 0 among them, and each 0 to the number
-     * of transformations, in that order. A cell of one number, 0, is the
-     * mapping of no parts.
+     * Reads a mapping cell by splitting at white space and requiring
+     * whole numbers. A single 0 means identity for every value.
+     * Otherwise, reject all-zero lists, then resolve each part number
+     * against the transformation list (csv.md 3.10).
      */
     private static Mapping mapping(String cell, int at, List<Transformation> transformations) {
         List<Integer> numbers = new ArrayList<>();

@@ -186,18 +186,18 @@ it and begins another: at its frame where `deferred` is clear, and where
 it is set at the tick that reads the last row of the source of that
 effect. Section 4 defines each operation as steps.
 
-**1.8 Targets, sources and mappings.** This version defines three kinds of
-target: `SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
-`SetNoise` and `SetEnvelope`, two registers each; and `SetVoice` and
-`SetBuzzer`, three (3.1). It defines three kinds of source to match,
-`Single`, `Pair` and `Triple`: a text `name` and a `table` of one, two or
-three integers a row (3.2). A `Connection` pairs a target with a source of
-the values a row the target reads: `OneConnection` of one value a row,
-`TwoConnection` of two and `ThreeConnection` of three. A `Start` connects
-the source of its connection to the target through a `Mapping`: a `Part`
-for each value of a row, the `Identity` or a `Transformation`, a text
-`name` and 1 to 256 `entries`; or no parts, the identity in every part
-(3.6).
+**1.8 Targets, sources and mappings.** Targets write one, two or three
+registers (3.1). `SetRegister` writes one; `SetTone`, `SetNoise` and
+`SetEnvelope` write two; `SetVoice` and `SetBuzzer` write three.
+
+Sources match those widths: `Single`, `Pair` and `Triple` each have a
+name and a table of one, two or three values per row (3.2). A
+`OneConnection`, `TwoConnection` or `ThreeConnection` pairs a source
+with a target of the same width.
+
+A `Start` supplies that connection and a `Mapping`. An empty mapping
+leaves every value unchanged. Otherwise, each value has an identity
+part or an optional transformation lookup (3.6).
 
 **1.9 The sources and the transformations of a tune.** The sources are
 the list this procedure produces from an empty list: read the rows from
@@ -210,13 +210,10 @@ rows both absent or both present and equal; two `Start`s of equal sources
 start one source of the tune, and equal values under two names are two
 sources.
 
-The transformations are the list the same reading produces from an empty
-list: where the operation is a `Start` or a `Remap`, each part of its
-mapping in order, from part 0, that is a transformation new to the list is
-appended. The transformations are numbered from 1 in that order, and a
-transformation is selected by number; the identity is 0, outside the list.
-Two transformations are equal as 3.6.2 defines, and two parts of equal
-transformations are one transformation of the tune.
+To list transformations, scan rows from first to last, timers A to D
+within each row, and parts from part 0 within each `Start` or `Remap`.
+Append each transformation at its first use, comparing as 3.6.2 defines.
+Number the list from 1. Identity is 0 and is excluded from the list.
 
 **1.10 The timers of a tune.** The timers on which some row performs a
 `Start`, in the order A, B, C, D; a timer with only a `Retune`, a `Stop`
@@ -364,12 +361,11 @@ whose target is `setR13` writes it, the value written through its mapping
 
 ### 3.1 The targets
 
-**3.1.1** A target is a procedure the player calls at a tick with one row of
-a source; it writes the row's values to the registers below, value i of the
-row through part i of the mapping of the effect (3.6) to register i of the
-target. A target reads one, two or three values a row, the source an effect
-runs on it has that many values a row (3.2.1), and its mapping that many
-parts or none (3.6.3).
+**3.1.1** At a tick, a target writes one source row to the registers
+below. Source value i passes through mapping part i before reaching
+register i. An empty mapping uses identity for every value (3.6).
+Source width must match target width (3.2.1); a nonempty mapping has
+that many parts (3.6.3).
 
 | target | registers, value i of the row to register i | values a row |
 |---|---|---|
@@ -414,12 +410,11 @@ row than its target reads as an error of the form (json.md 8.1, csv.md 5.1).
 The name is text for display and for reports, and distinguishes sources
 (1.9); a player reads the table alone.
 
-**3.2.2** Value i of every row of a source is 0 to the most of register i of
-the target of every `Start` that connects it, where part i of a mapping is
-the identity (3.6.3), and a key, 0 to the last key of the transformation,
-where it is a transformation, through the mapping of that `Start` and
-through the mapping of every `Remap` on the timer of that `Start` (3.6.5);
-outside that is an error of the structure (1.11).
+**3.2.2** Validate every source row through each start's mapping and
+every remap on that start's timer. Identity values must fit their target
+registers. Lookup keys must fit their transformations, and selected
+entries must fit the registers. Violations are errors of the structure
+(1.11); 3.6.5 defines these checks.
 
 **3.2.3** Two effects run one source where two rows start it on two
 timers; it is one source of the tune (1.9). Each timer has a separate
@@ -540,54 +535,67 @@ the end (4.6) leave it pending.
 
 ### 3.6 Transformations and mappings
 
-**3.6.1** A *transformation* is a name and a list of E entries, E from 1
-to 256, numbered from 0, each 0 to 255: entry k is the value written where
-the value read is k, the *key*. Its keys are 0 to E - 1, its *last key*.
-The name is text for display and for reports, and distinguishes
-transformations (3.6.2); a player reads the entries alone. A
-transformation of E entries, E outside 1 to 256, or with an entry outside
-0 to 255, is an error of the structure (1.11).
+**3.6.1 Lookup tables.** A *transformation* is a name and a list of E
+entries, numbered from 0. A source value k is a *key*: the value written
+is `entries[k]`. E is 1 to 256, each entry is 0 to 255, and keys are 0 to
+E - 1, the *last key*. An entry count or entry outside these ranges is
+an error of the structure (1.11). The name is for display, reports and
+equality; playback uses the entries.
 
-**3.6.2** The *identity* writes each value as it is. A transformation is
-distinct from the identity, one whose entry k is k at every key included.
-Two transformations are equal where their names are equal and their
-entries equal in number and order; two parts of equal transformations are
-one transformation of the tune (1.9), and equal entries under two names are
-two transformations.
+**3.6.2 Comparing parts.** The *identity* writes the source value
+unchanged. A transformation whose entry k equals k remains a
+transformation, with its key range limited by its entry count.
 
-**3.6.3** A *mapping* is a list of parts, each the identity or a
-transformation, part i for value i of a row (3.1.1). The mapping of no
-parts is the identity in every part: its part i is the identity for each
-value i its target reads. A mapping of one part or more has a part for
-each value its target reads; a mapping of another number of parts is an
-error of the structure (1.11). A `Start` connects its source to its target
-through its mapping, and a `Remap` sets the mapping of the effect the
-timer runs (4.3).
+Two transformations are equal when their names and entries are equal,
+including entry count and order. Equal transformations are listed once
+per tune (1.9). Equal entries under different names are separate
+transformations.
 
-**3.6.4** A tick writes value i of the row it reads through part i of the
-mapping of its effect (5.2 step 2). The *value written* is the value read
-through the identity, and entry k through a transformation, k the value
-read. The target writes the value written to register i as 3.1.1 defines:
-`setR7` writes its bits 5 to 0, and every write of R13 restarts the
-envelope (2.5).
+**3.6.3 Mapping a source row.** Transformation lookups are optional.
+A *mapping* with no parts uses identity for every source value. Otherwise,
+supply one part per value in target register order: identity for an
+unchanged value or a transformation for a lookup. A different part count
+is an error of the structure (1.11).
 
-**3.6.5 Keys.** Value i of a row of the source of a `Start` is, through a
-transformation, a key, 0 to its last key, on every target, and the entry it
-reaches is 0 to the most of register i of the target; through the identity
-it is 0 to the most of register i (3.2.2). The mapping of a `Remap` is read
-against the target and the source of each `Start` on its timer, at any row
-of the tune: through a transformation each value is a key, 0 to its last
-key, and each value written through the mapping is 0 to the most of
-register i of that target. Outside these is an error of the structure
-(1.11). A key is a byte on every target, since a transformation has 256
-entries at most.
+Each effect has a mapping. A `Start` installs its mapping when it
+connects the source and target. A `Remap` replaces the running effect's
+mapping for subsequent ticks, preserving its source, target, rate and
+place. A `Retune` preserves the mapping. A deferred `Start` keeps its
+mapping while pending; a `Remap` changes only the running effect (4.3).
 
-Note: a fade of a voice maps its volume alone, on `setVoiceA` through the
-identity, the identity and a transformation of volumes, a `Remap` a frame;
-with `Vn` the transformation whose entry k is k × n divided by 15, for the
-16 keys of a volume, 0 to 15, a volume is written as below, and `V15`, a
-transformation distinct from the identity (3.6.2), writes the values the
-identity writes at those keys:
+**3.6.4 Applying a mapping at a tick.** Read the source row at the
+place. For each value i:
+
+1. Read value k and mapping part i, using the identity if the mapping
+   has no parts.
+2. Through the identity, output i is k. Through a transformation,
+   output i is `entries[k]`.
+
+Pass the mapped row to the target. Output i goes to register i, with
+the write order and register rules of 3.1.1.
+
+The lookup leaves source rows and transformation entries unchanged.
+Frame register writes use their row values directly. Target rules also
+apply to mapped writes: R7 preserves bits 7 and 6, and each R13 write
+restarts the envelope, even if the output is unchanged (2.4, 2.5).
+
+**3.6.5 Checking mappings.** Validate a `Start` against its source and
+target. For a `Remap`, repeat the checks against every `Start` on the
+same timer, including starts before and after the remap:
+
+1. The mapping has no parts, or one part per target register.
+2. Through the identity, each source value fits its target register.
+3. Through a transformation, each source value is a key from 0 to the
+   last key, and the entry at that key fits its target register.
+
+These checks apply to every source row. Register limits constrain the
+entries read by those rows; a key may exceed the register's maximum.
+Failures are errors of the structure (1.11); 1.12 defines report order
+and the checks omitted after another error.
+
+Note: to scale fixed volume levels, define `Vn` as the transformation
+whose entry k is k × n divided by 15, for keys 0 to 15. `V15` preserves
+these levels; `V0` writes silence. Integer division discards the remainder.
 
 | part | key 12 | key 15 |
 |---|---|---|
@@ -596,6 +604,23 @@ identity writes at those keys:
 | `V10` | 8 | 10 |
 | `V5` | 4 | 5 |
 | `V0` | 0 | 0 |
+
+**3.6.6 Uses (informative).**
+
+- **Sample volume.** Run one sample source on `setR8`, `setR9` or
+  `setR10` through different scaling transformations. Each effect can
+  select a volume without a separate copy of the sample. For a sample
+  with keys across a byte, a transformation can convert those keys to
+  the register's fixed volume levels.
+- **Fades.** Remap a running sample or waveform through successive volume
+  transformations, one per frame. The sample continues from its place
+  at the same tick rate; new ticks use the new levels. To control fixed
+  volume, use entries with the envelope bit clear (2.3).
+- **Volume independent of pitch.** On `setVoiceA`, map the fine and
+  coarse tone values through the identity and the volume through `Vn`.
+  A remap can fade the voice while its source continues to change pitch.
+  The mapping has a separate part for each register; each lookup reads
+  that part's source value alone.
 
 ---
 
@@ -652,11 +677,10 @@ timer stays pending (3.5.5). On an idle timer step 3 starts the timer with
 its source disconnected (rule 5), and what the player performs at its
 ticks is left to a later version (5.4).
 
-A `Remap`: set the mapping of the effect the timer runs to the mapping of
-the `Remap` (3.6). The timer, its source, its rate, its place and a `Start`
-pending on it are as they were; the next tick writes through the new
-mapping (5.2 step 2), and a pending `Start` keeps the mapping of its row
-(3.5.5). On an idle timer a `Remap` leaves the timer as it is (rule 5).
+A `Remap`: replace the running effect's mapping. The next tick uses it;
+source, target, timing and place are unchanged. A pending `Start`
+retains its separate mapping (3.5.5). On an idle timer, leave the timer
+unchanged (rule 5).
 
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
@@ -699,9 +723,9 @@ tick alone.
 **5.2 A tick** of a timer running an effect, in order:
 
 1. Read the row of the source at the place (3.4.2).
-2. Call the target with it through the mapping of the effect (3.6); the
-   target writes the row's values to its registers, value i through part i
-   of the mapping to register i (3.1.1, 3.6.4).
+2. Apply the effect's mapping to the row, then call the target with the
+   mapped values. The target writes its registers as 3.1.1 defines
+   (3.6.4).
 3. Where the source has a row after the row read (1.5), the place is that
    row. While a `Start` is pending on the timer, the last row has no row
    after it (3.5.2).

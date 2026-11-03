@@ -34,24 +34,27 @@ import org.ymxs.YMXS.Two;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The structure to a JSON tree and back. {@link Text} writes that tree and
- * reads it, and the escaping, the parsing and the layout are the JSON
- * library's; this class performs the mapping alone.
+ * The structure to a JSON tree and back. {@link Text} writes that tree
+ * and reads it, and the escaping, the parsing and the layout are the
+ * JSON library's; this class performs the mapping alone.
  *
- * <p>A tune is written column by column. A register's column is one value
- * a row, and a timer's columns one value a row of the operation on that
- * effect, {@link #NONE} where a row leaves it alone. Every column is as
- * long as the tune, so a row is one index across every column.
+ * <p>A tune is written column by column. A register's column is one
+ * value a row, and a timer's columns one value a row of the operation
+ * on that effect, {@link #NONE} where a row leaves it alone. Every
+ * column is as long as the tune, so a row is one index across every
+ * column.
  *
  * <p>Each timer is a separate object, {@code timerA} to {@code timerD},
- * since one row may act on all four. A column appears only where some row
- * fills it.
+ * since one row may act on all four. A timer object appears when some
+ * row acts on it. Its mapping column uses 0 for mappings with only
+ * identity parts and arrays of part numbers when a transformation is
+ * used.
  *
- * <p>A source is written by its number, 1 upward into the sources a tune's
- * rows start ({@link Tunes#sources}). The name beside it appears in the
- * tools' reports alone. A part of a mapping is written the same way, 0
- * for the identity and 1 upward into the transformations the mappings of
- * a tune's rows use ({@link Tunes#transformations}).
+ * <p>A source is written by its number, 1 upward into the sources a
+ * tune's rows start ({@link Tunes#sources}). The name beside it appears
+ * in the tools' reports alone. A part of a mapping is written the same
+ * way, 0 for the identity and 1 upward into the transformations the
+ * mappings of a tune's rows use ({@link Tunes#transformations}).
  */
 public final class Json {
 
@@ -175,9 +178,12 @@ public final class Json {
         return out;
     }
 
-    /** The value of a mapping in its column (6.7): 0 where every part is
-     *  the identity, the mapping of no parts included, and otherwise an
-     *  array of a number a part, 0 the identity and n transformation n. */
+    /**
+     * Encodes a mapping as 0 when every part is identity, including an
+     * empty mapping. Otherwise, writes an array in part order: 0 for
+     * identity and the transformation number for a lookup (json.md
+     * 6.7).
+     */
     private static JsonNode mapping(Mapping mapping, List<Transformation> transformations) {
         if (Tunes.isIdentity(mapping)) {
             return MAKE.numberNode(0);
@@ -380,10 +386,12 @@ public final class Json {
         return tune(tree, VERSION);
     }
 
-    /** One transformation out of its object: {@code entries}, then
-     *  {@code name}, then each entry in key order, as 7.1 step 6 orders
-     *  them (3.7). A line of an error has the name through
-     *  {@link Check#named} (8.1). */
+    /**
+     * Reads entries, name, then each entry in key order (json.md 7.1
+     * step 7). Parsing checks whole numbers; the structure check later
+     * validates entry count and byte range. Error reports escape the
+     * name through {@link Check#named}.
+     */
     private static Transformation transformation(JsonNode one) {
         JsonNode written = array(one, "entries");
         String name = text(one, "name");
@@ -562,11 +570,11 @@ public final class Json {
     }
 
     /**
-     * The mapping at row {@code at} of a start or a remap (6.7): the
-     * column verified present and of the tune's length, then the value
-     * verified 0 or an array of whole numbers, of an array an element
-     * other than 0 among them, and each element 0 to the number of
-     * transformations, in that order.
+     * Reads the mapping for a start or remap. Verify the column exists
+     * and has the tune's row count, then accept scalar 0 or an array of
+     * whole numbers. Reject arrays of only identity parts, including an
+     * empty array, before resolving each number against the
+     * transformation list (json.md 6.7).
      */
     private static Mapping mapping(JsonNode columns, int at, Timer timer, int rows,
                                    List<Transformation> transformations) {
@@ -602,11 +610,13 @@ public final class Json {
         return new Mapping(parts);
     }
 
-    /** Part {@code number} of a mapping at row {@code at}: 0 the identity,
-     *  and n transformation n. The CSV reader calls it too.
+    /**
+     * Resolves a file part number: 0 is identity, otherwise the number
+     * selects a transformation from 1 upward in file order. The CSV
+     * reader uses the same resolution.
      *
-     * @throws IllegalArgumentException where the tune has no such
-     *     transformation
+     * @throws IllegalArgumentException if the number is outside the
+     * transformation list
      */
     static Part part(int number, int at, List<Transformation> transformations) {
         if (number < 0 || number > transformations.size()) {

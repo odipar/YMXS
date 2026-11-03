@@ -253,7 +253,7 @@ left it):
 4. Where i is on, it *starts* where f is RR, or i is a recording, or its
    kind, its target or its source differs from the slot running's. A start
    is a `Start` of the target, source, prescaler and count of i, with the
-   mapping of no parts (SPEC.md 3.6.3), `timerReset` set where f is RR, the
+   identity mapping (SPEC.md 3.6.3), `timerReset` set where f is RR, the
    slot running is off, or the slot running is a recording and f is at or
    after its end frame; `placeReset` clear where f is other than RR, i is a
    square wave, the kind of the last start is a square wave and its target

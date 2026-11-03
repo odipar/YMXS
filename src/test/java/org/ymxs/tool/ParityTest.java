@@ -542,22 +542,16 @@ final class ParityTest {
     }
 
     /**
-     * Each condition of SPEC.md 1.11 that version 7 adds is the same text
-     * in both trees, its lines in the order of 1.12: a transformation of
-     * 255 entries with an entry above 255; of 257 with one, and of 0, each
-     * with its count line and no line of a value of 300 through it, at the
-     * start and at the remap; a key above the last key of a table of 256
-     * entries, of 16 at the start, at the remap after it and at the remap
-     * before it, and of 1; a mapping of two parts on a target of one
-     * register; a value mapped above the most of the register, at the
-     * start and at the remap after it; and a remap read against the start
-     * after it. A remap reads each value once, in row order, each line of
-     * its values prefixed with the row of the start it is read against; a
-     * start reads the keys before the values mapped. The JSON reader reads
-     * a transformation of any number of entries (json.md 3.7). A
-     * transformation of 255 entries, each 0 to 255, reads clean, and so do
-     * a table of 16 entries and one of 256 under one name, two
-     * transformations (SPEC.md 3.6.2).
+     * Compares structure errors across both trees (SPEC.md 1.11, 1.12):
+     * invalid transformation sizes and entries, keys beyond the last
+     * entry, incorrect mapping widths, mapped values beyond register
+     * limits, and remaps before or after their starts.
+     *
+     * <p>Dependent key checks are skipped after an invalid entry count.
+     * Start key errors precede mapped-value errors; remap values are
+     * reported once per connection, in row order, with the start-row
+     * prefix. Valid tables include 255 entries and two differently
+     * sized tables under one name.
      */
     @Test
     void eachErrorOfTheStructureOfVersion7IsOneLineInBothTrees() throws Exception {

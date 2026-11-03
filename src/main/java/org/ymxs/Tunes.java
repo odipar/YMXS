@@ -184,10 +184,10 @@ public final class Tunes {
     }
 
     /**
-     * The transformations of this tune, in the order of SPEC.md 1.9: the
-     * rows from row 0, within a row the timers A to D, and of a start or a
-     * remap each part of its mapping from part 0, a transformation new to
-     * the list appended. The identity is outside the list.
+     * Unique transformations in order of first use (SPEC.md 1.9). Scan
+     * rows from first to last, timers A to D, then mapping parts in
+     * order. Append a transformation on its first occurrence. Identity
+     * parts are excluded.
      */
     public static List<Transformation> transformations(Tune tune) {
         List<Transformation> out = new ArrayList<>();
@@ -208,11 +208,12 @@ public final class Tunes {
         return out;
     }
 
-    /** The number a form writes for {@code part}: 0 for the identity, and
-     *  n for transformation n of {@code transformations}, the list of
-     *  {@link #transformations}.
+    /**
+     * The part's number in the supplied list: 0 for identity, otherwise
+     * the transformation's index plus one.
      *
-     * @throws IllegalArgumentException where the list lacks the part
+     * @throws IllegalArgumentException if the list lacks the
+     * transformation
      */
     public static int number(List<Transformation> transformations, Part part) {
         return switch (part) {
@@ -270,8 +271,10 @@ public final class Tunes {
         return new SetRegister(register);
     }
 
-    /** The registers this target writes, value i of a row to register i.
-     *  The list is the target's width (columns). */
+    /**
+     * The registers this target writes, in mapped-value order. The list
+     * length is the target width.
+     */
     public static List<Register> registers(Target target) {
         return switch (target) {
             case SetRegister set -> List.of(set.register());
@@ -349,8 +352,10 @@ public final class Tunes {
         return registers(target).size();
     }
 
-    /** The largest value that fits value i of a row, register by
-     *  register. A source run by this target stays within them. */
+    /**
+     * The maximum mapped value for each target register, in register
+     * order. Source lookup keys may be larger.
+     */
     public static List<Integer> mosts(Target target) {
         return registers(target).stream().map(Chip::most).toList();
     }
@@ -367,9 +372,11 @@ public final class Tunes {
         };
     }
 
-    /** The rows, a value a register of the target that runs it, and the
-     *  row they repeat to. A source of one value a row reads as a row of
-     *  one. */
+    /**
+     * Raw source rows and their repeat row, with each row represented
+     * as a list. These are values before the effect's mapping; a
+     * transformation interprets them as lookup keys.
+     */
     public static Table<List<Integer>> rows(Source source) {
         return switch (source) {
             case Single single -> new Table<>(
@@ -417,8 +424,10 @@ public final class Tunes {
 
     // ----------------------------------------------------------- an effect
 
-    /** The mapping of a start or a remap, or null for a retune and a
-     *  stop, which have none. */
+    /**
+     * The mapping supplied by a start or remap. A retune or stop
+     * returns null; a retune preserves the running effect's mapping.
+     */
     public static @Nullable Mapping mapping(Effect effect) {
         return switch (effect) {
             case Start start -> start.mapping();
@@ -471,14 +480,20 @@ public final class Tunes {
 
     // ---------------------------------------------------------- a mapping
 
-    /** A mapping of these parts, part i for value i of a row. */
+    /**
+     * Builds a mapping in source-value order. Without parts, every
+     * value uses identity. Otherwise, the target width determines the
+     * required part count.
+     */
     public static Mapping mapping(Part... parts) {
         return new Mapping(List.of(parts));
     }
 
-    /** The parts a tick writes the values of a row through, on a target
-     *  of {@code width} values a row: part i for value i, and the identity
-     *  for each value where the mapping has no parts (SPEC.md 3.6.3). */
+    /**
+     * Expands an empty mapping to {@code width} identity parts. A
+     * nonempty mapping returns its parts unchanged; the caller checks
+     * that the part count fits the target.
+     */
     public static List<Part> parts(Mapping mapping, int width) {
         if (!mapping.parts().isEmpty()) {
             return mapping.parts();
@@ -490,19 +505,22 @@ public final class Tunes {
         return out;
     }
 
-    /** Whether every part of the mapping is the identity, the mapping of
-     *  no parts included: a form writes 0 for such a mapping. */
+    /**
+     * Whether every part is identity, including an empty mapping. JSON
+     * and CSV encode such a mapping as 0. A transformation whose
+     * entries equal their keys is still a lookup.
+     */
     public static boolean isIdentity(Mapping mapping) {
         return mapping.parts().stream().allMatch(part -> part instanceof Identity);
     }
 
-    /** The value written for {@code value} through {@code part}: the value
-     *  itself through the identity, and its entry through a
-     *  transformation (SPEC.md 3.6.4), whose keys are 0 to the number of
-     *  its entries less one, 255 at most (3.6.1).
+    /**
+     * Applies one part: identity returns {@code value}; a
+     * transformation returns its entry at that key. This function
+     * leaves validation to the caller.
      *
-     * @throws IndexOutOfBoundsException where the value is outside the
-     *     keys of the transformation
+     * @throws IndexOutOfBoundsException if a transformation lacks that
+     * key
      */
     public static int written(Part part, int value) {
         return switch (part) {

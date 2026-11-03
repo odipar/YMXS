@@ -195,21 +195,21 @@ cells that are empty:
 | 2 | a stop | none | the other eight |
 | 3 | a remap | `mapping` | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred` |
 
-**3.10** A reader reads the `shape` cell of a row line and then the cells
-the shape selects, in the order 3.9 lists them, each verified as read (4.1
-step 6), those cells alone; it reads 1 in `timerReset`, `placeReset` and
-`deferred` as true and every other whole number as false. It reads a
-`mapping` cell as the whole numbers in it, the cell split at each run of
-white space, the white space before the first and after the last removed,
-and resolves the cell where it reads it: a cell of one number, 0, is the
-mapping of no parts, and any other cell the array of its numbers in order,
-as json.md 6.7 reads them; a cell of several numbers, each 0, is an error
-(5.1). In a file of version 6 or before a reader skips a `mapping` column
-and reads every start with the mapping of no parts, and a `transformation`
-or an `entry` block is a block of any other name (4.1 step 5); in a file
-of version 4 or 3 it skips a `deferred` column too and reads every start
-with `deferred` clear (json.md 2.4). Where two row lines of the blocks of
-one timer name one row, the later in file order replaces the earlier.
+**3.10** Read `shape`, then only its selected cells, in the order of
+3.9, verifying each as read (4.1 step 6). For `timerReset`, `placeReset`
+and `deferred`, 1 is true and every other whole number is false.
+
+For `mapping`, trim surrounding white space and split at runs of white
+space. A single `0` means identity for every value; otherwise resolve
+the numbers as the array of json.md 6.7. Thus `0 0 6` maps only the
+third value through transformation 6. Several zeros without a
+transformation number are an error (5.1).
+
+In version 6 or before, skip `mapping` columns and read each start with
+no mapping parts; reject `transformation` and `entry` as unknown blocks
+(4.1 step 5). In version 4 or 3, also skip `deferred` and read it as
+clear (json.md 2.4). For repeated row numbers in one timer's blocks,
+the later row line replaces the earlier.
 
 **3.11** A `transformation` block has one row line and opens a
 transformation, the n-th `transformation` block of a tune opening
@@ -219,12 +219,12 @@ transformation n:
 |---|---|---|
 | `name` | text | the transformation's name, text for display and for reports; a player skips it |
 
-**3.12** An `entry` block has one row line an entry of the transformation it
-belongs to, its `entry` cells being the entries of keys 0 upward of that
-transformation; where several `entry` blocks belong to one transformation,
-their entries continue in file order. A reader reads any number of
-entries, 0 where a `transformation` block has no `entry` block; a count
-outside 1 to 256 is an error of the structure (SPEC.md 1.11, 3.6.1; 5.3):
+**3.12** An `entry` block appends entries to the preceding transformation,
+one per row line in file order. The first entry has key 0. Further
+`entry` blocks continue that list; `key` cells are labels and do not
+select positions. A transformation without an `entry` block has an empty
+list. A count outside 1 to 256 is an error of the structure (SPEC.md
+1.11, 3.6.1; 5.3):
 
 | column | cell | meaning |
 |---|---|---|

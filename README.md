@@ -69,8 +69,8 @@ the pipe a stage at a time.
 | effect | the source connected to a target on a timer through a mapping, at the rate of its prescaler and count |
 | source | a name and a table of one, two or three values a row |
 | target | a procedure the player calls at a tick with one row of a source |
-| transformation | a name and a list of 1 to 256 entries, each 0 to 255: entry k is the value written where the value read is k |
-| mapping | a list of parts, each the identity or a transformation, part i for value i of a row |
+| transformation | an optional lookup: source value k selects entry k as the value written; a named list of 1 to 256 entries, each 0 to 255 |
+| mapping | one part per source value, identity or a transformation; an empty mapping uses identity for every value |
 | identity | the part of a mapping that writes each value as it is |
 | host | the program that selects a tune and calls the player once a frame |
 | YM5 or YM6 dump | a file of sixteen bytes a frame, one a register of the YM2149 |
@@ -78,23 +78,29 @@ the pipe a stage at a time.
 
 ## Reading and playback
 
-A reader loads a file into the tune data structure. The host calls
-the player at the tune's frame rate; the MFP timers raise ticks at
-each effect's rate. Both procedures write YM registers.
+A reader loads tune rows, sources and transformations. The host calls
+the player at the frame rate; MFP timers raise ticks at each effect's
+rate. At a tick, the effect's mapping leaves source values unchanged or
+uses optional transformation lookups before the target writes YM
+registers. This allows sample volume control and fades while the source
+continues from its current row.
 
 ```mermaid
 flowchart TD
     file[JSON or CSV] --> reader[Reader]
-    reader --> data[(Tune and sources)]
+    reader --> data[(Tune rows, sources, transformations)]
     host[Host] -->|frame at tune rate| frame[Player: read tune row]
     data -.-> frame
     frame --> operations[Start / Retune / Stop / Remap]
     operations --> registers[Write row registers]
     registers --> ym[YM2149]
-    operations -->|configure| mfp[MFP timers]
-    mfp -->|tick at effect rate| tick[Player: read source row]
+    operations -->|source, target, mapping, timing| effect[Effect on each timer]
+    effect -->|prescaler and count| mfp[MFP timers]
+    mfp -->|tick at effect rate| tick[Read source row at place]
     data -.-> tick
-    tick --> target[Write through target]
+    effect -.-> mapping[Apply mapping to each source value]
+    tick --> mapping
+    mapping -->|identity or transformation lookup| target[Target: write register values]
     target --> ym
 ```
 
@@ -106,6 +112,12 @@ sections 4 and 5 define the procedures; section 8.6 leaves the timing of
 ticks within a frame to a later version.
 
 ## Implementing a player or a reader
+
+For transformations, begin with [SPEC.md 3.6](doc/SPEC.md#36-transformations-and-mappings):
+lookup tables, per-effect mappings, tick processing and validation. It
+also covers sample volume control, fades and volume independent of pitch.
+`Remap` changes subsequent ticks without restarting the source; a pending
+start retains its separate mapping.
 
 Start with [SPEC.md](doc/SPEC.md): data structure and chip values
 (1 to 3), playback (4 and 5), writer rules (6), recorder output (7),

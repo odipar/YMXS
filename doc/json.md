@@ -127,11 +127,10 @@ reads the first-start number whichever order a file has (SPEC.md 7.4).
 1.11, 8.3).
 
 **3.8** A reader reads transformations in file order, transformation n at
-index n - 1. An emitter emits each transformation of the tune once, in the
-number order of SPEC.md 1.9, so the two numberings are one in a file an
-emitter wrote; the record of a recorder reads the number of SPEC.md 1.9
-whichever order a file has (SPEC.md 7.4). Two transformations are one
-transformation where equal as SPEC.md 3.6.2 defines.
+index n - 1. An emitter lists each once, in order of first use (SPEC.md 1.9).
+Transformation equality includes both name and entries (SPEC.md 3.6.2).
+A recorder numbers transformations in order of first use, even when their
+file order differs (SPEC.md 7.4).
 
 **3.9** Every transformation in `transformations` is a part of the mapping
 of a row (6.7); an unused transformation is an error (8.1). Note: the
@@ -160,12 +159,11 @@ of one register an error of the structure (SPEC.md 1.11, 8.3), and on a
 target of two or three registers the line `a source of 1 values a row on
 setRn, which reads U` of 8.1, which ends the reading (7.1 step 8).
 
-**4.3** Value i of every row is, for every start of the source, 0 to the
-most of register i of its target where part i of a mapping is the identity,
-and a key, 0 to the last key of the transformation, where it is a
-transformation, through the mapping of the start and through the mapping of
-every remap on its timer (SPEC.md 3.2.2, 3.6.5; ranges in 5.1); outside that
-is an error of the structure (8.3).
+**4.3** Validate source values through each start's mapping: identity
+values must fit the target register; transformation keys must fit the
+entry list, and the selected entries must fit the register. Repeat this
+for every remap on that timer (SPEC.md 3.6.5; ranges in 5.1). Failures are
+errors of the structure (8.3).
 
 **4.4** Every source in `sources` is started by a row; an unstarted source
 is an error (8.1). Note: the structure reaches a source through the row that
@@ -249,20 +247,24 @@ number as false.
 outside 0 to 255, and a prescaler and count whose rate (SPEC.md 3.3)
 exceeds 125,000 ticks a second, are errors of the structure (8.3).
 
-**6.7** `mapping` at a row of shape 0 or 3 is the whole number 0 or an
-array of whole numbers (SPEC.md 3.6.3). 0 is the mapping of no parts, the
-identity in every part, at a start and at a remap. An array is a part for
-each element, in order: 0 the identity and n, 1 to M, transformation n
-(1.7). A reader resolves each `mapping` where it reads it (7.1 step 8). An
-emitter emits 0 for a mapping whose every part is the identity, the
-mapping of no parts included, and the array otherwise. A `mapping` other
-than 0 and an array of whole numbers, an array whose every element is 0,
-the empty array included, and an element outside 0 to M, are errors
-(8.1); the number of its parts is an error of the structure where SPEC.md
-1.11 defines one (8.3). Note: a mapping whose every part is the identity
-reads back as the mapping of no parts, and a recorder writes 0 for both
-(SPEC.md 7.4); where its number of parts is an error of SPEC.md 1.11, the
-mapping read back is free of that error.
+**6.7 Mappings.** At a start (`shape` 0) or remap (`shape` 3), read
+`mapping` as follows, with M transformations in file order:
+
+| value | meaning |
+|---|---|
+| `0` | identity for every value; the structure has no parts |
+| an array | one part per element, in target register order: 0 is identity, n from 1 to M is transformation n |
+
+Resolve transformation numbers when reading the operation (7.1 step 8).
+A mapping other than `0` or an array of whole numbers is an error of
+the form. An array containing only zeros, including `[]`, or an element
+outside 0 to M is also an error of the form (8.1). A part count that
+does not fit the target is an error of the structure (8.3).
+
+An emitter writes `0` when every part is identity, including an empty
+mapping, and an array otherwise. Note: this removes explicit identity
+parts on reading back, including an incorrect part count. A recorder
+also writes `0` for both representations (SPEC.md 7.4).
 
 ---
 
@@ -515,14 +517,17 @@ alone, so every column of `timerA` is -1 there; row 3 is a stop, so every
 column but `shape` is -1 there. `doc/tunes/example.csv` is the same tune
 in the CSV form (csv.md 8).
 
-**10.3** `doc/tunes/fade.json`, informative: a fade through the
-transformations `Vn` of SPEC.md 3.6.5. Row 0 starts source 1, `square
-15`, on `setR8` on Timer A through `V15`, and rows 1 to 15 remap it
-through `V14` down to `V0`, so `mapping` of `timerA` is `[1]` to `[16]`
-at rows 0 to 15. Row 16 stops it and starts source 2, `chord`, on
-`setVoiceA` on Timer B through `[0,0,6]`: the identity on the tone period
-and `V10`, transformation 6, on the volume alone. The chord runs on
-another timer than the fade, since a remap of one part on a timer that
-starts `setVoiceA` is an error of the structure (SPEC.md 1.11).
-`transformations` lists the sixteen in the number order of SPEC.md 1.9,
-`V15` first, the 16 entries of each on one line (9.6).
+**10.3 A fade.** `doc/tunes/fade.json`, informative, uses the `Vn` volume
+transformations of SPEC.md 3.6.5. Its `transformations` array begins with
+`V15` and ends with `V0`, in order of first use, each entry list on one line.
+
+| tune rows | operation | mapping |
+|---|---|---|
+| 0 | start `square 15` on `setR8`, Timer A | `[1]`, through `V15` |
+| 1 to 15 | remap Timer A, leaving the source running | `[2]` through `[16]`, selecting `V14` down to `V0` |
+| 16 | stop Timer A | unused (`-1`) |
+| 16 | start `chord` on `setVoiceA`, Timer B | `[0,0,6]`: identity for tone fine and coarse, `V10` for volume |
+
+The chord uses another timer because every remap must fit every start
+on its timer. The fade's one-part mappings do not fit `setVoiceA`'s
+three registers (SPEC.md 3.6.5).

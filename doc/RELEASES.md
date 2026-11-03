@@ -31,14 +31,15 @@ number names the tools rather than the format.
 <https://github.com/odipar/YMXS/releases/tag/v0.7.0>, built from the commit
 tagged `v0.7.0`.
 
-The structure's version is 7: a transformation maps the values of a source
-on their way to the target (SPEC.md 3.6). A transformation is a name and 1
-to 256 entries, each 0 to 255, and a source value through it is a key, at
-most its last key. A mapping has a part for each value of a row, the
-identity or a transformation; each `Start` has one, and a new operation,
-`Remap`, sets the mapping of the effect a timer runs, as a `Retune` sets its
-rate. A fade is a `Remap` a frame. A writer writes 7, and a reader reads 7,
-6, 5, 4 and 3.
+The structure's version is 7: a transformation maps the values of a
+source on their way to the target (SPEC.md 3.6). A transformation is a
+name and 1 to 256 entries, each 0 to 255, and a source value through it
+is a key, at most its last key. Each `Start` has a mapping: empty for
+identity at every value, or one part per value, identity or a
+transformation. Lookups are optional. A new operation, `Remap`, sets the
+mapping of the effect a timer runs, as a `Retune` sets its rate. A fade
+is a `Remap` a frame. A writer writes 7, and a reader reads 7, 6, 5, 4
+and 3.
 
 - **The structure.** `Start` is one record of a `Connection`, its timing,
   the deferred flag and its mapping, and `OneConnection`, `TwoConnection`
@@ -70,8 +71,8 @@ rate. A fade is a `Remap` a frame. A writer writes 7, and a reader reads 7,
   `Starting` has a fifth parameter, the mapping, and a caller of it changes
   with it; `Remap` is a fourth effect; `PartNumbers` returns an error for a
   transformation the list lacks; `text.Version` is 7.
-- **The examples.** `doc/tunes/fade.json` is a fade of sixteen remaps
-  through `V15` to `V0`, of 16 entries each, and the kit gains a tune
+- **The examples.** `doc/tunes/fade.json` starts through `V15` and remaps
+  through `V14` down to `V0`, each of 16 entries. The kit gains a tune
   through transformations; the examples and the kit's tunes are version 7.
 
 Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release and

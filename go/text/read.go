@@ -350,10 +350,10 @@ func sourcesOf(at *members, version int) ([]ymxs.Source, error) {
 	return out, nil
 }
 
-// transformationsOf is the transformations of a tune, in file order: for
-// each, entries, then name, then each entry (json.md 7.1 step 6). The
-// count of entries and their range are errors of the structure (SPEC.md
-// 1.11), which the check reports after the reading.
+// transformationsOf reads transformations in file order: entries, name,
+// then each entry in key order (json.md 7.1 step 7). Parsing checks
+// whole numbers; the structure check later validates entry count and
+// byte range.
 func transformationsOf(at *members) ([]ymxs.Transformation, error) {
 	written, err := array(at, "transformations")
 	if err != nil {
@@ -471,12 +471,11 @@ func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effe
 		" %d, %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop, Remap)
 }
 
-// mappingOf is the mapping at a row of a start or a remap (json.md 6.7):
-// the column verified present and of length R, then the value at the row
-// verified as 0 or an array of whole numbers, of an array an element other
-// than 0 among them, and each element 0 to M, in that order. 0 is the
-// mapping of no parts; an array is a part an element, 0 the identity and n
-// transformation n.
+// mappingOf reads the mapping for a start or remap. Verify the column
+// exists and has the tune's row count, then accept scalar 0 or an array
+// of whole numbers. Reject arrays of only identity parts, including an
+// empty array, before resolving each number against the transformation
+// list (json.md 6.7).
 func (r reading) mappingOf(columns *members, at int, timer ymxs.Timer) (ymxs.Mapping,
 	error) {
 	written, set := columns.get("mapping")
@@ -516,9 +515,10 @@ func (r reading) mappingOf(columns *members, at int, timer ymxs.Timer) (ymxs.Map
 	return Resolved(numbers, r.transformations, at)
 }
 
-// Resolved is the mapping of the part numbers at a row: 0 the identity
-// and n transformation n of the tune, 1 to M. A number outside 0 to M is
-// the error of json.md 8.1 and csv.md 5.1. The CSV reader calls it too.
+// Resolved converts file part numbers into a mapping: 0 is Identity,
+// otherwise the number selects a transformation from 1 upward in file
+// order. A number outside that range is an error of the form. The CSV
+// reader uses the same resolution.
 func Resolved(numbers []int, transformations []ymxs.Transformation, at int) (ymxs.Mapping,
 	error) {
 	parts := make([]ymxs.Part, len(numbers))

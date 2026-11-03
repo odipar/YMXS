@@ -1,15 +1,20 @@
-// Package ymxs is the tune data structure. These declarations are its
-// specification, and doc/SPEC.md defines what a player or an emulator does
-// with them on an Atari ST's YM2149 and MC68901.
+// Package ymxs defines tune data for the Atari ST's YM2149 and MC68901.
+// doc/SPEC.md defines playback and validation.
 //
-// The types here have no methods beyond their fields. A structure is read
-// by a function outside it: the chip figures in chip.go, what is read off a
-// structure in tunes.go, and the rules a structure must satisfy in the
-// check package.
+// A frame applies a tune row's register writes and timer operations. A
+// tick reads a source row, applies the effect's mapping, then writes
+// through its target. Transformation lookups are optional: the zero
+// Mapping uses identity for every value.
 //
-// A form encodes a tune. doc/json.md defines one; a player's binary
-// layout is another. No part of this is arranged for a form, and every
-// limit here follows from the two chips.
+// Start supplies a connection, timing and mapping. Remap changes the
+// running effect's mapping without restarting its source; a pending
+// Start retains its separate mapping. Volume transformations can scale
+// a sample or fade it while playback continues from its current place.
+//
+// Sources and Transformations collect data in order of first use. The
+// check package validates lookup sizes, keys, mapped values and mapping
+// widths. JSON, CSV and player binary layouts are separate encodings of
+// these types.
 package ymxs
 
 // Multi is several tunes, which a host plays as a tune with subtunes. A
@@ -18,8 +23,10 @@ type Multi struct {
 	Tunes []Tune
 }
 
-// Tune is one tune: its title, and its rows, one a frame at the tune's
-// rate. Its sources are the ones its rows start (Sources).
+// Tune contains metadata, a frame rate and tune rows. Sources are
+// collected from its starts (Sources), and transformations from its
+// starts and remaps (Transformations). A tune with only identity
+// mappings uses no transformations.
 type Tune struct {
 	Title    string
 	Composer string
@@ -86,15 +93,13 @@ type Timing struct {
 	PlaceReset bool
 }
 
-// Start runs a source on a target through a mapping at that rate, from
-// this row on. Every start records the connection, the mapping and the
-// rate, changed or not, since a start defines the effect rather than the
-// fields of it that differ. The zero Mapping is the mapping of no parts,
-// the identity in every part.
+// Start connects a source and target with the supplied timing and
+// mapping. The zero Mapping uses identity for every source value;
+// transformation lookups are optional.
 //
-// A start with Deferred set on a timer running an effect is pending until
-// the source of that effect has played its last row, and a tick performs it
-// there (SPEC.md 3.5).
+// With Deferred set on a running effect, the start remains pending
+// until the current source's last row. It keeps its mapping while
+// pending, even if a Remap changes the running effect (SPEC.md 3.5).
 type Start struct {
 	Connection Connection
 	Timing     Timing
@@ -128,9 +133,9 @@ type ThreeConnection struct {
 	Source Triple
 }
 
-// Retune leaves the effect on its source and target, at the rate in this
-// value. A bend changes the count; a note struck again at the rate already
-// running changes the place alone.
+// Retune changes timing and resets while preserving the source, target
+// and mapping. A bend changes the count; a retrigger can reset the
+// source place at the same rate.
 type Retune struct {
 	Timing Timing
 }
@@ -139,10 +144,12 @@ type Retune struct {
 // later row starts a source on it.
 type Stop struct{}
 
-// Remap sets the mapping of the effect the timer runs, and leaves its
-// source, its rate and its place as they were: a fade is a remap a frame,
-// each through the next transformation of a volume. A start pending on the
-// timer keeps the mapping of its row (SPEC.md 3.5.5).
+// Remap replaces the running effect's mapping for subsequent ticks. Its
+// source, target, timing and place are unchanged. A pending Start
+// retains its separate mapping; an idle timer stays idle.
+//
+// Use successive volume transformations for a fade without restarting
+// the sample, or the zero Mapping to restore identity.
 type Remap struct {
 	Mapping Mapping
 }
@@ -156,11 +163,10 @@ func (OneConnection) connection()   {}
 func (TwoConnection) connection()   {}
 func (ThreeConnection) connection() {}
 
-// Target is the procedure a timer's tick calls with a source's row: it
-// reads one row and writes it to the registers of the target, value i to
-// register i. A target is grouped by the values a row it reads, so a
-// connection pairs it with a source of that width. A later version defines
-// targets reaching the MC68901 registers.
+// Target writes mapped source values to YM2149 registers in target
+// order. The effect's mapping supplies either each source value
+// unchanged or an optional transformation lookup. Target and source
+// widths must match through their Connection.
 type Target interface {
 	target()
 }
@@ -185,8 +191,8 @@ type ThreeTarget interface {
 	threeTarget()
 }
 
-// SetRegister is setR0 to setR13, which write a source's row to one
-// YM2149 register.
+// SetRegister writes one mapped source value to a YM2149 register:
+// setR0 to setR13.
 type SetRegister struct {
 	Register Register
 }
@@ -206,9 +212,10 @@ type SetNoise struct {
 // SetEnvelope is the envelope period, fine then coarse.
 type SetEnvelope struct{}
 
-// SetVoice is the tone period of one voice and its volume, whose bit 4
-// selects the envelope, so one source moves a voice's pitch and volume and
-// hands the voice to the envelope generator on a row.
+// SetVoice writes tone fine, tone coarse and volume for one voice.
+// Identity parts preserve pitch while an optional transformation on the
+// volume scales volume levels. Volume bit 4 selects the envelope
+// generator.
 type SetVoice struct {
 	Voice Voice
 }
@@ -230,9 +237,10 @@ func (SetEnvelope) twoTarget() {}
 func (SetVoice) threeTarget()  {}
 func (SetBuzzer) threeTarget() {}
 
-// Source is a table a tick advances a row at a time, its target writing
-// each row. A source is grouped by the values a row, as a target is by the
-// values it reads.
+// Source contains rows read one per tick. Each value passes through its
+// mapping part before the target writes it: unchanged through identity,
+// or as a lookup key through a transformation. The row width matches
+// the target through its Connection.
 type Source interface {
 	source()
 }
@@ -274,30 +282,37 @@ func (Single) source() {}
 func (Pair) source()   {}
 func (Triple) source() {}
 
-// Mapping is, for each value of a row, the part a tick writes it through:
-// part i maps value i, and a mapping of one part or more has a part for
-// each value its target reads (SPEC.md 3.6.3). The mapping of no parts,
-// the zero Mapping, is the identity in every part.
+// Mapping contains parts in the order of source values and target
+// registers. The zero Mapping means identity for every value.
+// Otherwise, supply one part per value: Identity for an unchanged value
+// or Transformation for a lookup.
+//
+// For SetVoice, identity on tone fine and coarse plus a volume
+// transformation changes volume alone (SPEC.md 3.6.3).
 type Mapping struct {
 	Parts []Part
 }
 
-// Part is how a tick writes one value of a row: as it is, or through a
-// transformation.
+// Part maps one source value: Identity leaves it unchanged;
+// Transformation selects a lookup entry.
 type Part interface {
 	part()
 }
 
-// Identity is the part that writes each value as it is. A transformation
-// whose entry k is k at every key is a separate part from this one.
+// Identity leaves a source value unchanged, without a lookup. A
+// transformation whose entries equal their keys remains a separate part
+// with a bounded key range.
 type Identity struct{}
 
-// Transformation is a name and E entries, E from 1 to MostEntries, each 0
-// to MostEntry: entry k is the value written where the value read is k,
-// the key. Its keys are 0 to E - 1, and E - 1 is its last key (LastKey).
-// The name is text for display and for reports, and two transformations
-// are one where their names and their entries are equal in number and
-// order (TransformationEqual).
+// Transformation is an optional lookup table: source value k selects
+// Entries[k] as the value written. The list has 1 to MostEntries
+// entries, each 0 to MostEntry; keys run from 0 to the entry count
+// minus one.
+//
+// A table can scale sample levels without copying the source. The
+// mapping selects which source values use it. Names are for display,
+// reports and equality; TransformationEqual compares names and entries
+// in number and order (SPEC.md 3.6).
 type Transformation struct {
 	Name    string
 	Entries []int

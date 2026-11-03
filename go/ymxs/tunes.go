@@ -159,8 +159,8 @@ func Setting(register Register) OneTarget {
 	return SetRegister{Register: register}
 }
 
-// TargetRegisters is the registers this target writes, value i of a row
-// to register i. Its length is the target's width (TargetColumns).
+// TargetRegisters returns the registers this target writes, in
+// mapped-value order. The list length is the target width.
 func TargetRegisters(target Target) []Register {
 	switch t := target.(type) {
 	case SetRegister:
@@ -249,8 +249,8 @@ func TargetColumns(target Target) int {
 	return len(TargetRegisters(target))
 }
 
-// TargetMosts is the largest value that fits value i of a row, register by
-// register. A source run by this target stays within them.
+// TargetMosts returns the maximum mapped value for each target
+// register, in register order. Source lookup keys may be larger.
 func TargetMosts(target Target) []int {
 	var out []int
 	for _, register := range TargetRegisters(target) {
@@ -295,9 +295,9 @@ func Reported(name string) string {
 // breaks writes a line feed as \n and a carriage return as \r.
 var breaks = strings.NewReplacer("\n", `\n`, "\r", `\r`)
 
-// SourceRows is the rows of the source, a value a register of the target
-// that runs it, and the row they repeat to. A source of one value a row
-// reads as a row of one.
+// SourceRows returns raw source rows and their repeat row, with each
+// row represented as a slice. These are values before the effect's
+// mapping; a transformation interprets them as lookup keys.
 func SourceRows(source Source) Table[[]int] {
 	switch s := source.(type) {
 	case Single:
@@ -520,8 +520,9 @@ func Bend(prescaler Prescaler, count int) Retune {
 
 // ---------------------------------------------------------- a mapping
 
-// MappingOf is the mapping of a start or a remap, and whether the effect
-// is one of the two.
+// MappingOf returns the mapping supplied by a start or remap, with
+// true. A retune or stop returns the zero Mapping with false; a retune
+// preserves the running effect's mapping.
 func MappingOf(effect Effect) (Mapping, bool) {
 	switch e := effect.(type) {
 	case Start:
@@ -532,13 +533,16 @@ func MappingOf(effect Effect) (Mapping, bool) {
 	return Mapping{}, false
 }
 
-// Mapped is the mapping of these parts, part i for value i of a row.
+// Mapped builds a mapping in source-value order. Without parts, every
+// value uses identity. Otherwise, the target width determines the
+// required part count.
 func Mapped(parts ...Part) Mapping {
 	return Mapping{Parts: parts}
 }
 
-// IsIdentity is whether every part of the mapping is the identity, the
-// mapping of no parts included. A form writes such a mapping as 0.
+// IsIdentity reports whether every part is Identity, including the zero
+// Mapping. JSON and CSV encode such a mapping as 0. A transformation
+// whose entries equal their keys is still a lookup.
 func IsIdentity(mapping Mapping) bool {
 	for _, part := range mapping.Parts {
 		if _, identity := part.(Identity); !identity {
@@ -548,10 +552,9 @@ func IsIdentity(mapping Mapping) bool {
 	return true
 }
 
-// PartAt is part i of a mapping of no parts or of a part for each value:
-// the identity for every value of the mapping of no parts (SPEC.md 3.6.3).
-// Past the last part of a mapping of another number of parts, an error of
-// SPEC.md 1.11, it is the identity too.
+// PartAt returns part i, or Identity when i is outside the part list.
+// This expands the zero Mapping to identity at every position. Validate
+// a nonempty mapping's part count separately.
 func PartAt(mapping Mapping, i int) Part {
 	if i < 0 || i >= len(mapping.Parts) {
 		return Identity{}
@@ -559,9 +562,9 @@ func PartAt(mapping Mapping, i int) Part {
 	return mapping.Parts[i]
 }
 
-// TransformationEqual is whether two transformations are one: the same
-// name over the same entries in number and order (SPEC.md 3.6.2). Equal
-// entries under two names are two transformations.
+// TransformationEqual compares names and entries, including entry count
+// and order. Equal entries under different names are separate
+// transformations (SPEC.md 3.6.2).
 func TransformationEqual(a, b Transformation) bool {
 	if a.Name != b.Name || len(a.Entries) != len(b.Entries) {
 		return false
@@ -574,10 +577,9 @@ func TransformationEqual(a, b Transformation) bool {
 	return true
 }
 
-// LastKey is the largest key of the transformation, E - 1 for E entries
-// (SPEC.md 3.6.1). The second result is false where E is outside 1 to
-// MostEntries: that count is an error of SPEC.md 1.11, and the line of a
-// value above the last key rests on it (1.12).
+// LastKey returns the entry count minus one, and whether that count is
+// within 1 to MostEntries. A false result prevents dependent key checks
+// after the entry-count error (SPEC.md 1.12).
 func LastKey(transformation Transformation) (int, bool) {
 	entries := len(transformation.Entries)
 	return entries - 1, entries >= 1 && entries <= MostEntries
@@ -591,18 +593,14 @@ const MostEntries = 256
 // key.
 const MostEntry = 255
 
-// Through is the value written for the value read through the part
-// (SPEC.md 3.6.4): the value itself through the identity, and entry k
-// through a transformation, k the value read. By SPEC.md 1.12, a value
-// through a transformation of 1 to 256 entries is read against its last
-// key; where the value is a key, its entry is compared with the register's
-// most where that entry is 0 to 255, and a value through a transformation
-// of another number of entries is skipped. Through returns that entry, and
-// the check compares it with the register's most; MostEntries and
-// MostEntry are 256 and 255. The second result is true through the
-// identity, and through a transformation of 1 to 256 entries where the
-// value is a key and entry k is 0 to 255. An entry outside that range at
-// another key leaves entry k read.
+// Through applies one part. Identity returns the input with true. A
+// transformation returns Entries[value] with true when its entry count,
+// key and selected entry are valid.
+//
+// The second result is false for an invalid count, missing key or
+// selected entry outside the byte range. Other entries are checked
+// separately. The caller compares a valid result with the target
+// register's maximum (SPEC.md 1.12).
 func Through(part Part, value int) (int, bool) {
 	switch p := part.(type) {
 	case Identity:
@@ -621,10 +619,10 @@ func Through(part Part, value int) (int, bool) {
 	panic(fmt.Sprintf("no part %T", part))
 }
 
-// Transformations is the transformations this tune maps through, in the
-// order of SPEC.md 1.9: the rows from row 0, within a row the timers A to
-// D, and of a start or a remap each part of its mapping from part 0 that
-// is a transformation new to the list.
+// Transformations returns unique transformations in order of first use
+// (SPEC.md 1.9). Scan rows from first to last, timers A to D, then
+// mapping parts in order. Append a transformation on its first
+// occurrence. Identity parts are excluded.
 func Transformations(tune Tune) []Transformation {
 	var out []Transformation
 	for _, row := range Rows(tune) {
@@ -655,10 +653,9 @@ func TransformationNumber(tune Tune, transformation Transformation) (int, error)
 	return at + 1, nil
 }
 
-// PartNumbers is the number of each part of the mapping in part order, as
-// a form writes it: 0 the identity, and n transformation n of the list,
-// 1 upward. Where the list lacks a transformation of the mapping, the
-// error reports the first one by its name.
+// PartNumbers returns one number per part: 0 for Identity, otherwise
+// the transformation's index in the supplied list plus one. A missing
+// transformation returns an error naming the first missing part.
 func PartNumbers(mapping Mapping, transformations []Transformation) ([]int, error) {
 	out := make([]int, len(mapping.Parts))
 	for at, part := range mapping.Parts {

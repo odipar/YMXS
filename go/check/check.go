@@ -123,9 +123,9 @@ func Effect(effect ymxs.Effect) []string {
 	panic(fmt.Sprintf("no effect %T", effect))
 }
 
-// Source lists what is wrong with a source, or an empty list. A source's
-// values are read against the target that runs it, so this reads only what
-// is decidable without one.
+// Source checks the source table and negative values. Register limits
+// and lookup-key limits depend on a start's target and mapping; use
+// Tune for those checks.
 func Source(source ymxs.Source) []string {
 	rows := ymxs.SourceRows(source)
 	said := table(len(rows.Rows), rows.Repeat, "the source")

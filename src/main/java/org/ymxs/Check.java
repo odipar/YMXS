@@ -197,9 +197,11 @@ public final class Check {
                 + ", and a key is 0 to " + lastKey(transformation);
     }
 
-    /** What is wrong with a source, or an empty list. A source's values
-     *  are read against the target that runs it, so this reads only what
-     *  is decidable without one. */
+    /**
+     * Checks the source table and negative values. Register limits and
+     * lookup-key limits depend on a start's target and mapping; use the
+     * tune check for those.
+     */
     public static List<String> of(Source source) {
         List<String> said = new ArrayList<>(table(Tunes.rows(source), "the source"));
         List<List<Integer>> rows = Tunes.rows(source).rows();

@@ -69,8 +69,8 @@ the pipe a stage at a time.
 | effect | the source connected to a target on a timer through a mapping, at the rate of its prescaler and count |
 | source | a name and a table of one, two or three values a row |
 | target | a procedure the player calls at a tick with one row of a source |
-| transformation | a name and a list of 1 to 256 entries, each 0 to 255: entry k is the value written where the value read is k |
-| mapping | a list of parts, each the identity or a transformation, part i for value i of a row |
+| transformation | an optional lookup: source value k selects entry k as the value written; a named list of 1 to 256 entries, each 0 to 255 |
+| mapping | one part per source value, identity or a transformation; an empty mapping uses identity for every value |
 | identity | the part of a mapping that writes each value as it is |
 | host | the program that selects a tune and calls the player once a frame |
 | YM5 or YM6 dump | a file of sixteen bytes a frame, one a register of the YM2149 |
@@ -80,9 +80,10 @@ the pipe a stage at a time.
 
 A reader loads tune rows, sources and transformations. The host calls
 the player at the frame rate; MFP timers raise ticks at each effect's
-rate. At a tick, the effect's mapping converts source values through
-lookup tables before its target writes YM registers. This allows sample
-volume control and fades while the source continues from its current row.
+rate. At a tick, the effect's mapping leaves source values unchanged or
+uses optional transformation lookups before the target writes YM
+registers. This allows sample volume control and fades while the source
+continues from its current row.
 
 ```mermaid
 flowchart TD

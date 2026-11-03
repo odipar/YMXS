@@ -553,11 +553,11 @@ including entry count and order. Equal transformations are listed once
 per tune (1.9). Equal entries under different names are separate
 transformations.
 
-**3.6.3 Mapping a source row.** A *mapping* has a part for each value of
-a source row, in target register order. Each part is the identity or a
-transformation. An empty list of parts means identity for every value;
-otherwise the part count must equal the target's register count. Another
-part count is an error of the structure (1.11).
+**3.6.3 Mapping a source row.** Transformation lookups are optional.
+A *mapping* with no parts uses identity for every source value. Otherwise,
+supply one part per value in target register order: identity for an
+unchanged value or a transformation for a lookup. A different part count
+is an error of the structure (1.11).
 
 Each effect has a mapping. A `Start` installs its mapping when it
 connects the source and target. A `Remap` replaces the running effect's

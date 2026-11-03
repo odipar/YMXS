@@ -211,8 +211,7 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 					unmoved := !keyframe && slot[i].Kind == Square &&
 						lastKind[i] == Square && lastRan[i] &&
 						lastTarget[i] == slot[i].Target
-					// every start through the mapping of no parts (ym.md
-					// 7.4 step 4)
+					// Imported source values use identity (ym.md 7.4 step 4).
 					here[timerOf[i]] = ymxs.Start{
 						Connection: ymxs.OneConnection{
 							Target: ymxs.Setting(slot[i].Target),

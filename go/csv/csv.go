@@ -1,26 +1,14 @@
-// Package csv is the other form: a tune as tables, for reading in a
-// spreadsheet (doc/csv.md). It writes what the text package writes, and
-// both read into the same structure.
+// Package csv reads and writes the CSV encoding of YMXS (doc/csv.md).
 //
-// A line beginning "### " opens a table and names it. The line after it
-// names the columns, and every line after that is one row of the table, in
-// ordinary comma-separated values, until the next such line. The column
-// names are over the cells they name.
+// A heading beginning "### " opens a block. The next nonblank line
+// lists columns, followed by row lines up to the next heading. Blank
+// cells leave registers unchanged.
 //
-//	### tune
-//	title,composer,writer,rate,rows,repeat
-//	Circus Attractions #2,Mad Max,ym-to-ymxs,50,4,0
-//
-// These are ordinary tables, and they are the tables the JSON form writes:
-// one form follows from the other. A row of a tune is a row here, with a
-// column a register, and an empty cell is a register the row does not set.
-//
-// A tune opens with a tune table, and the tables after it belong to that
-// tune until the next tune table; a source opens with a source table, and
-// the values after it belong to that source; a transformation opens with a
-// transformation table, and the entries after it belong to that
-// transformation. A table therefore needs no column for its tune, its
-// source or its transformation: position determines that.
+// Blocks after a tune block belong to that tune. Value blocks append
+// rows to the preceding source; entry blocks append lookup entries to
+// the preceding transformation. Position determines these
+// relationships. A mapping cell is 0 for identity at every value, or
+// space-separated part numbers when transformation lookups are used.
 package csv
 
 import (
@@ -176,12 +164,11 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 	}
 }
 
-// mappingCell is the mapping cell of a start or a remap (csv.md 6.3): 0 for
-// a mapping whose every part is the identity, the mapping of no parts
-// included, and otherwise the number of each part in order, separated by
-// one space. The list is the tune's (ymxs.Transformations), which has every
-// transformation of every mapping of the tune in it, so an error of
-// ymxs.PartNumbers is a fault of this package and panics past Write.
+// mappingCell encodes an mapping with only identity parts as the cell
+// 0. Otherwise, it writes space-separated part numbers: 0 for Identity
+// and the transformation number for a lookup (csv.md 6.3). The supplied
+// list must include every transformation used by the mapping; a missing
+// one panics.
 func mappingCell(mapping ymxs.Mapping, transformations []ymxs.Transformation) string {
 	if ymxs.IsIdentity(mapping) {
 		return "0"
@@ -655,12 +642,10 @@ func effectOf(acts *block, one []string, sources []ymxs.Source,
 		" or %d", at, shape, text.Start, text.Retune, text.Stop, text.Remap)
 }
 
-// mappingOf is the mapping of a mapping cell at a row (csv.md 3.10): the
-// cell split at each run of white space, then verified as whole numbers,
-// one or more; of several, a number other than 0 among them; each number
-// 0 to M, in that order. A cell of one number, 0, is the mapping of no
-// parts, and any other cell the parts of its numbers, 0 the identity and n
-// transformation n.
+// mappingOf splits a cell at white space and requires whole numbers. A
+// single 0 means identity for every value. Otherwise, reject all-zero
+// lists, then resolve each part number against the transformation list
+// (csv.md 3.10).
 func mappingOf(cell string, transformations []ymxs.Transformation, at int) (ymxs.Mapping,
 	error) {
 	parts := strings.Fields(cell)

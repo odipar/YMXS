@@ -1,20 +1,15 @@
-// Package check reads the rules a structure must satisfy for a player to
-// play it, off the structure rather than out of it.
+// Package check validates YMXS structures and writer rules.
 //
-// Every function reports every fault rather than stopping at the first, so
-// one call reports every fault a writer must correct. Must is the inverse,
-// for a caller that stops at the first.
+// Tune checks transformations, sources, operations and register values,
+// reporting every error in SPEC.md 1.12 order. Optional lookups require
+// valid entry counts, keys and mapped register values. Remaps are
+// checked against every start on their timer, including earlier and
+// later starts.
 //
-// A structure is bound by the two chips and the music: what fits a
-// register, what a timer counts, and that a mapping writes each value of
-// it into its register. A connection pairs a target with a source of the
-// values a row that target reads (ymxs.Connection), and a form reports a
-// source of another width as an error of the form. What a form can write
-// belongs to that form, and no limit of one appears here.
-//
-// Writing is the other half: the rules of SPEC.md 6 read across rows
-// rather than within one, and a tune that breaks one of them plays, but
-// not as written, rather than failing to play.
+// Row and Effect lack tune context and leave remap checks to Tune or
+// Remapping. Writing separately reports breaches of the writer rules in
+// SPEC.md 6. Form-specific parsing belongs to the text and csv
+// packages.
 package check
 
 import (
@@ -82,9 +77,8 @@ func Transformation(transformation ymxs.Transformation) []string {
 	return said
 }
 
-// Row lists what is wrong with the row, or an empty list. A remap is read
-// against the starts on its timer, which are rows of a tune, so this lists
-// none of its lines; Tune lists them.
+// Row checks one row without tune context. It cannot validate remaps
+// against starts on their timers; call Tune for those checks.
 func Row(row ymxs.Row) []string {
 	return rowOf(ymxs.Tune{}, row)
 }
@@ -112,9 +106,9 @@ func rowOf(tune ymxs.Tune, row ymxs.Row) []string {
 	return said
 }
 
-// Effect lists what is wrong with one row's operation on one effect, or an
-// empty list. A remap is read against the starts on its timer
-// (Remapping), so this lists none of its lines.
+// Effect checks one operation without tune context. It cannot validate
+// a remap against starts on that timer; call Tune or Remapping for
+// those checks.
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
@@ -146,17 +140,11 @@ func Source(source ymxs.Source) []string {
 	return said
 }
 
-// runs reads what a start must satisfy (SPEC.md 1.12 item 2.4.2.3): the
-// source alone; where the mapping has no parts or a part for each value,
-// each value fits its register through the identity and is a key, 0 to the
-// last key, through a transformation of 1 to 256 entries; the mapping has
-// a part for each value or none; and where it does, each value through a
-// transformation maps into its register. A value through a transformation
-// of 1 to 256 entries is read against its last key; where the value is a
-// key, its entry is compared with the register's most where that entry is
-// 0 to 255, and a value through a transformation of another number of
-// entries is skipped (ymxs.Through). The source has the values a row its
-// target reads (ymxs.Connection).
+// runs validates the source, then the mapping's part count. With a
+// valid part count, it checks identity values against register limits
+// and lookup keys against transformation lengths, then checks selected
+// entries against register limits. Invalid transformation lengths and
+// entries are reported separately (SPEC.md 1.12).
 func runs(start ymxs.Start) []string {
 	target := ymxs.ConnectionTarget(start.Connection)
 	source := ymxs.ConnectionSource(start.Connection)
@@ -197,21 +185,13 @@ func runs(start ymxs.Start) []string {
 	return said
 }
 
-// Remapping lists what is wrong with a remap on the timer of the tune, or
-// an empty list (SPEC.md 1.12 item 2.4.2.4). Its mapping is read against
-// each start on the timer at any row of the tune: for each target in the
-// row order of the first start that connects it, the number of parts; then
-// for each target and source in the row order of the first start that
-// connects the two, prefixed "start of row S: ", S the row of that start,
-// where the mapping has a part for each value or none, each value is a
-// key, 0 to the last key, through a transformation of 1 to 256 entries,
-// and each value written through the mapping fits its register, in row
-// order and within a row in value order. A value through a transformation
-// of 1 to 256 entries is read against its last key; where the value is a
-// key, its entry is compared with the register's most where that entry is
-// 0 to 255, and a value through a transformation of another number of
-// entries is skipped (ymxs.Through). Each source has the values a row its
-// target reads (ymxs.Connection).
+// Remapping checks the mapping against every start on the timer,
+// including earlier and later starts. First report incorrect part
+// counts once per target. Then check each distinct target/source
+// connection in first-start order, prefixing its errors with "start of
+// row S: ". Check keys and mapped register values in source-row and
+// value order. Through skips lookups with invalid counts, keys or
+// selected entries (SPEC.md 1.12).
 func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 	var starts []startAt
 	for at, row := range ymxs.Rows(tune) {
@@ -358,11 +338,10 @@ func Declared(declared []ymxs.Source, tune ymxs.Tune) []string {
 	return said
 }
 
-// Used lists what is wrong with the transformations a form declares beside
-// the tune its rows make, or nil: each that the mapping of no row uses, in
-// the order declared. The structure reaches a transformation through the
-// mapping that uses it (ymxs.Transformations), so such a transformation is
-// dropped where the form is read.
+// Used reports declared transformations unused by any start or remap,
+// in declared order. Such declarations would be lost when the file is
+// read, because the structure reaches a transformation only through an
+// operation's mapping.
 func Used(declared []ymxs.Transformation, tune ymxs.Tune) []string {
 	var said []string
 	used := ymxs.Transformations(tune)

@@ -8,17 +8,17 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.ymxs.YMXS.Multi;
 
 /**
- * A {@link Multi} written as JSON, and read back (doc/json.md). It is one
- * encoding of the structure rather than the structure itself, and
- * so stays outside {@link YMXS}.
+ * Reads and writes YMXS JSON (doc/json.md). {@link Json} converts
+ * between records and JSON trees; {@link Layout} sets line breaks;
+ * {@link Written.Reader} preserves numeric tokens for error reports.
  *
- * <p>{@link Json} maps the structure to a JSON tree and back;
- * {@link Layout} fixes the line breaks; {@link Written.Reader} builds the
- * tree read, each number in it as written; the escaping, the parsing and
- * the writing are the JSON library's. This class is the two ends of that.
+ * <p>Transformation lookups are optional. An mapping with only identity
+ * parts is written as 0 and reads back as a mapping with no parts.
+ * Explicit identity parts are therefore normalized, while source values
+ * and transformation data are preserved.
  *
- * <p>Writing a multi and reading it back returns an equal multi. Reading
- * text written by this class and writing it back returns identical text.
+ * <p>Reading text emitted by this class and writing it again returns
+ * identical text.
  */
 public final class Text {
 

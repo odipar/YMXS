@@ -51,14 +51,16 @@ public interface YMXS {
      *  of four operations on it. */
     sealed interface Effect permits Start, Retune, Stop, Remap { }
 
-    /** The row runs the source of {@code connection} on its target through
-     *  {@code mapping} at that rate, from this row on. Every start records
-     *  the connection, the mapping and the rate, changed or not, since a
-     *  start defines the effect rather than the fields of it that differ.
+    /**
+     * Starts the connection with its timing and mapping. A mapping with
+     * no parts uses identity for every source value; transformation
+     * lookups are optional.
      *
-     *  <p>A start with {@code deferred} set on a timer running an effect
-     *  is pending until the source of that effect has played its last
-     *  row, and a tick performs it there (3.5). */
+     * <p>With {@code deferred} set on a running effect, this start
+     * remains pending until the current source's last row. It keeps its
+     * mapping while pending, even if a {@link Remap} changes the
+     * running effect (SPEC.md 3.5).
+     */
     record Start(Connection connection, Timing timing, boolean deferred,
                  Mapping mapping) implements Effect { }
 
@@ -85,26 +87,33 @@ public interface YMXS {
     record Timing(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) { }
 
-    /** The row leaves the effect on its source and target, at the rate in
-     *  this record. A bend changes the count; a note struck again at the
-     *  rate already running changes the place alone. */
+    /**
+     * Changes timing and resets while preserving the source, target and
+     * mapping. A bend changes the count; a retrigger can reset the
+     * source place at the same rate.
+     */
     record Retune(Timing timing) implements Effect { }
 
     /** The row stops the effect: its timer stops, and the effect is idle
      *  until a later row starts a source on it. */
     record Stop() implements Effect { }
 
-    /** The row sets the mapping of the effect the timer runs, and leaves
-     *  its source, its rate and its place as they were: a fade is a remap
-     *  a frame, each through the next transformation of a volume. A start
-     *  pending on the timer keeps the mapping of its row. */
+    /**
+     * Replaces the running effect's mapping for subsequent ticks. Its
+     * source, target, timing and place are unchanged. A pending {@link
+     * Start} retains its separate mapping; an idle timer stays idle.
+     *
+     * <p>Use successive volume transformations for a fade without
+     * restarting the sample, or an empty mapping to restore identity.
+     */
     record Remap(Mapping mapping) implements Effect { }
 
-    /** What a timer's tick calls with a source's row: a procedure that
-     *  reads one row and writes it to the registers below. A target is
-     *  grouped by the values a row it reads, so a connection pairs it with
-     *  a source of that width. A later version defines targets reaching
-     *  the MC68901 registers. */
+    /**
+     * Writes mapped source values to YM2149 registers in target order.
+     * The effect's mapping supplies either each source value unchanged
+     * or an optional transformation lookup. Target and source widths
+     * must match through their {@link Connection}.
+     */
     sealed interface Target permits OneTarget, TwoTarget, ThreeTarget { }
 
     /** A target of one value a row. */
@@ -118,8 +127,10 @@ public interface YMXS {
      *  writes. */
     sealed interface ThreeTarget extends Target permits SetVoice, SetBuzzer { }
 
-    /** {@code setR0} to {@code setR13}, which write a source's row to one
-     *  YM2149 register. */
+    /**
+     * Writes one mapped source value to a YM2149 register: {@code
+     * setR0} to {@code setR13}.
+     */
     record SetRegister(Register register) implements OneTarget { }
 
     /** The tone period of one voice, fine then coarse. */
@@ -133,17 +144,23 @@ public interface YMXS {
     /** The envelope period, fine then coarse. */
     record SetEnvelope() implements TwoTarget { }
 
-    /** The tone period of one voice and its volume, whose bit 4 selects
-     *  the envelope, so one source moves a voice's pitch and volume and
-     *  hands the voice to the envelope generator on a row. */
+    /**
+     * Writes tone fine, tone coarse and volume for one voice. Identity
+     * parts preserve pitch while an optional transformation on the
+     * volume scales volume levels. Volume bit 4 selects the envelope
+     * generator.
+     */
     record SetVoice(Voice voice) implements ThreeTarget { }
 
     /** The envelope period and the shape, which every write restarts. */
     record SetBuzzer() implements ThreeTarget { }
 
-    /** A table a tick advances a row at a time, its target writing each
-     *  row. A source is grouped by the values a row, as a target is by
-     *  the values it reads. */
+    /**
+     * Source rows read one per tick. Each value passes through its
+     * mapping part before the target writes it: unchanged through
+     * identity, or as a lookup key through a transformation. The row
+     * width matches the target through its {@link Connection}.
+     */
     sealed interface Source permits Single, Pair, Triple { }
 
     /** One value a row, the row a target of one register reads. */
@@ -163,25 +180,41 @@ public interface YMXS {
      *  target that runs it. */
     record Three(int first, int second, int third) { }
 
-    /** For each value of a row, the part a tick writes it through: part i
-     *  maps value i, and a mapping of one part or more has a part for each
-     *  value its target reads. The mapping of no parts is the identity in
-     *  every part. */
+    /**
+     * Parts in the order of source values and target registers. An
+     * empty list means identity for every value. Otherwise, supply one
+     * part per value: identity for an unchanged value or a
+     * transformation for a lookup.
+     *
+     * <p>For {@link SetVoice}, identity on tone fine and coarse plus a
+     * volume transformation changes volume alone (SPEC.md 3.6.3).
+     */
     record Mapping(List<Part> parts) { }
 
-    /** How a tick writes one value of a row: as it is, or through a
-     *  transformation. */
+    /**
+     * Maps one source value: {@link Identity} leaves it unchanged;
+     * {@link Transformation} selects a lookup entry.
+     */
     sealed interface Part permits Identity, Transformation { }
 
-    /** The part that writes each value as it is. A transformation whose
-     *  entry k is k at every key is a separate part from this one. */
+    /**
+     * Leaves a source value unchanged, without a lookup. A
+     * transformation whose entries equal their keys remains a separate
+     * part with a bounded key range.
+     */
     record Identity() implements Part { }
 
-    /** A name and 1 to 256 entries, each 0 to 255: entry k is the value
-     *  written where the value read is k, the key. The keys are 0 to the
-     *  last key, the number of entries less one. The name is text for
-     *  display and for reports, and two transformations are one where
-     *  their names and their entries are equal in number and order. */
+    /**
+     * An optional lookup table: source value k selects {@code
+     * entries.get(k)} as the value written. The list has 1 to 256
+     * entries, each 0 to 255; keys run from 0 to the entry count minus
+     * one.
+     *
+     * <p>A table can scale sample levels without copying the source.
+     * The mapping selects which source values use it. Names are for
+     * display, reports and equality; equal transformations have equal
+     * names and entries in number and order (SPEC.md 3.6).
+     */
     record Transformation(String name, List<Integer> entries) implements Part { }
 
     /** One of the fourteen YM2149 registers a row sets and a target

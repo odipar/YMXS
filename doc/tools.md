@@ -141,12 +141,13 @@ produces an error of the form before the structure check: one line per
 source in list order, using the line of json.md 8.1 or csv.md 5.1 for a
 source no row starts.
 
-**4.5 An unused transformation.** A transformation listed in JSON
-`transformations` or a CSV `transformation` block must be a part of the
-mapping of a tune row. Otherwise, reading the tune produces an error of the
-form before the structure check, the error of 4.4 where there is one: one
-line per transformation in list order, after the lines of 4.4, using the
-line of json.md 8.1 or csv.md 5.1 for a transformation no row uses.
+**4.5 An unused transformation.** Transformation lookups are optional.
+A tune using only identity has an empty JSON `transformations` array
+and omits CSV `transformation` blocks. Each declared transformation must
+be used by a start or remap. Otherwise, report one error line per unused
+transformation in file order, after unstarted sources (4.4) and before
+structure validation. Use the unused-transformation line of json.md 8.1
+or csv.md 5.1.
 
 ---
 

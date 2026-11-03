@@ -3,6 +3,8 @@ package org.ymxs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,5 +85,51 @@ final class ExampleTest {
         assertEquals(Files.readString(Path.of("doc/tunes/example.csv")).strip(),
                 quoted(Path.of("doc/csv.md"), "**8.1**"),
                 "csv.md 8.1 quotes another tune than doc/tunes/example.csv");
+    }
+
+    /** The rows and mapping numbers of json.md 10.3, read from its table. */
+    @Test
+    void theFadeTableMatchesTheTuneFile() throws IOException {
+        String document = Files.readString(Path.of("doc/json.md"));
+        String section = document.substring(document.indexOf("**10.3"));
+        JsonNode tune = new ObjectMapper().readTree(
+                Files.readString(Path.of("doc/tunes/fade.json")))
+                .get("tunes").get(0);
+        JsonNode a = tune.get("timerA");
+        JsonNode b = tune.get("timerB");
+        java.util.regex.Matcher rows = java.util.regex.Pattern.compile(
+                "^\\| (\\d+)(?: to (\\d+))? \\| ([^|]+) \\| ([^|]+) \\|$",
+                java.util.regex.Pattern.MULTILINE).matcher(section);
+        int read = 0;
+        while (rows.find()) {
+            int first = Integer.parseInt(rows.group(1));
+            int last = rows.group(2) == null ? first : Integer.parseInt(rows.group(2));
+            String operation = rows.group(3).strip();
+            java.util.regex.Matcher mappings = java.util.regex.Pattern
+                    .compile("`(\\[[0-9,]+\\]|-1)`").matcher(rows.group(4));
+            assertTrue(mappings.find(), "a mapping in " + rows.group());
+            JsonNode mapping = new ObjectMapper().readTree(mappings.group(1));
+            if (operation.startsWith("start")) {
+                JsonNode timer = operation.contains("Timer B") ? b : a;
+                assertEquals(0, timer.get("shape").get(first).intValue());
+                assertEquals(mapping, timer.get("mapping").get(first));
+            } else if (operation.startsWith("remap")) {
+                assertTrue(mappings.find(), "the last mapping in " + rows.group());
+                int number = mapping.get(0).intValue();
+                int end = new ObjectMapper().readTree(mappings.group(1)).get(0).intValue();
+                assertEquals(end - number, last - first);
+                for (int row = first; row <= last; row++) {
+                    assertEquals(3, a.get("shape").get(row).intValue());
+                    assertEquals(number + row - first,
+                            a.get("mapping").get(row).get(0).intValue());
+                }
+            } else {
+                assertTrue(operation.startsWith("stop"), operation);
+                assertEquals(2, a.get("shape").get(first).intValue());
+                assertEquals(mapping, a.get("mapping").get(first));
+            }
+            read++;
+        }
+        assertEquals(4, read, "json.md 10.3 lists the start, remaps, stop and chord");
     }
 }

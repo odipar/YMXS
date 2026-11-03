@@ -87,16 +87,19 @@ volume control and fades while the source continues from its current row.
 ```mermaid
 flowchart TD
     file[JSON or CSV] --> reader[Reader]
-    reader --> data[(Tune and sources)]
+    reader --> data[(Tune rows, sources, transformations)]
     host[Host] -->|frame at tune rate| frame[Player: read tune row]
     data -.-> frame
     frame --> operations[Start / Retune / Stop / Remap]
     operations --> registers[Write row registers]
     registers --> ym[YM2149]
-    operations -->|configure| mfp[MFP timers]
-    mfp -->|tick at effect rate| tick[Player: read source row]
+    operations -->|source, target, mapping, timing| effect[Effect on each timer]
+    effect -->|prescaler and count| mfp[MFP timers]
+    mfp -->|tick at effect rate| tick[Read source row at place]
     data -.-> tick
-    tick --> target[Write through target]
+    effect -.-> mapping[Apply mapping to each source value]
+    tick --> mapping
+    mapping -->|identity or transformation lookup| target[Target: write register values]
     target --> ym
 ```
 
@@ -108,6 +111,12 @@ sections 4 and 5 define the procedures; section 8.6 leaves the timing of
 ticks within a frame to a later version.
 
 ## Implementing a player or a reader
+
+For transformations, begin with [SPEC.md 3.6](doc/SPEC.md#36-transformations-and-mappings):
+lookup tables, per-effect mappings, tick processing and validation. It
+also covers sample volume control, fades and volume independent of pitch.
+`Remap` changes subsequent ticks without restarting the source; a pending
+start retains its separate mapping.
 
 Start with [SPEC.md](doc/SPEC.md): data structure and chip values
 (1 to 3), playback (4 and 5), writer rules (6), recorder output (7),

@@ -102,9 +102,11 @@ final class Record {
         };
     }
 
-    /** A mapping as 7.4 records it: 0 where every part is the identity,
-     *  the mapping of no parts included, and otherwise an array of a
-     *  number a part, 0 the identity and n transformation n (1.9). */
+    /**
+     * Encodes the recorder's mapping field: 0 for identity at every
+     * value, otherwise part numbers in order. Identity is 0;
+     * transformations use their numbers from SPEC.md 1.9 (7.4).
+     */
     private static String mapping(Tune tune, Mapping mapping) {
         if (Tunes.isIdentity(mapping)) {
             return "0";

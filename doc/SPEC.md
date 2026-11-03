@@ -186,18 +186,18 @@ it and begins another: at its frame where `deferred` is clear, and where
 it is set at the tick that reads the last row of the source of that
 effect. Section 4 defines each operation as steps.
 
-**1.8 Targets, sources and mappings.** This version defines three kinds of
-target: `SetRegister`, one a register, named `setR0` to `setR13`; `SetTone`,
-`SetNoise` and `SetEnvelope`, two registers each; and `SetVoice` and
-`SetBuzzer`, three (3.1). It defines three kinds of source to match,
-`Single`, `Pair` and `Triple`: a text `name` and a `table` of one, two or
-three integers a row (3.2). A `Connection` pairs a target with a source of
-the values a row the target reads: `OneConnection` of one value a row,
-`TwoConnection` of two and `ThreeConnection` of three. A `Start` connects
-the source of its connection to the target through a `Mapping`: a `Part`
-for each value of a row, the `Identity` or a `Transformation`, a text
-`name` and 1 to 256 `entries`; or no parts, the identity in every part
-(3.6).
+**1.8 Targets, sources and mappings.** Targets write one, two or three
+registers (3.1). `SetRegister` writes one; `SetTone`, `SetNoise` and
+`SetEnvelope` write two; `SetVoice` and `SetBuzzer` write three.
+
+Sources match those widths: `Single`, `Pair` and `Triple` each have a
+name and a table of one, two or three values per row (3.2). A
+`OneConnection`, `TwoConnection` or `ThreeConnection` pairs a source
+with a target of the same width.
+
+A `Start` supplies that connection and a `Mapping`. An empty mapping
+leaves every value unchanged. Otherwise, each value has an identity
+part or an optional transformation lookup (3.6).
 
 **1.9 The sources and the transformations of a tune.** The sources are
 the list this procedure produces from an empty list: read the rows from
@@ -361,12 +361,11 @@ whose target is `setR13` writes it, the value written through its mapping
 
 ### 3.1 The targets
 
-**3.1.1** A target is a procedure the player calls at a tick with one row of
-a source; it writes the row's values to the registers below, value i of the
-row through part i of the mapping of the effect (3.6) to register i of the
-target. A target reads one, two or three values a row, the source an effect
-runs on it has that many values a row (3.2.1), and its mapping that many
-parts or none (3.6.3).
+**3.1.1** At a tick, a target writes one source row to the registers
+below. Source value i passes through mapping part i before reaching
+register i. An empty mapping uses identity for every value (3.6).
+Source width must match target width (3.2.1); a nonempty mapping has
+that many parts (3.6.3).
 
 | target | registers, value i of the row to register i | values a row |
 |---|---|---|
@@ -411,12 +410,11 @@ row than its target reads as an error of the form (json.md 8.1, csv.md 5.1).
 The name is text for display and for reports, and distinguishes sources
 (1.9); a player reads the table alone.
 
-**3.2.2** Value i of every row of a source is 0 to the most of register i of
-the target of every `Start` that connects it, where part i of a mapping is
-the identity (3.6.3), and a key, 0 to the last key of the transformation,
-where it is a transformation, through the mapping of that `Start` and
-through the mapping of every `Remap` on the timer of that `Start` (3.6.5);
-outside that is an error of the structure (1.11).
+**3.2.2** Validate every source row through each start's mapping and
+every remap on that start's timer. Identity values must fit their target
+registers. Lookup keys must fit their transformations, and selected
+entries must fit the registers. Violations are errors of the structure
+(1.11); 3.6.5 defines these checks.
 
 **3.2.3** Two effects run one source where two rows start it on two
 timers; it is one source of the tune (1.9). Each timer has a separate
@@ -566,13 +564,15 @@ place. A `Retune` preserves the mapping. A deferred `Start` keeps its
 mapping while pending; a `Remap` changes only the running effect (4.3).
 
 **3.6.4 Applying a mapping at a tick.** Read the source row at the
-place. For each value i, in order:
+place. For each value i:
 
 1. Read value k and mapping part i, using the identity if the mapping
    has no parts.
-2. Through the identity, the output is k. Through a transformation,
-   the output is `entries[k]`.
-3. Write the output to register i of the target.
+2. Through the identity, output i is k. Through a transformation,
+   output i is `entries[k]`.
+
+Pass the mapped row to the target. Output i goes to register i, with
+the write order and register rules of 3.1.1.
 
 The lookup leaves source rows and transformation entries unchanged.
 Frame register writes use their row values directly. Target rules also
@@ -677,11 +677,10 @@ timer stays pending (3.5.5). On an idle timer step 3 starts the timer with
 its source disconnected (rule 5), and what the player performs at its
 ticks is left to a later version (5.4).
 
-A `Remap`: set the mapping of the effect the timer runs to the mapping of
-the `Remap` (3.6). The timer, its source, its rate, its place and a `Start`
-pending on it are as they were; the next tick writes through the new
-mapping (5.2 step 2), and a pending `Start` keeps the mapping of its row
-(3.5.5). On an idle timer a `Remap` leaves the timer as it is (rule 5).
+A `Remap`: replace the running effect's mapping. The next tick uses it;
+source, target, timing and place are unchanged. A pending `Start`
+retains its separate mapping (3.5.5). On an idle timer, leave the timer
+unchanged (rule 5).
 
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
@@ -724,9 +723,9 @@ tick alone.
 **5.2 A tick** of a timer running an effect, in order:
 
 1. Read the row of the source at the place (3.4.2).
-2. Call the target with it through the mapping of the effect (3.6); the
-   target writes the row's values to its registers, value i through part i
-   of the mapping to register i (3.1.1, 3.6.4).
+2. Apply the effect's mapping to the row, then call the target with the
+   mapped values. The target writes its registers as 3.1.1 defines
+   (3.6.4).
 3. Where the source has a row after the row read (1.5), the place is that
    row. While a `Start` is pending on the timer, the last row has no row
    after it (3.5.2).

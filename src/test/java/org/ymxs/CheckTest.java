@@ -661,15 +661,12 @@ final class CheckTest {
     }
 
     /**
-     * Every line SPEC.md 1.11 adds, in the order of 1.12: the
-     * transformations by number before the rows; for a start the values
-     * below 0, the values through each part, the number of parts, then
-     * the values mapped; for a remap the number of parts on each target a
-     * start on its timer connects, before the remap or after it, then the
-     * values above the last key of a part and the values mapped through
-     * it, the identity included, in value order, prefixed with the row of
-     * the start. A value through {@code broken}, of 257 entries, has no
-     * key line: it rests on the line of the count.
+     * Checks report order (SPEC.md 1.12): transformation errors before
+     * row errors; source and key checks before mapped-value checks at a
+     * start; part counts per target before value checks per connection
+     * at a remap. Remap errors include the start-row prefix. The
+     * invalid entry count of {@code broken} suppresses dependent key
+     * checks.
      */
     @Test
     void theErrorsOfTransformationsAndMappingsComeInTheOrderOfOneTwelve() {

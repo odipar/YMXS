@@ -315,15 +315,11 @@ func TestTablesOf16And256EntriesUnderOneNameAreTwoTransformations(t *testing.T) 
 	lines(t, "two tables of V15", check.Tune(built), nil)
 }
 
-// The values of the source of a start are read through its mapping
-// (SPEC.md 1.11, 1.12 item 2.4.2.3): above the most of the register
-// through the identity, above the last key of a transformation of 1 to 256
-// entries, 255 for one of 256, in row order and within a row in value
-// order; then the number of parts; then each value through a
-// transformation mapped above the most of its register. A value outside the
-// keys of a transformation is not read through it, and an entry outside 0
-// to 255 is not read, while each other entry of that transformation is
-// (1.12).
+// A start reports identity values above register limits and lookup keys
+// above the last entry, in row and value order. It then reports mapped
+// values above register limits. Missing keys and selected entries
+// outside the byte range skip dependent output checks; other entries
+// remain usable (SPEC.md 1.12).
 func TestTheSourceOfAStartIsReadThroughItsMapping(t *testing.T) {
 	loud := wide("loud", 15)
 	loud.Entries[15], loud.Entries[12] = 40, 33
@@ -366,13 +362,11 @@ func TestTheSourceOfAStartIsReadThroughItsMapping(t *testing.T) {
 	}
 }
 
-// A remap is read against each start on its timer, at any row of the tune
-// before or after it (SPEC.md 1.11, 1.12 item 2.4.2.4): the number of
-// parts for each target in the order of the first start that connects it,
-// then each value above the last key of a transformation or through the
-// mapping above the most of its register, for each target and source in
-// the order of the first start that connects the two, prefixed with the
-// row of that start. A remap on a timer no row starts reads against none.
+// A remap checks every start on its timer, before or after it. Part
+// counts are reported once per target in first-start order, then key
+// and output errors once per connection, prefixed with its first start
+// row. A timer without starts has no connections to check (SPEC.md
+// 1.12).
 func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
 	loud := wide("loud", 15)
 	loud.Entries[15] = 40

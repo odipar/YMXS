@@ -78,9 +78,11 @@ the pipe a stage at a time.
 
 ## Reading and playback
 
-A reader loads a file into the tune data structure. The host calls
-the player at the tune's frame rate; the MFP timers raise ticks at
-each effect's rate. Both procedures write YM registers.
+A reader loads tune rows, sources and transformations. The host calls
+the player at the frame rate; MFP timers raise ticks at each effect's
+rate. At a tick, the effect's mapping converts source values through
+lookup tables before its target writes YM registers. This allows sample
+volume control and fades while the source continues from its current row.
 
 ```mermaid
 flowchart TD

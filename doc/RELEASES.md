@@ -18,13 +18,37 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.7.0` beside `v0.7.0`.
+version of it is a tag of that directory: `go/v0.7.1` beside `v0.7.1`.
 
 A player pins a version of this format: the structure's version is 7, a
 writer writes 7 and a reader reads 7, 6, 5, 4 and 3, and a release's
 number names the tools rather than the format.
 
 ## Published
+
+### 0.7.1, 2026-11-04
+
+<https://github.com/odipar/YMXS/releases/tag/v0.7.1>, built from the commit
+tagged `v0.7.1`.
+
+`ymxs-check` reads the remaps of a tune in time linear in the tune. Under
+0.7.0 each remap read every start on its timer again, and in the Go tree
+every row of the tune, then every source those starts connect, so a check
+grew with the remaps times the rows. Each timer's starts, targets and
+connections are now read once, at its first remap, and the lines of a
+mapping once a timer. On a structure of 16,384 rows, with a start every 8
+rows on Timers A, B and D and 18,432 remaps through four transformations,
+the Go `ymxs-check` runs in 0.38 s where 0.7.0's ran in 733 s, and the
+Java check in 0.88 s where 0.7.0's ran in 42.9 s.
+
+Every other output is as it was. Over the conformance kit and the tunes of
+`doc/tunes`, `ymxs-check`, `ymxs-json-to-csv` and `ymxs-csv-to-json` of
+this release and of 0.7.0 agree in exit and output in 62 runs of 62, and
+`ym-to-ymxs` in 12 dumps of 12: the one here and the eleven under YMXR's
+`ym/test`. The structure's version is 7 as before, and the Go module's API
+is as it was.
+
+Checks: `bin/suite` green, 214 tests and 0 skipped.
 
 ### 0.7.0, 2026-11-01
 

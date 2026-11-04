@@ -713,6 +713,98 @@ final class ParityTest {
         }
     }
 
+    /** A tune of version 7 in JSON with errors in remaps on Timers A, B
+     *  and D: several targets and connections on each timer, a connection
+     *  started at two rows, a remap before a later start, and equal
+     *  mappings at several rows. {@code big} has 256 entries, entry k k. */
+    private static final String REMAPPED = """
+            {"format":"ymxs","version":7,"tunes":[{"title":"","composer":"",
+            "writer":"remap errors","rate":50,"rows":12,"repeat":0,
+            "sources":[{"name":"lo","repeat":0,"values":[3,20]},
+            {"name":"hi","repeat":0,"values":[40,5]},
+            {"name":"tone","repeat":0,"values":[[300,16],[10,2]]},
+            {"name":"note","repeat":0,"values":[[1,1,12],[1,1,20]]},
+            {"name":"env","repeat":0,"values":[[255,0]]}],
+            "transformations":[{"name":"up","entries":[20,21,22,23,24,25,26,27,28,29,30,31,
+            32,33,34,35]},{"name":"V15","entries":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]},
+            {"name":"big","entries":[KEYS]}],
+            "timerA":{"shape":[0,3,0,3,-1,3,3,-1,3,-1,-1,-1],
+            "target":[8,-1,14,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "source":[1,-1,3,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "prescaler":[50,-1,50,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "count":[60,-1,60,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "timerReset":[1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "placeReset":[1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "deferred":[0,-1,0,-1,-1,-1,-1,-1,-1,-1,-1,-1],
+            "mapping":[0,[1],0,[1],-1,[1],[0,2],-1,[1],-1,-1,-1]},
+            "timerB":{"shape":[0,-1,-1,-1,3,-1,-1,0,3,3,-1,3],
+            "target":[18,-1,-1,-1,-1,-1,-1,8,-1,-1,-1,-1],
+            "source":[4,-1,-1,-1,-1,-1,-1,2,-1,-1,-1,-1],
+            "prescaler":[50,-1,-1,-1,-1,-1,-1,50,-1,-1,-1,-1],
+            "count":[60,-1,-1,-1,-1,-1,-1,60,-1,-1,-1,-1],
+            "timerReset":[1,-1,-1,-1,-1,-1,-1,1,-1,-1,-1,-1],
+            "placeReset":[1,-1,-1,-1,-1,-1,-1,1,-1,-1,-1,-1],
+            "deferred":[0,-1,-1,-1,-1,-1,-1,0,-1,-1,-1,-1],
+            "mapping":[0,-1,-1,-1,[0,0,2],-1,-1,0,[3],[0,0,2],-1,[3]]},
+            "timerD":{"shape":[0,0,3,3,0,3,0,3,-1,-1,3,-1],
+            "target":[10,8,-1,-1,10,-1,20,-1,-1,-1,-1,-1],
+            "source":[1,1,-1,-1,1,-1,5,-1,-1,-1,-1,-1],
+            "prescaler":[50,50,-1,-1,50,-1,50,-1,-1,-1,-1,-1],
+            "count":[60,60,-1,-1,60,-1,60,-1,-1,-1,-1,-1],
+            "timerReset":[1,1,-1,-1,1,-1,1,-1,-1,-1,-1,-1],
+            "placeReset":[1,1,-1,-1,1,-1,1,-1,-1,-1,-1,-1],
+            "deferred":[0,0,-1,-1,0,-1,0,-1,-1,-1,-1,-1],
+            "mapping":[0,0,0,[1],0,[2],0,[1],-1,-1,[2],-1]}}]}
+            """.replace("KEYS", String.join(",", java.util.stream.IntStream.range(0, 256)
+            .mapToObj(String::valueOf).toList()));
+
+    /**
+     * A remap is read against every start on its timer at any row, in both
+     * trees alike: the part counts once a target, then each connection
+     * once, under the row of its first start, in source-row and value order
+     * (SPEC.md 1.12). Timer A has two connections, B two and D three, on
+     * five targets.
+     */
+    @Test
+    void remapsOnThreeTimersReadTheSameInBothTrees() throws Exception {
+        String toneA = "Timer A: a mapping of 1 parts on setToneA, which reads 2";
+        String envelope = "Timer D: a mapping of 1 parts on setEnvelope, which reads 2";
+        String twenty = " whose row 1 is 20, and a key is 0 to 15";
+        String a0 = "Timer A: start of row 0: a source on setR8" + twenty;
+        String d0 = "Timer D: start of row 0: a source on setR10" + twenty;
+        String d1 = "Timer D: start of row 1: a source on setR8" + twenty;
+        String b0 = "Timer B: start of row 0: a source on setVoiceB" + twenty;
+        String b7 = "Timer B: start of row 7: value 0 of row 0 maps to 40 on setR8, and the"
+                + " target is 0 to 31";
+        String b3 = "Timer B: a mapping of 3 parts on setR8, which reads 1";
+        String b1 = "Timer B: a mapping of 1 parts on setVoiceB, which reads 3";
+        List<String> lines = List.of(
+                "row 1: " + toneA, "row 1: " + a0,
+                "row 2: Timer A: a source on setToneA whose row 0 is 300, and the target is 0"
+                        + " to 255",
+                "row 2: Timer A: a source on setToneA whose row 0 is 16, and the target is 0"
+                        + " to 15",
+                "row 3: " + toneA, "row 3: " + a0, "row 3: " + envelope, "row 3: " + d0,
+                "row 3: " + d1,
+                "row 4: " + b3, "row 4: " + b0,
+                "row 5: " + toneA, "row 5: " + a0, "row 5: " + envelope, "row 5: " + d0,
+                "row 5: " + d1,
+                "row 6: Timer A: a mapping of 2 parts on setR8, which reads 1",
+                "row 6: Timer A: start of row 2: value 0 of row 0 maps to 300 on setToneA, and"
+                        + " the target is 0 to 255",
+                "row 6: Timer A: start of row 2: a source on setToneA whose row 0 is 16, and a"
+                        + " key is 0 to 15",
+                "row 7: Timer B: a source on setR8 whose row 0 is 40, and the target is 0 to"
+                        + " 31",
+                "row 7: " + envelope, "row 7: " + d0, "row 7: " + d1,
+                "row 8: " + toneA, "row 8: " + a0, "row 8: " + b1, "row 8: " + b7,
+                "row 9: " + b3, "row 9: " + b0,
+                "row 10: " + envelope, "row 10: " + d0, "row 10: " + d1,
+                "row 11: " + b1, "row 11: " + b7);
+        wrongInBothTrees("ymxs-check", REMAPPED.getBytes(StandardCharsets.UTF_8), 1,
+                String.join("\n", lines.stream().map(line -> "tune 1: " + line).toList()));
+    }
+
     /**
      * A name in a reported line is one line in both trees, each line feed
      * in it written as the two characters {@code \n} and each carriage

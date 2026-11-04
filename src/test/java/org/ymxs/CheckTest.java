@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntUnaryOperator;
@@ -540,6 +541,217 @@ final class CheckTest {
         assertEquals("tune 1: row 2: Timer A: start of row 0: a source on setR8 whose row 0"
                 + " is 16, and a key is 0 to 15", Check.of(Tunes.multi(tune)).get(0),
                 "the prefixes accumulate");
+    }
+
+    /** A start of {@code source} on {@code target} through the mapping of
+     *  no parts, at 819 ticks a second and both resets set. */
+    private static Start starting(YMXS.Target target, Source source) {
+        return Tunes.starting(target, source, Prescaler.BY_50, 60, true, true, false,
+                Tunes.NO_PARTS);
+    }
+
+    /** A tune of these effects, one map a row, at 50 Hz, repeating to row
+     *  0. */
+    private static Tune effects(List<Map<Timer, YMXS.Effect>> effects) {
+        return of(effects.stream().map(one -> new Row(Map.of(), one)).toArray(Row[]::new));
+    }
+
+    /** A tune of 12 rows with errors in remaps on Timers A, B and D: several
+     *  targets and connections on each timer, a connection started at two
+     *  rows, a remap before a later start, and equal mappings at several
+     *  rows. */
+    private static Tune remapped() {
+        Single lo = Tunes.repeating("lo", List.of(3, 20), 0);
+        Single hi = Tunes.repeating("hi", List.of(40, 5), 0);
+        YMXS.Pair tone = new YMXS.Pair("tone", Tunes.repeating(List.of(new YMXS.Two(300, 16),
+                new YMXS.Two(10, 2)), 0));
+        YMXS.Triple note = new YMXS.Triple("note", Tunes.repeating(List.of(
+                new YMXS.Three(1, 1, 12), new YMXS.Three(1, 1, 20)), 0));
+        YMXS.Pair envelope = new YMXS.Pair("env", Tunes.repeating(List.of(
+                new YMXS.Two(255, 0)), 0));
+        Remap up = new Remap(Tunes.mapping(transformation("up", key -> key + 20, 16)));
+        Remap big = new Remap(Tunes.mapping(transformation("big", key -> key, 256)));
+        Remap v15 = new Remap(Tunes.mapping(Fade.volumes(15)));
+        Remap voice = new Remap(Tunes.mapping(Tunes.IDENTITY, Tunes.IDENTITY,
+                Fade.volumes(15)));
+        OneTarget r8 = Tunes.setting(Register.R8);
+        OneTarget r10 = Tunes.setting(Register.R10);
+        Map<Timer, Map<Integer, YMXS.Effect>> plan = Map.of(
+                Timer.A, Map.of(0, starting(r8, lo), 1, up,
+                        2, starting(new YMXS.SetTone(YMXS.Voice.A), tone), 3, up, 5, up,
+                        6, new Remap(Tunes.mapping(Tunes.IDENTITY, Fade.volumes(15))), 8, up),
+                Timer.B, Map.of(0, starting(new YMXS.SetVoice(YMXS.Voice.B), note),
+                        4, voice, 7, starting(r8, hi), 8, big, 9, voice, 11, big),
+                Timer.D, Map.of(0, starting(r10, lo), 1, starting(r8, lo),
+                        2, new Remap(Tunes.NO_PARTS), 3, up, 4, starting(r10, lo), 5, v15,
+                        6, starting(new YMXS.SetEnvelope(), envelope), 7, up, 10, v15));
+        List<Map<Timer, YMXS.Effect>> rows = new ArrayList<>();
+        for (int at = 0; at < 12; at++) {
+            rows.add(new EnumMap<>(Timer.class));
+        }
+        plan.forEach((timer, row) -> row.forEach((at, effect) -> rows.get(at).put(timer,
+                effect)));
+        return effects(rows);
+    }
+
+    /**
+     * A remap is read against every start on its timer at any row: the part
+     * counts once a target, then each connection once, under the row of its
+     * first start, in source-row and value order (SPEC.md 1.12). A tune
+     * check reads each mapping once a timer.
+     */
+    @Test
+    void remapsOnThreeTimersReadEveryTargetAndConnectionOnTheirTimer() {
+        String toneA = "a mapping of 1 parts on setToneA, which reads 2";
+        String envelope = "a mapping of 1 parts on setEnvelope, which reads 2";
+        String twenty = " whose row 1 is 20, and a key is 0 to 15";
+        String a0 = "Timer A: start of row 0: a source on setR8" + twenty;
+        String d0 = "Timer D: start of row 0: a source on setR10" + twenty;
+        String d1 = "Timer D: start of row 1: a source on setR8" + twenty;
+        String b0 = "Timer B: start of row 0: a source on setVoiceB" + twenty;
+        String b7 = "Timer B: start of row 7: value 0 of row 0 maps to 40 on setR8, and the"
+                + " target is 0 to 31";
+        assertEquals(List.of(
+                "row 1: Timer A: " + toneA,
+                "row 1: " + a0,
+                "row 2: Timer A: a source on setToneA whose row 0 is 300, and the target is 0"
+                        + " to 255",
+                "row 2: Timer A: a source on setToneA whose row 0 is 16, and the target is 0"
+                        + " to 15",
+                "row 3: Timer A: " + toneA,
+                "row 3: " + a0,
+                "row 3: Timer D: " + envelope,
+                "row 3: " + d0,
+                "row 3: " + d1,
+                "row 4: Timer B: a mapping of 3 parts on setR8, which reads 1",
+                "row 4: " + b0,
+                "row 5: Timer A: " + toneA,
+                "row 5: " + a0,
+                "row 5: Timer D: " + envelope,
+                "row 5: " + d0,
+                "row 5: " + d1,
+                "row 6: Timer A: a mapping of 2 parts on setR8, which reads 1",
+                "row 6: Timer A: start of row 2: value 0 of row 0 maps to 300 on setToneA, and"
+                        + " the target is 0 to 255",
+                "row 6: Timer A: start of row 2: a source on setToneA whose row 0 is 16, and a"
+                        + " key is 0 to 15",
+                "row 7: Timer B: a source on setR8 whose row 0 is 40, and the target is 0 to"
+                        + " 31",
+                "row 7: Timer D: " + envelope,
+                "row 7: " + d0,
+                "row 7: " + d1,
+                "row 8: Timer A: " + toneA,
+                "row 8: " + a0,
+                "row 8: Timer B: a mapping of 1 parts on setVoiceB, which reads 3",
+                "row 8: " + b7,
+                "row 9: Timer B: a mapping of 3 parts on setR8, which reads 1",
+                "row 9: " + b0,
+                "row 10: Timer D: " + envelope,
+                "row 10: " + d0,
+                "row 10: " + d1,
+                "row 11: Timer B: a mapping of 1 parts on setVoiceB, which reads 3",
+                "row 11: " + b7), Check.of(remapped()));
+    }
+
+    /** A note of {@code rows} rows on a voice: tone fine {@code step} a row
+     *  modulo 256, then tone coarse and volume the row modulo 16. */
+    private static YMXS.Triple note(String name, int rows, int step) {
+        List<YMXS.Three> values = new ArrayList<>();
+        for (int at = 0; at < rows; at++) {
+            values.add(new YMXS.Three(at * step % 256, at % 16, at % 16));
+        }
+        return new YMXS.Triple(name, Tunes.repeating(values, 0));
+    }
+
+    /** A tune of 16,384 rows, 128 patterns of 128 rows. Timers A, B and D
+     *  start a source every 8 rows, A and B on a voice and D on R10, and
+     *  each remaps it three times in each 8 rows through one of four
+     *  transformations, 18,432 remaps. The tune has no fault. */
+    private static Tune song() {
+        YMXS.Triple lead = note("lead", 512, 3);
+        List<List<YMXS.Triple>> voices = List.of(List.of(lead, note("pad", 384, 5)),
+                List.of(note("bass", 640, 7), lead));
+        List<Integer> levels = new ArrayList<>();
+        for (int at = 0; at < 256; at++) {
+            levels.add(at % 16);
+        }
+        Single drum = Tunes.repeating("drum", levels, 0);
+        List<Transformation> volumes = List.of(Fade.volumes(15), Fade.volumes(11),
+                Fade.volumes(7), Fade.volumes(3));
+        List<Map<Timer, YMXS.Effect>> rows = new ArrayList<>();
+        for (int at = 0; at < 16384; at++) {
+            rows.add(new EnumMap<>(Timer.class));
+        }
+        for (int block = 0; block < rows.size() / 8; block++) {
+            Map<Timer, YMXS.Effect> starts = rows.get(block * 8);
+            starts.put(Timer.A, starting(new YMXS.SetVoice(YMXS.Voice.A),
+                    voices.get(0).get(block % 2)));
+            starts.put(Timer.B, starting(new YMXS.SetVoice(YMXS.Voice.B),
+                    voices.get(1).get(block % 2)));
+            starts.put(Timer.D, starting(Tunes.setting(Register.R10), drum));
+            for (int k = 0; k < 3; k++) {
+                Transformation volume = volumes.get((block * 3 + k) % volumes.size());
+                Map<Timer, YMXS.Effect> remaps = rows.get(block * 8 + 2 + 2 * k);
+                Remap voice = new Remap(Tunes.mapping(Tunes.IDENTITY, Tunes.IDENTITY,
+                        volume));
+                remaps.put(Timer.A, voice);
+                remaps.put(Timer.B, voice);
+                remaps.put(Timer.D, new Remap(Tunes.mapping(volume)));
+            }
+        }
+        return effects(rows);
+    }
+
+    /**
+     * A tune check reads the rows of the tune for starts once a timer with
+     * a remap, and each start on it once. It reads each mapping of the
+     * remaps on a timer once against the connections of the timer: four
+     * mappings, each over lead and pad on Timer A, 896 rows, over bass and
+     * lead on Timer B, 1,152 rows, and over drum on Timer D, 256 rows. A
+     * check that read the starts at every remap would read 18,432 × 2,048
+     * starts and 6,144 × 2,304 source rows.
+     */
+    @Test
+    void aTuneCheckReadsEachStartOnceAndEachMappingOnceATimer() {
+        Check.Work work = new Check.Work();
+        assertEquals(List.of(), Check.of(song(), work), "the song reads clean");
+        assertEquals(List.of(3 * 16384, 6144, 4 * (896 + 1152 + 256)),
+                List.of(work.rows, work.starts, work.sources),
+                "the rows, the starts and the source rows read");
+    }
+
+    /** A tune of 4,096 starts on Timer A of 64-row sources on R8, all named
+     *  s and each of other rows, and a remap after every 64th start where
+     *  {@code remaps} is set. */
+    private static Tune distinct(boolean remaps) {
+        List<Map<Timer, YMXS.Effect>> rows = new ArrayList<>();
+        for (int i = 0; i < 4096; i++) {
+            List<Integer> values = new ArrayList<>(java.util.Collections.nCopies(61, 0));
+            values.addAll(List.of(i / 256 % 16, i / 16 % 16, i % 16));
+            rows.add(new EnumMap<>(Map.of(Timer.A, starting(Tunes.setting(Register.R8),
+                    Tunes.repeating("s", values, 0)))));
+            rows.add(new EnumMap<>(Timer.class));
+            if (remaps && i % 64 == 0) {
+                rows.getLast().put(Timer.A, new Remap(Tunes.NO_PARTS));
+            }
+        }
+        return effects(rows);
+    }
+
+    /** Without a remap a tune check leaves the starts on a timer unread.
+     *  With one, it reads each of 4,096 starts once, and the mapping of no
+     *  parts once over the 4,096 connections. */
+    @Test
+    void distinctSourcesOfOneNameAndRowCountAreReadOnce() {
+        Check.Work work = new Check.Work();
+        Check.of(distinct(false), work);
+        assertEquals(List.of(0, 0, 0), List.of(work.rows, work.starts, work.sources),
+                "a tune without a remap");
+        work = new Check.Work();
+        assertEquals(List.of(), Check.of(distinct(true), work), "the tune reads clean");
+        assertEquals(List.of(8192, 4096, 4096 * 64),
+                List.of(work.rows, work.starts, work.sources),
+                "the rows, the starts and the source rows read");
     }
 
     /**

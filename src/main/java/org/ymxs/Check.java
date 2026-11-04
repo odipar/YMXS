@@ -3,6 +3,7 @@ package org.ymxs;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,12 +15,14 @@ import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
+import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
+import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
 import org.ymxs.YMXS.Stop;
@@ -27,6 +30,7 @@ import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
+import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 
 /**
@@ -71,6 +75,23 @@ public final class Check {
      *  rows. The lines of a transformation are prefixed with its number
      *  and its name, the name through {@link #named}. */
     public static List<String> of(Tune tune) {
+        return of(tune, new Work());
+    }
+
+    /** What a tune check reads, counted for a test of its cost: the rows of
+     *  the tune read for starts, the starts read into the targets and the
+     *  connections of their timers, and the source rows read through the
+     *  mapping of a remap. */
+    static final class Work {
+        int rows;
+        int starts;
+        int sources;
+    }
+
+    /** {@link #of(Tune)}, counting what it reads in {@code work}. The starts
+     *  on a timer are read once, at the first remap on it, and each mapping
+     *  once a timer. */
+    static List<String> of(Tune tune, Work work) {
         List<String> said = new ArrayList<>();
         if (tune.rate() < 1) {
             said.add("a rate of " + tune.rate() + ": a player is called at least once a"
@@ -86,30 +107,19 @@ public final class Check {
         }
         // a remap is read against every start on its timer, at any row
         List<Row> rows = tune.table().rows();
-        Map<Timer, List<Started>> starts = new EnumMap<>(Timer.class);
+        Remapping starts = new Remapping(rows);
         for (int at = 0; at < rows.size(); at++) {
-            for (Map.Entry<Timer, Effect> one : rows.get(at).effects().entrySet()) {
-                if (one.getValue() instanceof Start start) {
-                    starts.computeIfAbsent(one.getKey(), timer -> new ArrayList<>())
-                            .add(new Started(at, start));
-                }
-            }
-        }
-        for (int at = 0; at < rows.size(); at++) {
-            for (String one : of(starts, rows.get(at))) {
+            for (String one : of(starts, rows.get(at), work)) {
                 said.add("row " + at + ": " + one);
             }
         }
         return said;
     }
 
-    /** A start and the row it is at. */
-    private record Started(int row, Start start) { }
-
     /** What is wrong with one row, or an empty list: its registers, then
      *  its operation on each timer, {@code starts} the starts of the tune
-     *  on each timer in row order. */
-    private static List<String> of(Map<Timer, List<Started>> starts, Row row) {
+     *  on each timer. */
+    private static List<String> of(Remapping starts, Row row, Work work) {
         List<String> said = new ArrayList<>();
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             int most = Chip.most(one.getKey());
@@ -119,8 +129,7 @@ public final class Check {
             }
         }
         for (Map.Entry<Timer, Effect> one : Tunes.effects(row).entrySet()) {
-            for (String wrong : of(starts.getOrDefault(one.getKey(), List.of()),
-                    one.getValue())) {
+            for (String wrong : of(starts, one.getKey(), one.getValue(), work)) {
                 said.add("Timer " + one.getKey() + ": " + wrong);
             }
         }
@@ -128,9 +137,10 @@ public final class Check {
     }
 
     /** What is wrong with one row's operation on the effect of a timer, or
-     *  an empty list. A remap is read against {@code starts}, every start
-     *  on its timer in row order. */
-    private static List<String> of(List<Started> starts, Effect effect) {
+     *  an empty list. A remap is read against the starts on its timer in
+     *  {@code starts}. */
+    private static List<String> of(Remapping starts, Timer timer, Effect effect,
+                                   Work work) {
         return switch (effect) {
             case Start start -> {
                 List<String> said = new ArrayList<>(count(start.timing().count()));
@@ -144,7 +154,7 @@ public final class Check {
                 yield said;
             }
             case Stop ignored -> List.of();
-            case Remap remap -> remaps(starts, remap.mapping());
+            case Remap remap -> starts.on(timer, work).remapped(remap.mapping(), work);
         };
     }
 
@@ -315,37 +325,102 @@ public final class Check {
         return said;
     }
 
-    /**
-     * Checks this mapping against every start on the timer, including
-     * earlier and later starts. First report incorrect part counts once
-     * per target. Then check each distinct target/source connection in
-     * first-start order, prefixing its errors with {@code start of row
-     * S: }. Check keys and mapped register values in source-row and
-     * value order (SPEC.md 1.12).
-     */
-    private static List<String> remaps(List<Started> starts, Mapping mapping) {
-        Set<Target> targets = new LinkedHashSet<>();
-        Map<Connection, Integer> connected = new LinkedHashMap<>();
-        for (Started one : starts) {
-            targets.add(Tunes.target(one.start().connection()));
-            connected.putIfAbsent(one.start().connection(), one.row());
+    /** The starts of a tune that its remaps are read against, the starts on
+     *  a timer read at the first remap on it. A timer without a remap has
+     *  its starts left unread. */
+    private static final class Remapping {
+
+        private final List<Row> rows;
+        private final Map<Timer, Starts> timers = new EnumMap<>(Timer.class);
+
+        Remapping(List<Row> rows) {
+            this.rows = rows;
         }
-        List<String> said = new ArrayList<>();
-        for (Target target : targets) {
-            if (!parted(mapping, target)) {
-                said.add(parts(mapping, target));
+
+        /** The starts on {@code timer}, read in one pass over the rows at the
+         *  first call for it. */
+        Starts on(Timer timer, Work work) {
+            Starts on = timers.get(timer);
+            if (on == null) {
+                on = new Starts();
+                for (int at = 0; at < rows.size(); at++) {
+                    work.rows++;
+                    if (rows.get(at).effects().get(timer) instanceof Start start) {
+                        work.starts++;
+                        on.add(at, start);
+                    }
+                }
+                timers.put(timer, on);
             }
+            return on;
         }
-        for (Map.Entry<Connection, Integer> two : connected.entrySet()) {
-            Target target = Tunes.target(two.getKey());
-            Source source = Tunes.source(two.getKey());
-            if (parted(mapping, target)) {
-                for (String one : mapped(target, source, mapping, true)) {
-                    said.add("start of row " + two.getValue() + ": " + one);
+    }
+
+    /**
+     * The starts on one timer of a tune, read once for every remap on it:
+     * each target once, in first-start order, and each connection once, in
+     * first-start order with the row of its first start. {@code remaps}
+     * maps each mapping read against them to its lines.
+     */
+    private static final class Starts {
+
+        private final Set<Target> targets = new LinkedHashSet<>();
+        private final Map<Connection, Integer> connected = new LinkedHashMap<>();
+        private final Map<Mapping, List<String>> remaps = new HashMap<>();
+
+        /** Reads the connection of a start at {@code row}. */
+        void add(int row, Start start) {
+            targets.add(Tunes.target(start.connection()));
+            connected.putIfAbsent(start.connection(), row);
+        }
+
+        /** What is wrong with a remap through {@code mapping} on this timer.
+         *  Equal mappings have equal lines, so each is read once. */
+        List<String> remapped(Mapping mapping, Work work) {
+            List<String> said = remaps.get(mapping);
+            if (said == null) {
+                said = read(mapping, work);
+                remaps.put(mapping, said);
+            }
+            return said;
+        }
+
+        /**
+         * Checks this mapping against every start on the timer, including
+         * earlier and later starts. First report incorrect part counts once
+         * per target. Then check each distinct target/source connection in
+         * first-start order, prefixing its errors with {@code start of row
+         * S: }. Check keys and mapped register values in source-row and
+         * value order (SPEC.md 1.12).
+         */
+        private List<String> read(Mapping mapping, Work work) {
+            List<String> said = new ArrayList<>();
+            for (Target target : targets) {
+                if (!parted(mapping, target)) {
+                    said.add(parts(mapping, target));
                 }
             }
+            for (Map.Entry<Connection, Integer> two : connected.entrySet()) {
+                Target target = Tunes.target(two.getKey());
+                Source source = Tunes.source(two.getKey());
+                if (parted(mapping, target)) {
+                    work.sources += size(source);
+                    for (String one : mapped(target, source, mapping, true)) {
+                        said.add("start of row " + two.getValue() + ": " + one);
+                    }
+                }
+            }
+            return List.copyOf(said);
         }
-        return said;
+    }
+
+    /** The row count of a source. */
+    private static int size(Source source) {
+        return switch (source) {
+            case Single single -> Tunes.size(single.table());
+            case Pair pair -> Tunes.size(pair.table());
+            case Triple triple -> Tunes.size(triple.table());
+        };
     }
 
     /**

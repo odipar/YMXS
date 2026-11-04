@@ -4,7 +4,8 @@
 // reporting every error in SPEC.md 1.12 order. Optional lookups require
 // valid entry counts, keys and mapped register values. Remaps are
 // checked against every start on their timer, including earlier and
-// later starts.
+// later starts. Tune reads the starts on a timer once, at the first remap
+// on it, and each mapping of a remap once a timer.
 //
 // Row and Effect lack tune context and leave remap checks to Tune or
 // Remapping. Writing separately reports breaches of the writer rules in
@@ -16,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/odipar/ymxs/go/ymxs"
@@ -39,6 +41,25 @@ func Multi(multi ymxs.Multi) []string {
 // of SPEC.md 1.12: the rate, the table, each transformation in number
 // order under its number and its name, then each row.
 func Tune(tune ymxs.Tune) []string {
+	return tuneOf(tune, &work{})
+}
+
+// work counts what a tune check reads, for a test of its cost: the rows of
+// the tune read for starts, the starts read into the targets and the
+// connections of their timers, the source rows read for the key of a
+// connection, the connections compared by ymxs.SourceEqual, and the source
+// rows read through the mapping of a remap.
+type work struct {
+	rows     int
+	starts   int
+	keyed    int
+	compared int
+	sources  int
+}
+
+// tuneOf is Tune, counting what it reads in w. The starts on a timer are
+// read once, at the first remap on it, and each mapping once a timer.
+func tuneOf(tune ymxs.Tune, w *work) []string {
 	var said []string
 	if tune.Rate < 1 {
 		said = append(said, fmt.Sprintf("a rate of %d: a player is called at least once"+
@@ -51,8 +72,9 @@ func Tune(tune ymxs.Tune) []string {
 				ymxs.Reported(transformation.Name), one))
 		}
 	}
+	starts := &remapping{tune: tune}
 	for at, row := range tune.Table.Rows {
-		for _, one := range rowOf(tune, row) {
+		for _, one := range rowOf(starts, row, w) {
 			said = append(said, fmt.Sprintf("row %d: %s", at, one))
 		}
 	}
@@ -80,12 +102,13 @@ func Transformation(transformation ymxs.Transformation) []string {
 // Row checks one row without tune context. It cannot validate remaps
 // against starts on their timers; call Tune for those checks.
 func Row(row ymxs.Row) []string {
-	return rowOf(ymxs.Tune{}, row)
+	return rowOf(&remapping{}, row, &work{})
 }
 
 // rowOf lists what is wrong with a row of the tune: the registers, then each
-// timer with a start, a retune or a remap, A to D.
-func rowOf(tune ymxs.Tune, row ymxs.Row) []string {
+// timer with a start, a retune or a remap, A to D. A remap is read against
+// the starts on its timer in the tune of starts.
+func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 	var said []string
 	for _, one := range ymxs.Registered(row) {
 		most := ymxs.Most(one.Register)
@@ -97,7 +120,7 @@ func rowOf(tune ymxs.Tune, row ymxs.Row) []string {
 	for _, one := range ymxs.Effects(row) {
 		wrong := Effect(one.Effect)
 		if remap, ok := one.Effect.(ymxs.Remap); ok {
-			wrong = Remapping(tune, one.Timer, remap)
+			wrong = starts.on(one.Timer, w).remapped(remap.Mapping, w)
 		}
 		for _, line := range wrong {
 			said = append(said, fmt.Sprintf("Timer %s: %s", one.Timer, line))
@@ -193,50 +216,132 @@ func runs(start ymxs.Start) []string {
 // value order. Through skips lookups with invalid counts, keys or
 // selected entries (SPEC.md 1.12).
 func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
-	var starts []startAt
+	w := &work{}
+	return startsOn(tune, timer, w).remapped(remap.Mapping, w)
+}
+
+// remapping is the starts of a tune that its remaps are read against, the
+// starts on a timer read at the first remap on it. A timer without a remap
+// has its starts left unread.
+type remapping struct {
+	tune   ymxs.Tune
+	timers map[ymxs.Timer]*started
+}
+
+// on is the starts on the timer, read at the first call for it.
+func (r *remapping) on(timer ymxs.Timer, w *work) *started {
+	if on, read := r.timers[timer]; read {
+		return on
+	}
+	if r.timers == nil {
+		r.timers = map[ymxs.Timer]*started{}
+	}
+	on := startsOn(r.tune, timer, w)
+	r.timers[timer] = on
+	return on
+}
+
+// started is the starts on one timer of a tune, read once for every remap
+// on it: each target once, in first-start order, and each connection once,
+// in first-start order with the row of its first start. remaps maps the key
+// of each mapping read against them to its lines.
+type started struct {
+	targets     []ymxs.Target
+	connections []connectedAt
+	seen        map[ymxs.Target]bool
+	connected   map[connectionKey][]int
+	remaps      map[string][]string
+	key         []byte
+}
+
+// connectedAt is a connection and the row of its first start on a timer.
+type connectedAt struct {
+	row        int
+	connection ymxs.Connection
+}
+
+// connectionKey is the target of a connection, and the name, the row count
+// and a hash of the rows and the repeat row of its source. Two equal
+// connections have one key. The connections of one key are compared by
+// ymxs.SourceEqual, and two of one key differ only where the hash collides.
+type connectionKey struct {
+	target ymxs.Target
+	name   string
+	rows   int
+	hash   uint64
+}
+
+// startsOn reads the starts on the timer in one pass over the rows of the
+// tune.
+func startsOn(tune ymxs.Tune, timer ymxs.Timer, w *work) *started {
+	on := &started{seen: map[ymxs.Target]bool{}, connected: map[connectionKey][]int{},
+		remaps: map[string][]string{}}
 	for at, row := range ymxs.Rows(tune) {
+		w.rows++
 		if start, ok := row.Effects[timer].(ymxs.Start); ok {
-			starts = append(starts, startAt{row: at, start: start})
+			w.starts++
+			on.add(at, start.Connection, w)
 		}
 	}
-	parts := len(remap.Mapping.Parts)
-	var said []string
-	var targets []ymxs.Target
-	for _, one := range starts {
-		target := ymxs.ConnectionTarget(one.start.Connection)
-		if indexOfTarget(targets, target) >= 0 {
-			continue
+	return on
+}
+
+// add reads the connection of a start at row at into the targets and the
+// connections.
+func (s *started) add(at int, connection ymxs.Connection, w *work) {
+	target, source := ymxs.ConnectionTarget(connection), ymxs.ConnectionSource(connection)
+	if !s.seen[target] {
+		s.seen[target] = true
+		s.targets = append(s.targets, target)
+	}
+	rows, hash := hashed(source)
+	w.keyed += rows
+	key := connectionKey{target: target, name: ymxs.SourceName(source), rows: rows,
+		hash: hash}
+	for _, before := range s.connected[key] {
+		w.compared++
+		if ymxs.SourceEqual(ymxs.ConnectionSource(s.connections[before].connection), source) {
+			return
 		}
-		targets = append(targets, target)
+	}
+	s.connected[key] = append(s.connected[key], len(s.connections))
+	s.connections = append(s.connections, connectedAt{row: at, connection: connection})
+}
+
+// remapped lists what is wrong with a remap through the mapping on this
+// timer. Equal mappings have equal lines, so each is read once.
+func (s *started) remapped(mapping ymxs.Mapping, w *work) []string {
+	s.key = keyOf(s.key[:0], mapping)
+	if said, ok := s.remaps[string(s.key)]; ok {
+		return said
+	}
+	said := s.read(mapping, w)
+	s.remaps[string(s.key)] = said
+	return said
+}
+
+// read checks the mapping against the starts: the part count once a
+// target, then each connection, its lines prefixed with "start of row S: ".
+func (s *started) read(mapping ymxs.Mapping, w *work) []string {
+	parts := len(mapping.Parts)
+	var said []string
+	for _, target := range s.targets {
 		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
 			said = append(said, fmt.Sprintf("a mapping of %d parts on %s, which reads %d",
 				parts, ymxs.TargetName(target), reads))
 		}
 	}
-	var connected []ymxs.Connection
-	for _, one := range starts {
-		connection := one.start.Connection
-		target, source := ymxs.ConnectionTarget(connection), ymxs.ConnectionSource(connection)
-		seen := false
-		for _, before := range connected {
-			if ymxs.TargetEqual(ymxs.ConnectionTarget(before), target) &&
-				ymxs.SourceEqual(ymxs.ConnectionSource(before), source) {
-				seen = true
-				break
-			}
-		}
-		if seen {
-			continue
-		}
-		connected = append(connected, connection)
+	for _, one := range s.connections {
+		target := ymxs.ConnectionTarget(one.connection)
 		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
 			continue
 		}
 		mosts, named := ymxs.TargetMosts(target), ymxs.TargetName(target)
 		from := fmt.Sprintf("start of row %d: ", one.row)
-		for at, row := range ymxs.SourceRows(source).Rows {
+		for at, row := range ymxs.SourceRows(ymxs.ConnectionSource(one.connection)).Rows {
+			w.sources++
 			for i, most := range mosts {
-				part := ymxs.PartAt(remap.Mapping, i)
+				part := ymxs.PartAt(mapping, i)
 				if last, above := aboveKeys(part, row[i]); above {
 					said = append(said, from+keyed(at, row[i], named, last))
 				} else if written, read := ymxs.Through(part, row[i]); read && written > most {
@@ -248,10 +353,72 @@ func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 	return said
 }
 
-// startAt is a start on a timer and the row of the tune that performs it.
-type startAt struct {
-	row   int
-	start ymxs.Start
+// keyOf appends the key of the mapping to buf. Two mappings have one key
+// where they have as many parts, and each part of one is the part of the
+// other at its place, a transformation by ymxs.TransformationEqual: the
+// name and every entry. Any other part, nil among them, has the key n, and
+// Through panics on it.
+func keyOf(buf []byte, mapping ymxs.Mapping) []byte {
+	for _, part := range mapping.Parts {
+		switch p := part.(type) {
+		case ymxs.Identity:
+			buf = append(buf, 'i')
+		case ymxs.Transformation:
+			buf = append(buf, 't')
+			buf = strconv.AppendInt(buf, int64(len(p.Name)), 10)
+			buf = append(buf, ':')
+			buf = append(buf, p.Name...)
+			for _, entry := range p.Entries {
+				buf = append(buf, ',')
+				buf = strconv.AppendInt(buf, int64(entry), 10)
+			}
+		default:
+			buf = append(buf, 'n')
+		}
+		buf = append(buf, ';')
+	}
+	return buf
+}
+
+// hashed is the row count of a source, and an FNV-1a hash of its values
+// in row order and of its repeat row.
+func hashed(source ymxs.Source) (int, uint64) {
+	hash := uint64(14695981039346656037)
+	mix := func(value int) {
+		hash = (hash ^ uint64(value)) * 1099511628211
+	}
+	var rows, repeat int
+	var repeats bool
+	switch s := source.(type) {
+	case ymxs.Single:
+		for _, value := range s.Table.Rows {
+			mix(value)
+		}
+		rows = len(s.Table.Rows)
+		repeat, repeats = s.Table.Repeat()
+	case ymxs.Pair:
+		for _, row := range s.Table.Rows {
+			mix(row.First)
+			mix(row.Second)
+		}
+		rows = len(s.Table.Rows)
+		repeat, repeats = s.Table.Repeat()
+	case ymxs.Triple:
+		for _, row := range s.Table.Rows {
+			mix(row.First)
+			mix(row.Second)
+			mix(row.Third)
+		}
+		rows = len(s.Table.Rows)
+		repeat, repeats = s.Table.Repeat()
+	default:
+		panic(fmt.Sprintf("no source %T", source))
+	}
+	mix(repeat)
+	if repeats {
+		mix(1)
+	}
+	return rows, hash
 }
 
 // aboveKeys is the last key K of the part, and whether the value is above
@@ -279,15 +446,6 @@ func keyed(at, value int, target string, last int) string {
 func mapped(i, at, written int, target string, most int) string {
 	return fmt.Sprintf("value %d of row %d maps to %d on %s, and the target is 0 to %d", i,
 		at, written, target, most)
-}
-
-func indexOfTarget(targets []ymxs.Target, target ymxs.Target) int {
-	for i, one := range targets {
-		if ymxs.TargetEqual(one, target) {
-			return i
-		}
-	}
-	return -1
 }
 
 // rate reads what a rate must satisfy: a 68000 services the ticks it comes

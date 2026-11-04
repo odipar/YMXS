@@ -542,3 +542,148 @@ func TestARemapOnAnIdleTimerIsAWarning(t *testing.T) {
 		}
 	}
 }
+
+// remapped is a tune of 12 rows with errors in remaps on Timers A, B and D:
+// several targets and connections on each timer, a connection started at
+// two rows, a remap before a later start, and equal mappings at several
+// rows.
+func remapped(t *testing.T) ymxs.Tune {
+	t.Helper()
+	lo := ymxs.RepeatingSource("lo", []int{3, 20}, 0)
+	hi := ymxs.RepeatingSource("hi", []int{40, 5}, 0)
+	tone := ymxs.Pair{Name: "tone", Table: ymxs.Repeating([]ymxs.Two{{First: 300,
+		Second: 16}, {First: 10, Second: 2}}, 0)}
+	note := ymxs.Triple{Name: "note", Table: ymxs.Repeating([]ymxs.Three{{First: 1,
+		Second: 1, Third: 12}, {First: 1, Second: 1, Third: 20}}, 0)}
+	envelope := ymxs.Pair{Name: "env", Table: ymxs.Repeating([]ymxs.Two{{First: 255}}, 0)}
+	up := volume(15)
+	up.Name = "up"
+	for k := range up.Entries {
+		up.Entries[k] += 20
+	}
+	v15, big := volume(15), wide("big", 15)
+	start := func(target ymxs.Target, source ymxs.Source) ymxs.Start {
+		start, err := ymxs.Starting(target, source, ymxs.Timing{Prescaler: ymxs.By50,
+			Count: 60, TimerReset: true, PlaceReset: true}, false, ymxs.Mapping{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return start
+	}
+	remap := func(parts ...ymxs.Part) ymxs.Remap {
+		return ymxs.Remap{Mapping: ymxs.Mapped(parts...)}
+	}
+	r8, r10 := ymxs.Setting(ymxs.R8), ymxs.Setting(ymxs.R10)
+	i := ymxs.Identity{}
+	plan := map[ymxs.Timer]map[int]ymxs.Effect{
+		ymxs.TimerA: {0: start(r8, lo), 1: remap(up), 2: start(ymxs.SetTone{}, tone),
+			3: remap(up), 5: remap(up), 6: remap(i, v15), 8: remap(up)},
+		ymxs.TimerB: {0: start(ymxs.SetVoice{Voice: ymxs.VoiceB}, note),
+			4: remap(i, i, v15), 7: start(r8, hi), 8: remap(big), 9: remap(i, i, v15),
+			11: remap(big)},
+		ymxs.TimerD: {0: start(r10, lo), 1: start(r8, lo), 2: ymxs.Remap{},
+			3: remap(up), 4: start(r10, lo), 5: remap(v15),
+			6: start(ymxs.SetEnvelope{}, envelope), 7: remap(up), 10: remap(v15)},
+	}
+	rows := make([]ymxs.Row, 12)
+	for at := range rows {
+		rows[at] = ymxs.Row{Registers: map[ymxs.Register]int{},
+			Effects: map[ymxs.Timer]ymxs.Effect{}}
+	}
+	for timer, effects := range plan {
+		for at, effect := range effects {
+			rows[at].Effects[timer] = effect
+		}
+	}
+	return tune(rows, 50)
+}
+
+// A remap is read against every start on its timer at any row: the part
+// counts once a target, then each connection once, under the row of its
+// first start, in source-row and value order (SPEC.md 1.12). A tune check
+// reads each mapping once a timer, and its lines are those of Remapping
+// called for the remap alone; Row, without the tune, reports none.
+func TestRemapsOnThreeTimersReadEveryTargetAndConnectionOnTheirTimer(t *testing.T) {
+	key := func(row, value, last int, target string) string {
+		return fmt.Sprintf("a source on %s whose row %d is %d, and a key is 0 to %d",
+			target, row, value, last)
+	}
+	parts := func(n int, target string, reads int) string {
+		return fmt.Sprintf("a mapping of %d parts on %s, which reads %d", n, target, reads)
+	}
+	toneA := parts(1, "setToneA", 2)
+	envelope := parts(1, "setEnvelope", 2)
+	a0 := "Timer A: start of row 0: " + key(1, 20, 15, "setR8")
+	d0 := "Timer D: start of row 0: " + key(1, 20, 15, "setR10")
+	d1 := "Timer D: start of row 1: " + key(1, 20, 15, "setR8")
+	b0 := "Timer B: start of row 0: " + key(1, 20, 15, "setVoiceB")
+	b7 := "Timer B: start of row 7: value 0 of row 0 maps to 40 on setR8, and the target" +
+		" is 0 to 31"
+	tune := remapped(t)
+	lines(t, "remaps on three timers", check.Tune(tune), []string{
+		"row 1: Timer A: " + toneA,
+		"row 1: " + a0,
+		"row 2: Timer A: a source on setToneA whose row 0 is 300, and the target is 0 to 255",
+		"row 2: Timer A: a source on setToneA whose row 0 is 16, and the target is 0 to 15",
+		"row 3: Timer A: " + toneA,
+		"row 3: " + a0,
+		"row 3: Timer D: " + envelope,
+		"row 3: " + d0,
+		"row 3: " + d1,
+		"row 4: Timer B: " + parts(3, "setR8", 1),
+		"row 4: " + b0,
+		"row 5: Timer A: " + toneA,
+		"row 5: " + a0,
+		"row 5: Timer D: " + envelope,
+		"row 5: " + d0,
+		"row 5: " + d1,
+		"row 6: Timer A: " + parts(2, "setR8", 1),
+		"row 6: Timer A: start of row 2: value 0 of row 0 maps to 300 on setToneA, and the" +
+			" target is 0 to 255",
+		"row 6: Timer A: start of row 2: " + key(0, 16, 15, "setToneA"),
+		"row 7: Timer B: a source on setR8 whose row 0 is 40, and the target is 0 to 31",
+		"row 7: Timer D: " + envelope,
+		"row 7: " + d0,
+		"row 7: " + d1,
+		"row 8: Timer A: " + toneA,
+		"row 8: " + a0,
+		"row 8: Timer B: " + parts(1, "setVoiceB", 3),
+		"row 8: " + b7,
+		"row 9: Timer B: " + parts(3, "setR8", 1),
+		"row 9: " + b0,
+		"row 10: Timer D: " + envelope,
+		"row 10: " + d0,
+		"row 10: " + d1,
+		"row 11: Timer B: " + parts(1, "setVoiceB", 3),
+		"row 11: " + b7,
+	})
+	var alone []string
+	for at, row := range ymxs.Rows(tune) {
+		for _, one := range ymxs.Effects(row) {
+			said := check.Effect(one.Effect)
+			if remap, ok := one.Effect.(ymxs.Remap); ok {
+				said = check.Remapping(tune, one.Timer, remap)
+				without := ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{one.Timer: remap}}
+				if len(check.Effect(remap))+len(check.Row(without)) != 0 {
+					t.Errorf("the remap at row %d reports a line without the tune", at)
+				}
+			}
+			for _, line := range said {
+				alone = append(alone, fmt.Sprintf("row %d: Timer %s: %s", at, one.Timer, line))
+			}
+		}
+	}
+	lines(t, "Effect and Remapping of each operation", alone, check.Tune(tune))
+}
+
+// Remapping reads the starts on the timer it is called for, a timer outside
+// A to D among them.
+func TestRemappingReadsTheTimerItIsCalledFor(t *testing.T) {
+	timer := ymxs.Timer(5)
+	rows := []ymxs.Row{{Effects: map[ymxs.Timer]ymxs.Effect{timer: ymxs.Start{
+		Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
+			Source: ymxs.RepeatingSource("q", []int{20}, 0)}}}}}
+	lines(t, "a remap on Timer 5", check.Remapping(tune(rows, 50), timer,
+		ymxs.Remap{Mapping: ymxs.Mapped(volume(15))}), []string{
+		"start of row 0: a source on setR8 whose row 0 is 20, and a key is 0 to 15"})
+}

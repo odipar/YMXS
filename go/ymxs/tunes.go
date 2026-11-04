@@ -417,22 +417,53 @@ func SourceEqual(a, b Source) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	if SourceName(a) != SourceName(b) || SourceColumns(a) != SourceColumns(b) {
-		return false
+	equal, _ := sourceEqual(a, b)
+	return equal
+}
+
+// sourceEqual is SourceEqual of two sources, neither nil, and the count of
+// the rows it reads.
+func sourceEqual(a, b Source) (bool, int) {
+	switch one := a.(type) {
+	case Single:
+		two, ok := b.(Single)
+		if !ok || one.Name != two.Name {
+			return false, 0
+		}
+		return tableEqual(one.Table, two.Table)
+	case Pair:
+		two, ok := b.(Pair)
+		if !ok || one.Name != two.Name {
+			return false, 0
+		}
+		return tableEqual(one.Table, two.Table)
+	case Triple:
+		two, ok := b.(Triple)
+		if !ok || one.Name != two.Name {
+			return false, 0
+		}
+		return tableEqual(one.Table, two.Table)
 	}
-	one, two := SourceRows(a), SourceRows(b)
-	if len(one.Rows) != len(two.Rows) || one.repeat != two.repeat ||
-		one.repeats != two.repeats {
-		return false
+	panic(fmt.Sprintf("no source %T", a))
+}
+
+// tableEqual is whether two tables have equal rows and repeat to one row,
+// and the count of the rows it reads. Two tables of one length and repeat
+// whose rows begin at one element of one array are equal without a read of
+// the rows, so a source started at many rows compares in constant time.
+func tableEqual[T comparable](a, b Table[T]) (bool, int) {
+	if len(a.Rows) != len(b.Rows) || a.repeat != b.repeat || a.repeats != b.repeats {
+		return false, 0
 	}
-	for i, row := range one.Rows {
-		for at, value := range row {
-			if two.Rows[i][at] != value {
-				return false
-			}
+	if len(a.Rows) == 0 || &a.Rows[0] == &b.Rows[0] {
+		return true, 0
+	}
+	for at, row := range a.Rows {
+		if b.Rows[at] != row {
+			return false, at + 1
 		}
 	}
-	return true
+	return true, len(a.Rows)
 }
 
 func indexOf(sources []Source, source Source) int {

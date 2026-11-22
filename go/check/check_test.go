@@ -20,9 +20,9 @@ func TestAStructureOutsideTheTwoChipsIsAFault(t *testing.T) {
 	square := ymxs.RepeatingSource("square 12", []int{12, 0}, 0)
 	rows := []ymxs.Row{
 		{Registers: map[ymxs.Register]int{ymxs.R1: 99}, Effects: map[ymxs.Timer]ymxs.Effect{
-			ymxs.TimerA: ymxs.Start{
+			ymxs.TimerA: ymxs.WholeTable(ymxs.Start{
 				Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8), Source: square},
-				Timing:     ymxs.Timing{Prescaler: ymxs.By4, Count: 256}}}},
+				Timing:     ymxs.Timing{Prescaler: ymxs.By4, Count: 256}})}},
 	}
 	said := check.Tune(tune(rows, 50))
 	if len(said) != 2 {
@@ -71,20 +71,20 @@ const reckoned = ", which rests on how long a source that plays once runs, recko
 // by the reckoning (SPEC.md 6.4).
 func slow(register ymxs.Register, source ymxs.Single) ymxs.Row {
 	return ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{
-		ymxs.TimerA: ymxs.Start{
+		ymxs.TimerA: ymxs.WholeTable(ymxs.Start{
 			Connection: ymxs.OneConnection{Target: ymxs.Setting(register), Source: source},
 			Timing: ymxs.Timing{Prescaler: ymxs.By200, Count: 200, TimerReset: true,
-				PlaceReset: true}}}}
+				PlaceReset: true}})}}
 }
 
 // deferring is a deferred start of the source on the register on Timer A,
 // at one frame for every source of fifteen rows or fewer.
 func deferring(register ymxs.Register, source ymxs.Single) ymxs.Row {
 	return ymxs.Row{Effects: map[ymxs.Timer]ymxs.Effect{
-		ymxs.TimerA: ymxs.Start{
+		ymxs.TimerA: ymxs.WholeTable(ymxs.Start{
 			Connection: ymxs.OneConnection{Target: ymxs.Setting(register), Source: source},
 			Timing: ymxs.Timing{Prescaler: ymxs.By4, Count: 100, TimerReset: true,
-				PlaceReset: true}, Deferred: true}}}
+				PlaceReset: true}, Deferred: true})}}
 }
 
 func sets(register ymxs.Register) ymxs.Row {
@@ -182,11 +182,11 @@ func on(effect ymxs.Effect) ymxs.Row {
 // voice is a start on setVoiceA of a note of these rows, through the
 // mapping.
 func voice(rows []ymxs.Three, mapping ymxs.Mapping) ymxs.Start {
-	return ymxs.Start{Connection: ymxs.ThreeConnection{
+	return ymxs.WholeTable(ymxs.Start{Connection: ymxs.ThreeConnection{
 		Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
 		Source: ymxs.Triple{Name: "a note", Table: ymxs.Repeating(rows, 0)}},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
-			PlaceReset: true}, Mapping: mapping}
+			PlaceReset: true}, Mapping: mapping})
 }
 
 func lines(t *testing.T, named string, said, want []string) {
@@ -373,12 +373,12 @@ func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
 	quiet := []ymxs.Three{{First: 1, Second: 1, Third: 12}}
 	high := []ymxs.Three{{First: 1, Second: 1, Third: 15}, {First: 1, Second: 1,
 		Third: 256}}
-	tone := ymxs.Start{Connection: ymxs.TwoConnection{
+	tone := ymxs.WholeTable(ymxs.Start{Connection: ymxs.TwoConnection{
 		Target: ymxs.SetTone{Voice: ymxs.VoiceA},
 		Source: ymxs.Pair{Name: "a tone", Table: ymxs.Repeating([]ymxs.Two{
 			{First: 200, Second: 15}}, 0)}},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
-			PlaceReset: true}}
+			PlaceReset: true}})
 	through := ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, loud)
 	rows := []ymxs.Row{
 		on(voice(quiet, ymxs.Mapping{})),
@@ -406,10 +406,10 @@ func TestARemapIsReadAgainstEachStartOnItsTimer(t *testing.T) {
 // level is a start on setR8 on Timer A of a source of these values, one a
 // row, through the mapping.
 func level(named string, values []int, mapping ymxs.Mapping) ymxs.Start {
-	return ymxs.Start{Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
+	return ymxs.WholeTable(ymxs.Start{Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
 		Source: ymxs.RepeatingSource(named, values, 0)},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
-			PlaceReset: true}, Mapping: mapping}
+			PlaceReset: true}, Mapping: mapping})
 }
 
 // Two sources of equal rows under two names are two sources (SPEC.md 1.9),
@@ -564,7 +564,8 @@ func remapped(t *testing.T) ymxs.Tune {
 	v15, big := volume(15), wide("big", 15)
 	start := func(target ymxs.Target, source ymxs.Source) ymxs.Start {
 		start, err := ymxs.Starting(target, source, ymxs.Timing{Prescaler: ymxs.By50,
-			Count: 60, TimerReset: true, PlaceReset: true}, false, ymxs.Mapping{})
+			Count: 60, TimerReset: true, PlaceReset: true}, false, ymxs.Mapping{},
+			ymxs.Whole(source))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -680,10 +681,136 @@ func TestRemapsOnThreeTimersReadEveryTargetAndConnectionOnTheirTimer(t *testing.
 // A to D among them.
 func TestRemappingReadsTheTimerItIsCalledFor(t *testing.T) {
 	timer := ymxs.Timer(5)
-	rows := []ymxs.Row{{Effects: map[ymxs.Timer]ymxs.Effect{timer: ymxs.Start{
+	rows := []ymxs.Row{{Effects: map[ymxs.Timer]ymxs.Effect{timer: ymxs.WholeTable(ymxs.Start{
 		Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
-			Source: ymxs.RepeatingSource("q", []int{20}, 0)}}}}}
+			Source: ymxs.RepeatingSource("q", []int{20}, 0)}})}}}
 	lines(t, "a remap on Timer 5", check.Remapping(tune(rows, 50), timer,
 		ymxs.Remap{Mapping: ymxs.Mapped(volume(15))}), []string{
 		"start of row 0: a source on setR8 whose row 0 is 20, and a key is 0 to 15"})
+}
+
+// cut is a start on Timer A of the source on setR8 under the cut, at the
+// prescaler and the count, both resets set.
+func cut(source ymxs.Single, under ymxs.Cut, by ymxs.Prescaler, count int) ymxs.Row {
+	return on(ymxs.Start{
+		Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8), Source: source},
+		Timing: ymxs.Timing{Prescaler: by, Count: count, TimerReset: true,
+			PlaceReset: true}, Cut: under})
+}
+
+// recuts is a recut of Timer A to the rows first to last.
+func recuts(first, last int) ymxs.Row {
+	return on(ymxs.Recut{Cut: ymxs.Cut{First: first, Last: last}})
+}
+
+// The first row and the last row of a cut are rows of the source of its
+// start, the last at or above the first: each outside is a line, after the
+// lines of the source and its mapping, and a source of no rows has the line
+// of its table alone (SPEC.md 1.11, 1.12). The lines are those of the Java
+// tree's CheckTest.
+func TestACutOutsideItsSourceIsAnErrorOfAStart(t *testing.T) {
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	longer := ymxs.RepeatingSource("longer", []int{15, 8, 0}, 0)
+	loud := ymxs.RepeatingSource("loud", []int{40, 0}, 0)
+	none := ymxs.OnceSource("none", nil)
+	of := func(rows ...ymxs.Row) []string {
+		return check.Tune(tune(rows, 50))
+	}
+	lines(t, "a cut of the rows of the source",
+		of(cut(longer, ymxs.Cut{First: 1, Last: 2}, ymxs.By4, 100)), nil)
+	lines(t, "a cut past the source", of(cut(square, ymxs.Cut{First: 2, Last: 5},
+		ymxs.By4, 100)), []string{
+		"row 0: Timer A: the source has 2 rows and the cut begins at row 2",
+		"row 0: Timer A: the source has 2 rows and the cut ends at row 5"})
+	lines(t, "a cut before the source", of(cut(square, ymxs.Cut{First: -1, Last: 1},
+		ymxs.By4, 100)), []string{
+		"row 0: Timer A: the source has 2 rows and the cut begins at row -1"})
+	lines(t, "a cut that ends before it begins", of(cut(square, ymxs.Cut{First: 1,
+		Last: 0}, ymxs.By4, 100)), []string{
+		"row 0: Timer A: a cut of rows 1 to 0: a cut ends at or after the row it begins at"})
+	lines(t, "a source above its register", of(cut(loud, ymxs.Cut{First: 0, Last: 2},
+		ymxs.By4, 100)), []string{
+		"row 0: Timer A: a source on setR8 whose row 0 is 40, and the target is 0 to 31",
+		"row 0: Timer A: the source has 2 rows and the cut ends at row 2"})
+	if whole := ymxs.Whole(none); whole != (ymxs.Cut{First: 0, Last: -1}) {
+		t.Errorf("the whole table of no rows is %v", whole)
+	}
+	lines(t, "a source of no rows", of(cut(none, ymxs.Whole(none), ymxs.By4, 100)),
+		[]string{"row 0: Timer A: the source has no rows: a clock reads one"})
+}
+
+// A recut is read against the source of each start on its timer, at any
+// row, each source once in first-start order with the row of its first
+// start; a last row below the first is one line, before them (SPEC.md 1.11,
+// 1.12).
+func TestARecutIsReadAgainstTheSourceOfEachStartOnItsTimer(t *testing.T) {
+	square := cut(ymxs.RepeatingSource("square", []int{15, 0}, 0),
+		ymxs.Cut{First: 0, Last: 1}, ymxs.By4, 100)
+	longer := cut(ymxs.RepeatingSource("longer", []int{15, 8, 0}, 0),
+		ymxs.Cut{First: 0, Last: 2}, ymxs.By4, 100)
+	drum := cut(ymxs.OnceSource("drum", []int{8, 12, 15, 13}),
+		ymxs.Cut{First: 0, Last: 3}, ymxs.By4, 100)
+	lines(t, "a recut past one source", check.Tune(tune([]ymxs.Row{square, longer,
+		recuts(1, 2), drum, square}, 50)), []string{
+		"row 2: Timer A: start of row 0: the source has 2 rows and the cut ends at row 2"})
+	lines(t, "a recut that ends before it begins", check.Tune(tune([]ymxs.Row{square,
+		recuts(3, 2), longer}, 50)), []string{
+		"row 1: Timer A: a cut of rows 3 to 2: a cut ends at or after the row it begins at",
+		"row 1: Timer A: start of row 0: the source has 2 rows and the cut begins at row 3",
+		"row 1: Timer A: start of row 0: the source has 2 rows and the cut ends at row 2",
+		"row 1: Timer A: start of row 2: the source has 3 rows and the cut begins at row 3"})
+	lines(t, "a recut on a timer of no start", check.Tune(tune([]ymxs.Row{recuts(4, 5)},
+		50)), nil)
+	lines(t, "Recutting", check.Recutting(tune([]ymxs.Row{square}, 50), ymxs.TimerA,
+		ymxs.Recut{Cut: ymxs.Cut{First: 0, Last: 2}}), []string{
+		"start of row 0: the source has 2 rows and the cut ends at row 2"})
+}
+
+// A recut of an idle effect breaks rule 5, and a recut leaves the run of
+// the effect, a pending start and the wrap of rule 1(d) as a remap does
+// (SPEC.md 6.3, 6.5).
+func TestARecutOnAnIdleTimerIsAWarning(t *testing.T) {
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	drum := ymxs.OnceSource("drum", []int{8, 12, 15, 13})
+	idle := "recuts an effect that is idle: a cut is set on a running effect, and this" +
+		" row leaves the timer as it is"
+	stop := on(ymxs.Stop{})
+	starts := cut(square, ymxs.Cut{First: 0, Last: 1}, ymxs.By4, 100)
+	writing := func(rows ...ymxs.Row) []string {
+		return check.Writing(tune(rows, 50))
+	}
+	lines(t, "before the first start", writing(recuts(0, 0)),
+		[]string{"row 0: Timer A " + idle})
+	lines(t, "after a stop", writing(starts, stop, recuts(0, 0)),
+		[]string{"row 2: Timer A " + idle})
+	lines(t, "after its source has run out", writing(cut(drum, ymxs.Cut{First: 0, Last: 3},
+		ymxs.By4, 100), ymxs.Row{}, recuts(0, 1)), []string{"row 2: Timer A " + idle + reckoned})
+	lines(t, "the run as it was", writing(starts, sets(ymxs.R8), recuts(0, 0),
+		sets(ymxs.R8)), []string{
+		"rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set it"})
+	lines(t, "the pending start", writing(slow(ymxs.R8, square), deferring(ymxs.R9, drum),
+		recuts(1, 1), sets(ymxs.R9), ymxs.Row{}), []string{
+		"row 3: Timer A runs on R9, and this row sets it" + reckoned})
+	wrap := ymxs.Tune{Title: "built", Writer: "check_test", Rate: 50,
+		Table: ymxs.Repeating([]ymxs.Row{starts, recuts(1, 1)}, 1)}
+	lines(t, "the wrap", check.Writing(wrap), []string{"the tune repeats to row 1, and" +
+		" Timer A runs on R8 when its last row has played: the wrap resumes with the" +
+		" timer running from the pass before"})
+}
+
+// The reckoning of a source that plays once reads the rows of the cut of
+// its start, and a recut leaves it as it was (SPEC.md 6.4).
+func TestTheReckoningReadsTheRowsOfTheCutOfTheStart(t *testing.T) {
+	drum := ymxs.OnceSource("drum", []int{8, 12, 15, 13})
+	if frames := ymxs.Frames(ymxs.CutSize(ymxs.Cut{First: 0, Last: 1}), ymxs.By200, 200,
+		50); frames != 2 {
+		t.Errorf("a cut of two rows at 200 x 200 runs %d frames of 50 Hz", frames)
+	}
+	lines(t, "a cut of two rows", check.Writing(tune([]ymxs.Row{cut(drum,
+		ymxs.Cut{First: 0, Last: 1}, ymxs.By200, 200), sets(ymxs.R8), sets(ymxs.R8)}, 50)),
+		[]string{"row 1: Timer A runs on R8, and this row sets it" + reckoned})
+	lines(t, "a recut", check.Writing(tune([]ymxs.Row{cut(drum, ymxs.Whole(drum),
+		ymxs.By200, 200), sets(ymxs.R8), recuts(0, 1), sets(ymxs.R8)}, 50)),
+		[]string{"rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set it" +
+			reckoned})
 }

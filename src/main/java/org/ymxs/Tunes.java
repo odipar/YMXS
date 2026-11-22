@@ -9,6 +9,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Connection;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
 import org.ymxs.YMXS.Mapping;
@@ -18,6 +19,7 @@ import org.ymxs.YMXS.OneTarget;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
@@ -403,6 +405,28 @@ public final class Tunes {
                 + columns(source) + " values a row");
     }
 
+    /** How many rows the source has. */
+    public static int size(Source source) {
+        return switch (source) {
+            case Single single -> size(single.table());
+            case Pair pair -> size(pair.table());
+            case Triple triple -> size(triple.table());
+        };
+    }
+
+    /** The cut of the whole table of {@code source}, rows 0 to R - 1 of its
+     *  R rows (SPEC.md 3.7.1). A reader of a file of version 7 or before
+     *  reads every start with this cut. */
+    public static Cut whole(Source source) {
+        return new Cut(0, size(source) - 1);
+    }
+
+    /** The rows a cut reads, its last row less its first plus 1, which
+     *  the reckoning of a source that plays once reads (SPEC.md 6.4). */
+    public static int size(Cut cut) {
+        return cut.last() - cut.first() + 1;
+    }
+
     /** The values in one row. */
     public static int columns(Source source) {
         return switch (source) {
@@ -434,6 +458,21 @@ public final class Tunes {
             case Remap remap -> remap.mapping();
             case Retune ignored -> null;
             case Stop ignored -> null;
+            case Recut ignored -> null;
+        };
+    }
+
+    /**
+     * The cut supplied by a start or a recut. A retune, a stop or a remap
+     * returns null; each preserves the running effect's cut.
+     */
+    public static @Nullable Cut cut(Effect effect) {
+        return switch (effect) {
+            case Start start -> start.cut();
+            case Recut recut -> recut.cut();
+            case Retune ignored -> null;
+            case Stop ignored -> null;
+            case Remap ignored -> null;
         };
     }
 
@@ -530,25 +569,33 @@ public final class Tunes {
     }
 
     /** The start of {@code source} on {@code target} through
-     *  {@code mapping}, its connection the record of the width they share.
-     *  A reader of a form builds a start this way, where the two come off
-     *  text; code that names the shapes builds the record.
+     *  {@code mapping} under {@code cut}, its connection the record of the
+     *  width they share. A reader of a form builds a start this way, where
+     *  the two come off text; code that names the shapes builds the record.
      *
      * @throws IllegalArgumentException where the source has other values
      *     a row than the target reads
      */
     public static Start starting(Target target, Source source, Prescaler prescaler,
             int count, boolean timerReset, boolean placeReset, boolean deferred,
-            Mapping mapping) {
+            Mapping mapping, Cut cut) {
         return new Start(connection(target, source),
-                new Timing(prescaler, count, timerReset, placeReset), deferred, mapping);
+                new Timing(prescaler, count, timerReset, placeReset), deferred, mapping, cut);
+    }
+
+    /** The start of a connection under the whole table of its source
+     *  (SPEC.md 3.7.1). */
+    public static Start start(Connection connection, Timing timing, boolean deferred,
+            Mapping mapping) {
+        return new Start(connection, timing, deferred, mapping, whole(source(connection)));
     }
 
     /** A struck note: the source from its first row, the timer from a
-     *  whole period, at the row, through the mapping of no parts. */
+     *  whole period, at the row, through the mapping of no parts, under
+     *  the whole table. */
     public static Start struck(OneTarget target, Single source, Prescaler prescaler,
             int count) {
-        return new Start(new OneConnection(target, source),
+        return start(new OneConnection(target, source),
                 new Timing(prescaler, count, true, true), false, NO_PARTS);
     }
 

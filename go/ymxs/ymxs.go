@@ -6,10 +6,12 @@
 // through its target. Transformation lookups are optional: the zero
 // Mapping uses identity for every value.
 //
-// Start supplies a connection, timing and mapping. Remap changes the
+// Start supplies a connection, timing, mapping and cut. Remap changes the
 // running effect's mapping without restarting its source; a pending
 // Start retains its separate mapping. Volume transformations can scale
 // a sample or fade it while playback continues from its current place.
+// Recut changes the rows of the source the running effect reads, which
+// moves a window over a wave table.
 //
 // Sources and Transformations collect data in order of first use. The
 // check package validates lookup sizes, keys, mapped values and mapping
@@ -76,9 +78,9 @@ type Row struct {
 }
 
 // Effect is one row's operation on the effect of one timer. An effect is a
-// source connected to a target on one timer through a mapping, at the rate
-// its prescaler and count come to, and a row performs one of four
-// operations on it.
+// source connected to a target on one timer through a mapping, under a
+// cut, at the rate its prescaler and count come to, and a row performs one
+// of five operations on it.
 type Effect interface {
 	effect()
 }
@@ -93,18 +95,22 @@ type Timing struct {
 	PlaceReset bool
 }
 
-// Start connects a source and target with the supplied timing and
-// mapping. The zero Mapping uses identity for every source value;
-// transformation lookups are optional.
+// Start connects a source and target with the supplied timing, mapping
+// and cut. The zero Mapping uses identity for every source value;
+// transformation lookups are optional. The cut is the rows of the source
+// the effect reads; Whole is the cut of every row, and the zero Cut is
+// the cut of row 0 alone.
 //
 // With Deferred set on a running effect, the start remains pending
-// until the current source's last row. It keeps its mapping while
-// pending, even if a Remap changes the running effect (SPEC.md 3.5).
+// until the last row of the cut of the running effect. It keeps its
+// mapping and its cut while pending, even if a Remap or a Recut changes
+// the running effect (SPEC.md 3.5).
 type Start struct {
 	Connection Connection
 	Timing     Timing
 	Deferred   bool
 	Mapping    Mapping
+	Cut        Cut
 }
 
 // Connection is the target a start runs its source on, and that source. A
@@ -154,10 +160,33 @@ type Remap struct {
 	Mapping Mapping
 }
 
+// Recut replaces the running effect's cut for subsequent ticks. Its
+// source, target, timing and mapping are unchanged, and its place where
+// the new cut includes it; a place outside the new cut moves to the cut's
+// first row. A pending Start retains its separate cut; an idle timer stays
+// idle.
+//
+// A recut a frame moves a window over a wave table while the source plays
+// at its rate (SPEC.md 3.7).
+type Recut struct {
+	Cut Cut
+}
+
+// Cut is the rows of its source that an effect reads, First to Last, each
+// 0 to R - 1 of a source of R rows. After the last row, the next tick of a
+// source that repeats reads its repeat row where the cut includes it, and
+// the first row of the cut where it does not; a source that plays once ends
+// at the last row (SPEC.md 3.7).
+type Cut struct {
+	First int
+	Last  int
+}
+
 func (Start) effect()  {}
 func (Retune) effect() {}
 func (Stop) effect()   {}
 func (Remap) effect()  {}
+func (Recut) effect()  {}
 
 func (OneConnection) connection()   {}
 func (TwoConnection) connection()   {}

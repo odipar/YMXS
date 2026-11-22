@@ -229,13 +229,13 @@ final class ParityTest {
         String sourceRepeat = "\"name\": \"square 13\", \"repeat\": 0,";
         String start = "0,0,8,1,50,60,1,1";
         String retune = "1,1,,,50,61,0,0";
-        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 7,",
+        for (String each : List.of(tuneRepeat, sourceRepeat, "\"version\": 8,",
                 "\"rows\": 4,", "\"rate\": 50,")) {
             assertTrue(json.contains(each), "the example has " + each);
         }
         assertTrue(csv.contains(start) && csv.contains(retune), "the example starts and retunes");
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\": 7,",
+                new Wrong("ymxs-check", json.replace("\"version\": 8,",
                         "\"version\": 4294967300,"), "version is 4294967300" + whole),
                 new Wrong("ymxs-check", json.replace("\"rows\": 4,",
                         "\"rows\": 4294967300,"), "rows is 4294967300" + whole),
@@ -355,7 +355,7 @@ final class ParityTest {
      * check of {@code doc/tunes/deferred.json} with R8 set at rows 5 and 6
      * reports the square's run to row 6 by the reckoning and the fall's
      * from there (6.3, 6.4); a reader skips the {@code deferred} column of
-     * a file of version 4, and a start of version 7 without it is one
+     * a file of version 4, and a start of version 8 without it is one
      * error of the form (json.md 2.4, 8.1; csv.md 5.2).
      */
     @Test
@@ -365,7 +365,7 @@ final class ParityTest {
                 StandardCharsets.UTF_8);
         String r7 = "\"r7\": [62,-1,-1,-1,-1,-1,-1,-1]";
         String deferred = "\"deferred\": [0,-1,-1,-1,1,-1,-1,-1]";
-        String cells = ",placeReset,deferred,mapping\n";
+        String cells = ",placeReset,deferred,mapping,first,last\n";
         assertTrue(json.contains(r7) && json.contains(deferred) && csv.contains(cells),
                 "the example sets R7 alone and defers the start at row 4");
         byte[] sets = json.replace(r7, r7 + ",\n        \"r8\": [-1,-1,-1,-1,-1,12,12,-1]")
@@ -377,12 +377,53 @@ final class ParityTest {
         assertTrue(said.contains("row 5: Timer A runs on R8, and this row sets it" + reckoned)
                 && said.contains("row 6: Timer A runs on R8, and this row sets it" + reckoned),
                 said);
-        both("ymxs-check", json.replace("\"version\": 7", "\"version\": 4").getBytes());
-        both("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,4,1").getBytes());
+        both("ymxs-check", json.replace("\"version\": 8", "\"version\": 4").getBytes());
+        both("ymxs-csv-to-json", csv.replace("ymxs,8,1", "ymxs,4,1").getBytes());
         wrongInBothTrees(new Wrong("ymxs-check", json.replace(",\n        " + deferred, ""),
                 "Timer A has no \"deferred\" column"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(cells, ",placeReset\n"),
                 "true or false is \"\", and this form requires a whole number"));
+    }
+
+    /**
+     * A cut outside its source, a recut that ends before it begins and a
+     * recut read against the source of a start on its timer are errors of
+     * the structure, the same lines in both trees in the order of SPEC.md
+     * 1.12: {@code doc/tunes/cut.json} with the cut of its start ending at
+     * row 40 of 32, the recut of row 1 from row 17 to row 2 and the recut
+     * of row 2 ending at row 33, in JSON and in CSV. With a stop before its
+     * last recut, the recut is the rule 5 line of SPEC.md 6.5 in both trees.
+     */
+    @Test
+    void theCutsOfATuneReadTheSameInBothTrees() throws Exception {
+        String json = new String(file("doc/tunes/cut.json"), StandardCharsets.UTF_8);
+        String csv = new String(both("ymxs-json-to-csv", json.getBytes()),
+                StandardCharsets.UTF_8);
+        String shape = "\"shape\": [0,4,4,4,4,4,4,4,4,4,4,2],";
+        String first = "\"first\": [0,2,4,6,8,10,12,14,16,16,20,-1],";
+        String last = "\"last\": [15,17,19,21,23,25,27,29,31,23,23,-1]";
+        String cells = "0,0,8,1,4,40,1,1,0,0,0,15\n1,4,,,,,,,,,2,17\n2,4,,,,,,,,,4,19\n";
+        for (String each : List.of(shape, first, last)) {
+            assertTrue(json.contains(each), "the tune has " + each);
+        }
+        assertTrue(csv.contains(cells), "the tables have " + cells);
+        String lines = "tune 1: row 0: Timer A: the source has 32 rows and the cut ends at row 40\n"
+                + "tune 1: row 1: Timer A: a cut of rows 17 to 2: a cut ends at or after the row"
+                + " it begins at\n"
+                + "tune 1: row 2: Timer A: start of row 0: the source has 32 rows and the cut"
+                + " ends at row 33";
+        wrongInBothTrees(new Wrong("ymxs-check", json
+                .replace(first, "\"first\": [0,17,4,6,8,10,12,14,16,16,20,-1],")
+                .replace(last, "\"last\": [40,2,33,21,23,25,27,29,31,23,23,-1]"), lines));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(cells,
+                "0,0,8,1,4,40,1,1,0,0,0,40\n1,4,,,,,,,,,17,2\n2,4,,,,,,,,,4,33\n"), lines));
+        byte[] idle = json.replace(shape, "\"shape\": [0,4,4,4,4,4,4,4,4,2,4,2],")
+                .replace(first, "\"first\": [0,2,4,6,8,10,12,14,16,-1,20,-1],")
+                .replace(last, "\"last\": [15,17,19,21,23,25,27,29,31,-1,23,-1]").getBytes();
+        both("ymxs-check", idle);
+        String said = ran(Path.of("bin"), "ymxs-check", idle).said();
+        assertTrue(said.contains("warning: row 10: Timer A recuts an effect that is idle: a cut"
+                + " is set on a running effect, and this row leaves the timer as it is\n"), said);
     }
 
     /** The first {@code entries} entries of {@code half}, entry k the key
@@ -483,8 +524,8 @@ final class ParityTest {
         String unused = "transformation 2, other, is used by no row, and a transformation a"
                 + " tune does not map through is dropped where this form is read";
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":8"),
-                        "version 8, and this reads 3, 4, 5, 6 or 7"),
+                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":9"),
+                        "version 9, and this reads 3, 4, 5, 6, 7 or 8"),
                 new Wrong("ymxs-check", json.replace(transformations, ""),
                         "transformations is null" + array),
                 new Wrong("ymxs-check", json.replace(transformations,
@@ -913,7 +954,7 @@ final class ParityTest {
         }
         String csv = new String(both("ymxs-json-to-csv", json.getBytes(
                 StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
-        String start = "0,0,8,1,50,60,1,1,0,1\n";
+        String start = "0,0,8,1,50,60,1,1,0,1,0,1\n";
         String rows = "row,value\n0,13\n1,0\n";
         String block = "### value\n" + rows + "\n";
         String registers = "### registers\nrow,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13\n";
@@ -931,7 +972,7 @@ final class ParityTest {
                         + " to 40"),
                 new Wrong("ymxs-check", r9.replace(target, "\"target\":[23,-1]"), one),
                 new Wrong("ymxs-check", r8.replace(values, "\"values\":[[13,1],[0,1]]"), two),
-                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,1\n")
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,1,0,1\n")
                         .replace(registers, registers + "0,,,,,,,,,,40,,,,\n"), one),
                 new Wrong("ymxs-csv-to-json", csv.replace(rows, pairs)
                         .replace(registers, registers + "0,,,,,,,,,40,,,,,\n"), two),
@@ -941,17 +982,17 @@ final class ParityTest {
                         .replace(count, "\"count\":[\"x\",-1]"),
                         "Timer A's count at row 0 is \"x\", and this form requires a whole"
                                 + " number"),
-                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,2\n"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,23,1,50,60,1,1,0,2,0,1\n"),
                         maps),
                 new Wrong("ymxs-csv-to-json", csv.replace(rows, pairs)
-                        .replace(start, "0,0,8,1,50,x,1,1,0,1\n"),
+                        .replace(start, "0,0,8,1,50,x,1,1,0,1,0,1\n"),
                         "count is \"x\", and this form requires a whole number"),
                 new Wrong("ymxs-check", json.replace(values, "\"values\":[]")
                         .replace(target, "\"target\":[23,-1]"), one),
                 new Wrong("ymxs-csv-to-json", csv.replace(block, "")
-                        .replace(start, "0,0,23,1,50,60,1,1,0,1\n"), one),
+                        .replace(start, "0,0,23,1,50,60,1,1,0,1,0,1\n"), one),
                 new Wrong("ymxs-csv-to-json", csv.replace(rows, "row,value\n")
-                        .replace(start, "0,0,23,1,50,60,1,1,0,1\n"), one))) {
+                        .replace(start, "0,0,23,1,50,60,1,1,0,1,0,1\n"), one))) {
             wrongInBothTrees(wrong);
         }
     }
@@ -973,9 +1014,9 @@ final class ParityTest {
         String opens = "### transformation\nname\nhalf\n";
         String keys = "### entry\nkey,entry\n0,0\n1,0\n";
         String values = "row,value\n0,13\n1,0\n";
-        String columns = ",placeReset,deferred,mapping\n";
-        String start = "0,0,8,1,50,60,1,1,0,1\n";
-        String remap = "1,3,,,,,,,,0\n";
+        String columns = ",placeReset,deferred,mapping,first,last\n";
+        String start = "0,0,8,1,50,60,1,1,0,1,0,1\n";
+        String remap = "1,3,,,,,,,,0,,\n";
         for (String each : List.of(opens, keys, values, columns, start, remap)) {
             assertTrue(csv.contains(each), "the tune has " + each);
         }
@@ -1004,8 +1045,8 @@ final class ParityTest {
                 new Wrong("ymxs-csv-to-json", sixteen.replace(values, "row,value\n0,16\n1,0\n"),
                         "tune 1: row 0: Timer A: a source on setR8 whose row 0 is 16, and a key"
                                 + " is 0 to 15"),
-                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,8,1"),
-                        "version 8, and this reads 3, 4, 5, 6 or 7"),
+                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,8,1", "ymxs,9,1"),
+                        "version 9, and this reads 3, 4, 5, 6, 7 or 8"),
                 new Wrong("ymxs-csv-to-json", csv.replace(opens, opens + "other\n"),
                         "tune 1 opens a transformation with 2 rows, and one row opens it"),
                 new Wrong("ymxs-csv-to-json", csv.replace(opens, ""),
@@ -1013,24 +1054,25 @@ final class ParityTest {
                 new Wrong("ymxs-csv-to-json", csv.replace(keys,
                         "### entry\nkey,entry\n0,0\n1,x\n"),
                         "entry is \"x\", and this form requires a whole number"),
-                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,4,,,,,,,,0\n"),
-                        "row 1 sets shape 4 of an effect, and a shape is 0, 1, 2 or 3"),
-                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,1 x\n"),
+                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,5,,,,,,,,0,,\n"),
+                        "row 1 sets shape 5 of an effect, and a shape is 0, 1, 2, 3 or 4"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,1 x,0,1\n"),
                         "mapping is \"1 x\"" + part),
                 new Wrong("ymxs-csv-to-json", csv.replace(start,
-                        "0,0,8,1,50,60,1,1,0,\u0661\n"), "mapping is \"\u0661\"" + part),
-                new Wrong("ymxs-csv-to-json", csv.replace(columns, ",placeReset,deferred\n"),
+                        "0,0,8,1,50,60,1,1,0,\u0661,0,1\n"), "mapping is \"\u0661\"" + part),
+                new Wrong("ymxs-csv-to-json", csv.replace(columns,
+                        ",placeReset,deferred,first,last\n"),
                         "mapping is \"\"" + part),
-                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,3,,,,,,,,0 0\n"),
+                new Wrong("ymxs-csv-to-json", csv.replace(remap, "1,3,,,,,,,,0 0,,\n"),
                         "mapping is \"0 0\", and a mapping of the identity in every part is 0"),
-                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,2\n"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,2,0,1\n"),
                         "row 0 maps through transformation 2, and the tune has 1"),
-                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,0\n"),
+                new Wrong("ymxs-csv-to-json", csv.replace(start, "0,0,8,1,50,60,1,1,0,0,0,1\n"),
                         "transformation 1, half, is used by no row, and a transformation a"
                                 + " tune does not map through is dropped where this form is"
                                 + " read"),
                 new Wrong("ymxs-csv-to-json", csv.replace(start,
-                        "0,0,8,1,50,60,1,1,0,1\u00a01\n"),
+                        "0,0,8,1,50,60,1,1,0,1\u00a01,0,1\n"),
                         "tune 1: row 0: Timer A: a mapping of 2 parts on setR8, which reads 1"),
                 new Wrong("ymxs-csv-to-json", csv.replace(values,
                         "row,value\n0,\u0661\u0663\n1,0\n"),
@@ -1054,16 +1096,16 @@ final class ParityTest {
                 StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
         String opens = "### transformation\nname\nhalf\n\n";
         String keys = "### entry\nkey,entry\n0,0\n1,0\n";
-        String start = "0,0,8,1,50,60,1,1,0,1\n";
-        String remap = "1,3,,,,,,,,0\n";
+        String start = "0,0,8,1,50,60,1,1,0,1,0,1\n";
+        String remap = "1,3,,,,,,,,0,,\n";
         for (String each : List.of(opens + keys, start, remap, "\n### registers\n")) {
             assertTrue(csv.contains(each), "the tune has " + each);
         }
         String entries = csv.substring(csv.indexOf(keys), csv.indexOf("### registers\n"));
-        String six = csv.replace("ymxs,7,1", "ymxs,6,1");
+        String six = csv.replace("ymxs,8,1", "ymxs,6,1");
         String bare = six.replace(opens, "").replace(entries, "");
         assertTrue(both("ymxs-csv-to-json", bare.replace(remap, "")
-                .replace(start, "0,0,8,1,50,60,1,1,0,x\n").getBytes(StandardCharsets.UTF_8))
+                .replace(start, "0,0,8,1,50,60,1,1,0,x,0,1\n").getBytes(StandardCharsets.UTF_8))
                 .length > 0, "a reader skips the mapping column of a file of version 6");
         String transformation = "tune 1 opens a \"### transformation\" table, which this form"
                 + " does not have";
@@ -1076,7 +1118,7 @@ final class ParityTest {
                         .replace(keys, "### entry\nkey,entry\n0,x\n1,0\n"), entry),
                 new Wrong("ymxs-csv-to-json", six.replace(opens + entries, entries + opens),
                         entry),
-                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,7,1", "ymxs,4,1"),
+                new Wrong("ymxs-csv-to-json", csv.replace("ymxs,8,1", "ymxs,4,1"),
                         transformation),
                 new Wrong("ymxs-csv-to-json", bare,
                         "row 1 sets shape 3 of an effect, and a shape is 0, 1 or 2"))) {

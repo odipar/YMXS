@@ -1,6 +1,6 @@
 # CSV
 
-CSV encodes version 7 of the structure in [SPEC.md](SPEC.md) 1 as
+CSV encodes version 8 of the structure in [SPEC.md](SPEC.md) 1 as
 blocks of comma-separated values for reading in a spreadsheet. Section
 7 maps [JSON](json.md) values to cells. Every clause is normative
 except sentences beginning `Note:` and section 8.
@@ -112,7 +112,7 @@ blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 7, or 6, 5, 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
+| `version` | the whole number 8, or 7, 6, 5, 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader skips it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -166,16 +166,17 @@ row line sets, for the row its `row` cell names, each register whose cell is
 filled. Where two row lines of the `registers` blocks of one tune name one
 row, the later in file order sets a register both fill.
 
-**3.9** A `timerA`, `timerB`, `timerC` or `timerD` block has a row line
-a row of the tune that acts on that timer, T the timer's letter, S the
+**3.9** A `timerA`, `timerB`, `timerC` or `timerD` block has a row line a
+row of the tune that acts on that timer, T the timer's letter, S the
 number of `source` blocks of the tune, M the number of its
-`transformation` blocks; an emitter emits one row line for each row that
-acts on the timer (6.2):
+`transformation` blocks, R the rows of the source of a start, and of each
+start on Timer T for a recut; an emitter emits one row line for each row
+that acts on the timer (6.2):
 
 | column | cell | meaning |
 |---|---|---|
 | `row` | a whole number from 0 to R minus 1 | the row of the tune |
-| `shape` | 0, 1, 2 or 3 | the operation the row performs on the effect of Timer T: 0 a start, 1 a retune, 2 a stop, 3 a remap |
+| `shape` | 0, 1, 2, 3 or 4 | the operation the row performs on the effect of Timer T: 0 a start, 1 a retune, 2 a stop, 3 a remap, 4 a recut |
 | `target` | a whole number from 0 to 24 | the target of that number (SPEC.md 3.1.2): 0 to 13 is `setRn`, and 14 to 24 the targets of two and three registers |
 | `source` | a whole number from 1 to S | the number of the source |
 | `prescaler` | 4, 10, 16, 50, 64, 100 or 200 | the divisor of the prescaler |
@@ -184,16 +185,19 @@ acts on the timer (6.2):
 | `placeReset` | 1 or 0 | `placeReset` of the operation: 1 is true and 0 is false |
 | `deferred` | 1 or 0 | `deferred` of a start (SPEC.md 3.5): 1 is true and 0 is false |
 | `mapping` | `0`, or whole numbers from 0 to M separated by white space (3.10), one a part of the mapping, a number other than 0 among them | the mapping of a start or a remap (json.md 6.7): the cell `0` is the mapping of no parts, and any other cell the array of its numbers in order (3.10) |
+| `first` | a whole number from 0 to R minus 1 | the first row of the cut of a start or a recut (SPEC.md 3.7.1) |
+| `last` | a whole number from `first` to R minus 1 | the last row of that cut |
 
 The `shape` cell selects the cells with a value, in read order, and the
 cells that are empty:
 
 | `shape` | operation | the cells it selects, in read order | the cells that are empty |
 |---|---|---|---|
-| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred`, `mapping` | none |
-| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target`, `deferred`, `mapping` |
-| 2 | a stop | none | the other eight |
-| 3 | a remap | `mapping` | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred` |
+| 0 | a start | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred`, `mapping`, `first`, `last` | none |
+| 1 | a retune | `prescaler`, `count`, `timerReset`, `placeReset` | `source`, `target`, `deferred`, `mapping`, `first`, `last` |
+| 2 | a stop | none | the other ten |
+| 3 | a remap | `mapping` | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred`, `first`, `last` |
+| 4 | a recut | `first`, `last` | `source`, `target`, `prescaler`, `count`, `timerReset`, `placeReset`, `deferred`, `mapping` |
 
 **3.10** Read `shape`, then only its selected cells, in the order of
 3.9, verifying each as read (4.1 step 6). For `timerReset`, `placeReset`
@@ -205,11 +209,13 @@ the numbers as the array of json.md 6.7. Thus `0 0 6` maps only the
 third value through transformation 6. Several zeros without a
 transformation number are an error (5.1).
 
-In version 6 or before, skip `mapping` columns and read each start with
-no mapping parts; reject `transformation` and `entry` as unknown blocks
-(4.1 step 5). In version 4 or 3, also skip `deferred` and read it as
-clear (json.md 2.4). For repeated row numbers in one timer's blocks,
-the later row line replaces the earlier.
+In version 7 or before, skip `first` and `last` columns and read each
+start under the whole table of its source (json.md 2.4); a `shape` of 4 is
+an error (5.1). In version 6 or before, also skip `mapping` columns and
+read each start with no mapping parts; reject `transformation` and `entry`
+as unknown blocks (4.1 step 5). In version 4 or 3, also skip `deferred`
+and read it as clear (json.md 2.4). For repeated row numbers in one
+timer's blocks, the later row line replaces the earlier.
 
 **3.11** A `transformation` block has one row line and opens a
 transformation, the n-th `transformation` block of a tune opening
@@ -245,7 +251,7 @@ where every step passes.
    line before the first heading line.
 2. Verify that the first block is named `multi` and has one row line; read
    its `format` cell, equal to `ymxs`, and its `version` cell, a whole
-   number equal to 3, 4, 5, 6 or 7 (json.md 2.4).
+   number equal to 3, 4, 5, 6, 7 or 8 (json.md 2.4).
 3. Verify that the block after `multi` is named `tune`. Each `tune` block
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
@@ -257,7 +263,7 @@ where every step passes.
    block follows a `source` block of the tune, each of its row lines the
    next row of the last source opened: the `value` cell where filled and
    the `value1` cell otherwise, then each filled `value2` and `value3`
-   cell, each a whole number (3.6); in a file of version 7 a
+   cell, each a whole number (3.6); in a file of version 7 or 8 a
    `transformation` block has one row line and opens a transformation with
    its `name` cell, and an `entry` block follows a `transformation` block
    of the tune, each of its row lines the next entry of the last
@@ -265,24 +271,27 @@ where every step passes.
    `registers` block is read as 3.7 and 3.8 define, its `row` cell a whole
    number 0 to R - 1 and each filled `r0` to `r13` cell a whole number; a
    block whose name begins `timer` is set aside for step 6; a block of any
-   other name is an error. After the last block of the tune, for each source
-   in order and each of its rows from row 0: a row whose count of values is
-   other than row 0's is the shape line of 5.1, N the count of row 0 and K
-   that of the first row that differs; then, in a file of version 3, a row
-   of two or three values is the line of 5.1 of a row of several values.
+   other name is an error. After the last block of the tune, for each
+   source in order and each of its rows from row 0: a row whose count of
+   values is other than row 0's is the shape line of 5.1, N the count of
+   row 0 and K that of the first row that differs; then, in a file of
+   version 3, a row of two or three values is the line of 5.1 of a row of
+   several values.
 6. Read the blocks set aside in file order, named `timerA`, `timerB`,
-   `timerC` or `timerD`, each row line as 3.9 and 3.10 define: `row` a whole
-   number 0 to R - 1, `shape` 0, 1, 2, and 3 in a file of version 7, then
-   the cells the shape selects, each but `mapping` a whole number as read:
-   for a start `source` (1 to S), `target` (0 to 24), `prescaler` (one of
-   the seven divisors), `count`, `timerReset`, `placeReset`, in a file of
-   version 5, 6 or 7 `deferred`, and in a file of version 7 `mapping`; for
-   a retune `prescaler`, `count`, `timerReset` and `placeReset`; for a
-   remap `mapping`. A `mapping` cell is split (3.10) and verified in this
-   order, each a line of 5.1: whole numbers, one or more; of several, a
-   number other than 0 among them; each number in order, 0 to M. After the
-   cells of a start, verify that its source has the values a row its target
-   reads (SPEC.md 3.1.1, 3.2.1), a line of 5.1.
+   `timerC` or `timerD`, each row line as 3.9 and 3.10 define: `row` a
+   whole number 0 to R - 1, `shape` 0, 1, 2, 3 in a file of version 7 or
+   8, and 4 in a file of version 8, then the cells the shape selects, each
+   but `mapping` a whole number as read: for a start `source` (1 to S),
+   `target` (0 to 24), `prescaler` (one of the seven divisors), `count`,
+   `timerReset`, `placeReset`, in a file of version 5 to 8 `deferred`, in
+   a file of version 7 or 8 `mapping`, and in a file of version 8 `first`
+   and `last`; for a retune `prescaler`, `count`, `timerReset` and
+   `placeReset`; for a remap `mapping`; for a recut `first` and `last`. A
+   `mapping` cell is split (3.10) and verified in this order, each a line
+   of 5.1: whole numbers, one or more; of several, a number other than 0
+   among them; each number in order, 0 to M. After the cells of a start,
+   verify that its source has the values a row its target reads (SPEC.md
+   3.1.1, 3.2.1), a line of 5.1.
 7. Read the `title`, `composer` and `writer` cells of the `tune` block as
    text, `rate` as a whole number, `repeat` as empty or a whole number.
 8. Verify that every source the `source` blocks open is started by some row
@@ -321,32 +330,33 @@ transformations; W the values a row of a source, 1 for a source of no rows
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 3, 4, 5, 6 and 7 | `version N, and this reads 3, 4, 5, 6 or 7` |
+| a `version` cell other than 3, 4, 5, 6, 7 and 8 | `version N, and this reads 3, 4, 5, 6, 7 or 8` |
 | a row line of a `value` block with its `value2` or `value3` cell filled, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |
 | a `value` block before any `source` block of its tune | `tune N opens values before any source` |
-| a `transformation` block of K row lines other than 1, in a file of version 7 | `tune N opens a transformation with K rows, and one row opens it` |
-| an `entry` block before any `transformation` block of its tune, in a file of version 7 | `tune N opens entries before any transformation` |
+| a `transformation` block of K row lines other than 1, in a file of version 7 or 8 | `tune N opens a transformation with K rows, and one row opens it` |
+| an `entry` block before any `transformation` block of its tune, in a file of version 7 or 8 | `tune N opens entries before any transformation` |
 | a source whose rows have N values and K values, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | a `row` cell of a `registers` block outside 0 to R minus 1 | `tune N sets a row at row X, and the tune runs R rows` |
-| a block of a tune whose name is none of `source`, `value`, `registers`, a name beginning `timer`, and in a file of version 7 `transformation` and `entry` | `tune N opens a "### NAME" table, which this form does not have` |
+| a block of a tune whose name is none of `source`, `value`, `registers`, a name beginning `timer`, and in a file of version 7 or 8 `transformation` and `entry` | `tune N opens a "### NAME" table, which this form does not have` |
 | a block whose name begins `timer` and is not `timerA` to `timerD` | `tune N opens a "### NAME" table, and a timer is timerA to timerD` |
 | a `row` cell of a timer block outside 0 to R minus 1 | `tune N sets an effect at row X, and the tune runs R rows` |
 | a `shape` cell other than 0, 1 and 2, in a file of version 6 or before | `row I sets shape N of an effect, and a shape is 0, 1 or 2` |
-| any other `shape` cell outside 0 to 3 | `row I sets shape N of an effect, and a shape is 0, 1, 2 or 3` |
+| a `shape` cell other than 0, 1, 2 and 3, in a file of version 7 | `row I sets shape N of an effect, and a shape is 0, 1, 2 or 3` |
+| any other `shape` cell outside 0 to 4 | `row I sets shape N of an effect, and a shape is 0, 1, 2, 3 or 4` |
 | a `source` cell outside 1 to S | `row I starts source N, and the tune runs S` |
-| a `mapping` cell without a number, or with a part other than a whole number, in a file of version 7 | `mapping is "CELL", and this form requires a whole number a part` |
-| a `mapping` cell of several numbers, each 0, in a file of version 7 | `mapping is "CELL", and a mapping of the identity in every part is 0` |
-| a part of a `mapping` cell outside 0 to M, in a file of version 7 | `row I maps through transformation N, and the tune has M` |
+| a `mapping` cell without a number, or with a part other than a whole number, in a file of version 7 or 8 | `mapping is "CELL", and this form requires a whole number a part` |
+| a `mapping` cell of several numbers, each 0, in a file of version 7 or 8 | `mapping is "CELL", and a mapping of the identity in every part is 0` |
+| a part of a `mapping` cell outside 0 to M, in a file of version 7 or 8 | `row I maps through transformation N, and the tune has M` |
 | a `target` cell above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
 | any other `target` cell outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | a `prescaler` cell other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a start whose source has W values a row on a target that reads U, U other than W | `a source of W values a row on setRn, which reads U` |
 | a cell read as a whole number that is not one | `WHAT is "CELL", and this form requires a whole number` |
 | a source no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
-| a transformation no row uses, in a file of version 7 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
+| a transformation no row uses, in a file of version 7 or 8 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
 
 **5.2** WHAT in the whole-number line is the column name, `version`, `rows`,
 `rate`, `repeat`, `value`, `value1` to `value3`, `entry`, `row`, `r0` to
@@ -462,7 +472,7 @@ this form.
 ```
 ### multi
 format,version,tunes
-ymxs,7,1
+ymxs,8,1
 
 ### tune
 title,composer,writer,rate,rows,repeat
@@ -485,15 +495,16 @@ row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13
 3,89,2,,,,,,56,12,,,,,
 
 ### timerA
-row,shape,target,source,prescaler,count,timerReset,placeReset,deferred,mapping
-0,0,8,1,50,60,1,1,0,0
-1,1,,,50,61,0,0,,
-3,2,,,,,,,,
+row,shape,target,source,prescaler,count,timerReset,placeReset,deferred,mapping,first,last
+0,0,8,1,50,60,1,1,0,0,0,1
+1,1,,,50,61,0,0,,,,
+3,2,,,,,,,,,,
 ```
 
 **8.2** The `title` cell is quoted for the `,` in it. Row 2 sets R0 and R1
 and leaves every timer alone, so it has a row line in `registers` and its
 row number is absent from `timerA`. Row 1 is a retune, so its `target`,
-`source`, `deferred` and `mapping` cells are empty; row 3 is a stop, so
-every cell but `row` and `shape` is empty. Row 0 has the mapping 0, the
-identity in every part, so the tune has no `transformation` block.
+`source`, `deferred`, `mapping`, `first` and `last` cells are empty; row 3
+is a stop, so every cell but `row` and `shape` is empty. Row 0 has the
+mapping 0, the identity in every part, so the tune has no `transformation`
+block, and the cut of rows 0 to 1, the whole table of `square 13`.

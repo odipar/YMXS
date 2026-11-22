@@ -137,7 +137,8 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		return
 	}
 	table(out, "timer"+timer.String(), "row", "shape", "target", "source",
-		"prescaler", "count", "timerReset", "placeReset", "deferred", "mapping")
+		"prescaler", "count", "timerReset", "placeReset", "deferred", "mapping",
+		"first", "last")
 	for line, one := range rows {
 		effect, on := one.Effects[timer]
 		if !on {
@@ -150,16 +151,20 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 				indexOf(sources, ymxs.ConnectionSource(e.Connection))+1,
 				ymxs.Divides(e.Timing.Prescaler),
 				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset),
-				flagOf(e.Deferred), mappingCell(e.Mapping, transformations))
+				flagOf(e.Deferred), mappingCell(e.Mapping, transformations),
+				e.Cut.First, e.Cut.Last)
 		case ymxs.Retune:
 			row(out, line, text.Retune, "", "", ymxs.Divides(e.Timing.Prescaler),
 				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset), "",
-				"")
+				"", "", "")
 		case ymxs.Stop:
-			row(out, line, text.Stop, "", "", "", "", "", "", "", "")
+			row(out, line, text.Stop, "", "", "", "", "", "", "", "", "", "")
 		case ymxs.Remap:
 			row(out, line, text.Remap, "", "", "", "", "", "", "",
-				mappingCell(e.Mapping, transformations))
+				mappingCell(e.Mapping, transformations), "", "")
+		case ymxs.Recut:
+			row(out, line, text.Recut, "", "", "", "", "", "", "", "",
+				e.Cut.First, e.Cut.Last)
 		}
 	}
 }
@@ -610,7 +615,14 @@ func effectOf(acts *block, one []string, sources []ymxs.Source,
 				return nil, err
 			}
 		}
-		return ymxs.Starting(run, sources[number-1], timing, deferred, mapping)
+		cut := ymxs.Whole(sources[number-1])
+		if version >= text.Cut {
+			cut, err = cutOf(acts, one)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ymxs.Starting(run, sources[number-1], timing, deferred, mapping, cut)
 	case shape == text.Retune:
 		by, err := prescaler(acts, one)
 		if err != nil {
@@ -633,13 +645,30 @@ func effectOf(acts *block, one []string, sources []ymxs.Source,
 			return nil, err
 		}
 		return ymxs.Remap{Mapping: mapping}, nil
+	case shape == text.Recut && version >= text.Cut:
+		cut, err := cutOf(acts, one)
+		if err != nil {
+			return nil, err
+		}
+		return ymxs.Recut{Cut: cut}, nil
 	}
-	if version < text.Mapped {
-		return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d"+
-			" or %d", at, shape, text.Start, text.Retune, text.Stop)
+	return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d%s",
+		at, shape, text.Start, text.Retune, text.Shapes(version))
+}
+
+// cutOf is the cut of a start or a recut: the first cell, then the last
+// cell, each a whole number. Its range against the source is an error of
+// the structure (csv.md 5.3).
+func cutOf(acts *block, one []string) (ymxs.Cut, error) {
+	first, err := whole(acts.of(one, "first"), "first")
+	if err != nil {
+		return ymxs.Cut{}, err
 	}
-	return nil, fmt.Errorf("row %d sets shape %d of an effect, and a shape is %d, %d, %d"+
-		" or %d", at, shape, text.Start, text.Retune, text.Stop, text.Remap)
+	last, err := whole(acts.of(one, "last"), "last")
+	if err != nil {
+		return ymxs.Cut{}, err
+	}
+	return ymxs.Cut{First: first, Last: last}, nil
 }
 
 // mappingOf splits a cell at white space and requires whole numbers. A

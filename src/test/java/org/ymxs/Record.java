@@ -8,6 +8,7 @@ import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Register;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
 import org.ymxs.YMXS.Row;
@@ -90,7 +91,9 @@ final class Record {
                     + ",\"timerReset\":" + start.timing().timerReset()
                     + ",\"placeReset\":" + start.timing().placeReset()
                     + ",\"deferred\":" + start.deferred()
-                    + ",\"mapping\":" + mapping(tune, start.mapping()) + "}}";
+                    + ",\"mapping\":" + mapping(tune, start.mapping())
+                    + ",\"first\":" + start.cut().first()
+                    + ",\"last\":" + start.cut().last() + "}}";
             case Retune retune -> "{\"retune\":{\"prescaler\":"
                     + Chip.divides(retune.timing().prescaler())
                     + ",\"count\":" + retune.timing().count()
@@ -99,6 +102,8 @@ final class Record {
             case Stop ignored -> "{\"stop\":{}}";
             case Remap remap -> "{\"remap\":{\"mapping\":"
                     + mapping(tune, remap.mapping()) + "}}";
+            case Recut recut -> "{\"recut\":{\"first\":" + recut.cut().first()
+                    + ",\"last\":" + recut.cut().last() + "}}";
         };
     }
 

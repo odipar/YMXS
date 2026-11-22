@@ -21,6 +21,8 @@ import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Recut;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
@@ -41,10 +43,11 @@ final class TextTest {
 
     /** What the tunes under {@code doc/tunes} come to, read back so that
      *  a tune added or a form changed fails here. */
-    private static final int STARTS = 184;
+    private static final int STARTS = 185;
     private static final int RETUNES = 77;
-    private static final int STOPS = 169;
+    private static final int STOPS = 170;
     private static final int REMAPS = 15;
+    private static final int RECUTS = 10;
 
     private static List<Path> tunes() throws IOException {
         try (Stream<Path> at = Files.list(Path.of("doc/tunes"))) {
@@ -72,6 +75,7 @@ final class TextTest {
         long retunes = 0;
         long stops = 0;
         long remaps = 0;
+        long recuts = 0;
         for (Path at : tunes()) {
             for (Tune tune : Text.read(Files.readString(at)).tunes()) {
                 rows += Tunes.size(tune.table());
@@ -83,6 +87,8 @@ final class TextTest {
                             retunes++;
                         } else if (effect instanceof Remap) {
                             remaps++;
+                        } else if (effect instanceof Recut) {
+                            recuts++;
                         } else {
                             stops++;
                         }
@@ -90,11 +96,12 @@ final class TextTest {
                 }
             }
         }
-        assertEquals(3324, rows, "the rows of the tunes under doc/tunes");
+        assertEquals(3336, rows, "the rows of the tunes under doc/tunes");
         assertEquals(STARTS, starts, "their starts");
         assertEquals(RETUNES, retunes, "their retunes");
         assertEquals(STOPS, stops, "their stops");
         assertEquals(REMAPS, remaps, "their remaps");
+        assertEquals(RECUTS, recuts, "their recuts");
     }
 
     /** A tune with all three shapes in it, written and read back. */
@@ -120,10 +127,10 @@ final class TextTest {
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, new Start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))));
+                Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))));
         rows.add(new Row(Map.of(), Map.of(
-                Timer.B, new Start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_50, 1, true, false), true, Tunes.NO_PARTS),
-                Timer.C, new Start(new OneConnection(Tunes.setting(Register.R9), square), new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS))));
+                Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_50, 1, true, false), true, Tunes.NO_PARTS),
+                Timer.C, Tunes.start(new OneConnection(Tunes.setting(Register.R9), square), new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS))));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.A, Tunes.bend(Prescaler.BY_4, 118),
                 Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true)))));
@@ -200,7 +207,7 @@ final class TextTest {
         Multi read = Text.read(three);
         assertEquals(1, Tunes.columns(Tunes.sources(read.tunes().get(0)).get(0)),
                 "a source of version 3 is one value a row");
-        assertTrue(Text.write(read).contains("\"version\": 7"),
+        assertTrue(Text.write(read).contains("\"version\": " + Json.VERSION),
                 "a writer writes this version: " + Text.write(read));
         String wide = three.replace("\"values\":[13,0]", "\"values\":[[13,1],[0,1]]")
                 .replace("\"target\":[8,-1]", "\"target\":[14,-1]");
@@ -211,10 +218,10 @@ final class TextTest {
         String on = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(target)).getMessage());
         assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
-        String later = three.replace("\"version\":3", "\"version\":8");
+        String later = three.replace("\"version\":3", "\"version\":9");
         String other = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(later)).getMessage());
-        assertEquals("version 8, and this reads 3, 4, 5, 6 or 7", other);
+        assertEquals("version 9, and this reads 3, 4, 5, 6, 7 or 8", other);
     }
 
     /** A start's deferral is a column of version 5: a reader of a file of
@@ -360,7 +367,7 @@ final class TextTest {
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(
-                        Timer.B, new Start(new OneConnection(Tunes.setting(Register.R9), square),
+                        Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R9), square),
                                 new Timing(Prescaler.BY_200, 192, true, true), false,
                                 Tunes.mapping(Fade.volumes(5))),
                         Timer.A, Fade.voice(Fade.NOTE, Fade.volume(10)))),
@@ -400,7 +407,7 @@ final class TextTest {
         Transformation short16 = Fade.volumes(15);
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(
-                new Row(Map.of(), Map.of(Timer.A, new Start(
+                new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                         new OneConnection(Tunes.setting(Register.R8), square),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
                         Tunes.mapping(short16)))),
@@ -430,7 +437,7 @@ final class TextTest {
         for (int n = 1; n <= 16; n++) {
             mapping.append(",[0,0,").append(n).append(']');
         }
-        mapping.append(",-1,-1,-1,\n          -1,-1,-1]\n");
+        mapping.append(",-1,-1,-1,\n          -1,-1,-1],\n");
         assertTrue(text.contains(mapping), text);
         assertTrue(text.contains("{\"name\": \"V15\", \"entries\": [0,1,2,3,"), text);
     }
@@ -459,7 +466,7 @@ final class TextTest {
         }
         Transformation levels = new Transformation("levels", entries);
         Tune tune = new Tune("keys", "", "TextTest", 50, Tunes.once(List.of(
-                new Row(Map.of(), Map.of(Timer.A, new Start(
+                new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                         new OneConnection(Tunes.setting(Register.R8),
                                 Tunes.repeating("keys", List.of(0, 31), 0)),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
@@ -469,7 +476,7 @@ final class TextTest {
         String expected = """
                 {
                   "format": "ymxs",
-                  "version": 7,
+                  "version": 8,
                   "tunes": [
                     {
                       "title": "keys",
@@ -506,7 +513,9 @@ final class TextTest {
                         "timerReset": [1,-1,-1],
                         "placeReset": [1,-1,-1],
                         "deferred": [0,-1,-1],
-                        "mapping": [[1],0,-1]
+                        "mapping": [[1],0,-1],
+                        "first": [0,-1,-1],
+                        "last": [1,-1,-1]
                       }
                     }
                   ]
@@ -522,7 +531,7 @@ final class TextTest {
     void aMappingOfTheIdentityInEveryPartReadsBackAsNoParts() {
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(new Row(Map.of(),
-                Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), square),
+                Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), square),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
                         Tunes.mapping(Tunes.IDENTITY))))), 0));
         String text = Text.write(Tunes.multi(tune));
@@ -759,5 +768,58 @@ final class TextTest {
                 wrong(six.replace("\"shape\":[0,-1]", "\"shape\":[0,3]")));
         assertEquals("row 1 sets shape 4 on Timer A, and a shape is -1, 0, 1 or 2",
                 wrong(six.replace("\"shape\":[0,-1]", "\"shape\":[0,4]")));
+    }
+
+    /** A tune of a start of a wave of six rows under the cut of rows 1 to
+     *  3, a recut to rows 2 to 5, and a stop. */
+    static Tune cuts() {
+        Single wave = Tunes.repeating("wave", List.of(0, 5, 10, 15, 10, 5), 0);
+        return new Tune("cut", "", "a test", 50, Tunes.once(List.of(
+                new Row(Map.of(), Map.of(Timer.A, new Start(
+                        new OneConnection(Tunes.setting(Register.R8), wave),
+                        new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS,
+                        new Cut(1, 3)))),
+                new Row(Map.of(), Map.of(Timer.A, new Recut(new Cut(2, 5)))),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)))));
+    }
+
+    /** A start's cut and a recut are the columns {@code first} and
+     *  {@code last}, -1 where the shape selects neither (json.md 6.1, 6.2). */
+    @Test
+    void aCutAndARecutCrossTheForm() {
+        String text = Text.write(Tunes.multi(cuts()));
+        assertTrue(text.contains("\"shape\": [0,4,2],"), text);
+        assertTrue(text.contains("\"mapping\": [0,-1,-1],\n        \"first\": [1,2,-1],\n"
+                + "        \"last\": [3,5,-1]\n"), text);
+        assertEquals(Tunes.multi(cuts()), Text.read(text), "the text reads back");
+        String bare = text.replace(",\n        \"first\": [1,2,-1]", "");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(bare)).getMessage());
+        assertEquals("Timer A has no \"first\" column", said);
+    }
+
+    /** A file of version 7 has no cut: a reader reads every start under the
+     *  whole table of its source, and a shape of 4 is an error of the form
+     *  (json.md 2.4, 8.1). */
+    @Test
+    void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
+        String seven = Files.readString(Path.of("doc/tunes/example.json"))
+                .replace("\"version\": 8", "\"version\": 7")
+                .replace(",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]",
+                        "");
+        assertFalse(seven.contains("first"), seven);
+        Tune tune = Text.read(seven).tunes().get(0);
+        assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
+        assertEquals(Text.read(Files.readString(Path.of("doc/tunes/example.json"))),
+                Text.read(seven), "the tune of version 8 with the cut of its whole table");
+        String four = seven.replace("\"shape\": [0,1,-1,2]", "\"shape\": [0,4,-1,2]");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(four)).getMessage());
+        assertEquals("row 1 sets shape 4 on Timer A, and a shape is -1, 0, 1, 2 or 3", said);
+        String five = Files.readString(Path.of("doc/tunes/example.json"))
+                .replace("\"shape\": [0,1,-1,2]", "\"shape\": [0,5,-1,2]");
+        String other = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(five)).getMessage());
+        assertEquals("row 1 sets shape 5 on Timer A, and a shape is -1, 0, 1, 2, 3 or 4", other);
     }
 }

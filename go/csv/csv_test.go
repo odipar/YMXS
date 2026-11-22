@@ -264,13 +264,14 @@ func example(t *testing.T, named, clause, fence string) string {
 }
 
 // The example of csv.md 8 is the tables this writes for the example of
-// json.md 10, of version 7, and they read back to that JSON.
+// json.md 10, of version 8, and they read back to that JSON.
 func TestTheExampleOfTheDocumentIsTheTablesThisWrites(t *testing.T) {
 	json := example(t, "json.md", "10.1", "```json")
 	tables := example(t, "csv.md", "8.1", "```")
-	if !strings.Contains(tables, "ymxs,7,1") || !strings.Contains(tables,
-		",deferred,mapping\n0,0,8,1,50,60,1,1,0,0\n1,1,,,50,61,0,0,,\n3,2,,,,,,,,\n") {
-		t.Fatalf("the example is of version 7 with a mapping cell:\n%s", tables)
+	if !strings.Contains(tables, "ymxs,8,1") || !strings.Contains(tables,
+		",deferred,mapping,first,last\n0,0,8,1,50,60,1,1,0,0,0,1\n1,1,,,50,61,0,0,,,,\n"+
+			"3,2,,,,,,,,,,\n") {
+		t.Fatalf("the example is of version 8 with a mapping cell and a cut:\n%s", tables)
 	}
 	multi, err := text.Read(json)
 	if err != nil {
@@ -312,12 +313,12 @@ func fade() ymxs.Multi {
 			Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerB: effect}}
 	}
 	rows := []ymxs.Row{
-		effect(ymxs.Start{
+		effect(ymxs.WholeTable(ymxs.Start{
 			Connection: ymxs.ThreeConnection{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
 				Source: note},
 			Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
 				PlaceReset: true}, Deferred: true,
-			Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, volume(15))}),
+			Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, volume(15))})),
 		effect(ymxs.Bend(ymxs.By50, 61)),
 		effect(ymxs.Remap{Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{}, volume(5))}),
 		effect(ymxs.Remap{}),
@@ -344,8 +345,8 @@ func TestATuneThroughTransformationsCrossesToTheTablesAndBack(t *testing.T) {
 		"\n15,15\n\n### transformation\nname\nV05\n\n### entry\nkey,entry\n0,0\n",
 		"\n15,5\n\n### registers\n",
 		"### timerB\nrow,shape,target,source,prescaler,count,timerReset,placeReset," +
-			"deferred,mapping\n0,0,17,1,50,60,1,1,1,0 0 1\n1,1,,,50,61,0,0,,\n" +
-			"2,3,,,,,,,,0 0 2\n3,3,,,,,,,,0\n4,2,,,,,,,,\n",
+			"deferred,mapping,first,last\n0,0,17,1,50,60,1,1,1,0 0 1,0,1\n" +
+			"1,1,,,50,61,0,0,,,,\n2,3,,,,,,,,0 0 2,,\n3,3,,,,,,,,0,,\n4,2,,,,,,,,,,\n",
 	} {
 		if !strings.Contains(written, each) {
 			t.Errorf("the tables have no %q:\n%s", each, written)
@@ -412,7 +413,7 @@ func TestAFileOfVersion6SkipsTheMappingAndHasNoTransformationBlock(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	six := strings.Replace(written, "ymxs,7,1", "ymxs,6,1", 1)
+	six := strings.Replace(written, "ymxs,8,1", "ymxs,6,1", 1)
 	from := strings.Index(six, "### transformation\n")
 	to := strings.Index(six, "### registers\n")
 	if from < 0 || to < from {
@@ -421,7 +422,7 @@ func TestAFileOfVersion6SkipsTheMappingAndHasNoTransformationBlock(t *testing.T)
 	// the blocks of the transformations cut, then an entry block in their place
 	cut := six[:from] + six[to:]
 	entry := six[:from] + "### entry\nkey,entry\n0,x\n\n" + six[to:]
-	remapless := strings.Replace(cut, "2,3,,,,,,,,0 0 2\n3,3,,,,,,,,0\n", "", 1)
+	remapless := strings.Replace(cut, "2,3,,,,,,,,0 0 2,,\n3,3,,,,,,,,0,,\n", "", 1)
 	if remapless == cut {
 		t.Fatal("the tables have no remaps")
 	}
@@ -457,26 +458,27 @@ func TestAnErrorOfTheFormOfAMappingIsItsLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	remap := "2,3,,,,,,,,0 0 2\n"
+	remap := "2,3,,,,,,,,0 0 2,,\n"
 	whole := ", and this form requires a whole number a part"
 	identity := ", and a mapping of the identity in every part is 0"
 	for _, one := range []struct{ from, to, line string }{
-		{remap, "2,3,,,,,,,,0 0 3\n", "row 2 maps through transformation 3, and the tune" +
+		{remap, "2,3,,,,,,,,0 0 3,,\n", "row 2 maps through transformation 3, and the tune" +
 			" has 2"},
-		{remap, "2,3,,,,,,,,0 -1 x\n", `mapping is "0 -1 x"` + whole},
-		{remap, "2,3,,,,,,,,0 -1 1\n", "row 2 maps through transformation -1, and the" +
+		{remap, "2,3,,,,,,,,0 -1 x,,\n", `mapping is "0 -1 x"` + whole},
+		{remap, "2,3,,,,,,,,0 -1 1,,\n", "row 2 maps through transformation -1, and the" +
 			" tune has 2"},
-		{remap, "2,3,,,,,,,, \t \n", `mapping is " ` + "\t" + ` "` + whole},
-		{remap, "2,3,,,,,,,,\n", `mapping is ""` + whole},
-		{remap, "2,3,,,,,,,,0 2147483648 1\n", `mapping is "0 2147483648 1"` + whole},
-		{remap, "2,3,,,,,,,,\" 0  +0 \"\n", `mapping is " 0  +0 "` + identity},
-		{remap, "2,3,,,,,,,,\" 0 +2 0 \"\n", ""},
-		{remap, "2,3,,,,,,,,5\n", "row 2 maps through transformation 5, and the tune has 2"},
-		{remap, "2,4,,,,,,,,0\n", "row 2 sets shape 4 of an effect, and a shape is 0, 1, 2" +
-			" or 3"},
-		{remap, "2,-1,,,,,,,,0\n", "row 2 sets shape -1 of an effect, and a shape is 0, 1," +
-			" 2 or 3"},
-		{",deferred,mapping\n", ",deferred\n", `mapping is ""` + whole},
+		{remap, "2,3,,,,,,,, \t ,,\n", `mapping is " ` + "\t" + ` "` + whole},
+		{remap, "2,3,,,,,,,,,,\n", `mapping is ""` + whole},
+		{remap, "2,3,,,,,,,,0 2147483648 1,,\n", `mapping is "0 2147483648 1"` + whole},
+		{remap, "2,3,,,,,,,,\" 0  +0 \",,\n", `mapping is " 0  +0 "` + identity},
+		{remap, "2,3,,,,,,,,\" 0 +2 0 \",,\n", ""},
+		{remap, "2,3,,,,,,,,5,,\n", "row 2 maps through transformation 5, and the tune has 2"},
+		{remap, "2,5,,,,,,,,0,,\n", "row 2 sets shape 5 of an effect, and a shape is 0, 1, 2," +
+			" 3 or 4"},
+		{remap, "2,-1,,,,,,,,0,,\n", "row 2 sets shape -1 of an effect, and a shape is 0, 1," +
+			" 2, 3 or 4"},
+		{remap, "2,4,,,,,,,,0,,\n", `first is "", and this form requires a whole number`},
+		{",deferred,mapping,first,last\n", ",deferred,first,last\n", `mapping is ""` + whole},
 		{"### transformation\nname\nV05\n", "### transformation\nname\nV05\nV06\n",
 			"tune 1 opens a transformation with 2 rows, and one row opens it"},
 		{"### transformation\nname\nV15\n\n", "### entry\nkey,entry\n0,1\n\n" +
@@ -611,5 +613,60 @@ func TestWhiteSpaceIsThePropertyWhiteSpaceAndADigitIs0To9(t *testing.T) {
 		if err == nil || err.Error() != one.line {
 			t.Errorf("%q reports %v, and csv.md 5.1 has %q", one.to, err, one.line)
 		}
+	}
+}
+
+// cuts is a tune of a start of a wave of six rows under the cut of rows 1
+// to 3, a recut to rows 2 to 5, and a stop: the tune of the Java tree's
+// TextTest.cuts.
+func cuts() ymxs.Multi {
+	wave := ymxs.RepeatingSource("wave", []int{0, 5, 10, 15, 10, 5}, 0)
+	rows := []ymxs.Row{
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Start{
+			Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8), Source: wave},
+			Timing: ymxs.Timing{Prescaler: ymxs.By4, Count: 100, TimerReset: true,
+				PlaceReset: true}, Cut: ymxs.Cut{First: 1, Last: 3}}}},
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Recut{
+			Cut: ymxs.Cut{First: 2, Last: 5}}}},
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Stop{}}},
+	}
+	return ymxs.NewMulti(ymxs.Tune{Title: "cut", Writer: "a test", Rate: 50,
+		Table: ymxs.Once(rows)})
+}
+
+// A start's cut and a recut are the cells first and last, empty where the
+// shape selects neither (csv.md 3.9); a file of version 7 has no cut, and
+// a reader reads every start under the whole table of its source and a
+// shape of 4 as an error of the form (csv.md 3.10, 5.1).
+func TestACutAndARecutCrossTheTables(t *testing.T) {
+	written, err := csv.Write(cuts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cells := "first,last\n0,0,8,1,4,100,1,1,0,0,1,3\n1,4,,,,,,,,,2,5\n2,2,,,,,,,,,,\n"
+	if !strings.Contains(written, cells) {
+		t.Errorf("the tables have no %q:\n%s", cells, written)
+	}
+	back, err := csv.Read(written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text.Write(back) != text.Write(cuts()) {
+		t.Errorf("the tune moved crossing to the tables and back:\n%s", text.Write(back))
+	}
+	tables := example(t, "csv.md", "8.1", "```")
+	seven := strings.Replace(tables, "ymxs,8,1", "ymxs,7,1", 1)
+	multi, err := csv.Read(seven)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerA].(ymxs.Start)
+	if start.Cut != (ymxs.Cut{First: 0, Last: 1}) {
+		t.Errorf("the start of version 7 reads under %v", start.Cut)
+	}
+	line := "row 1 sets shape 4 of an effect, and a shape is 0, 1, 2 or 3"
+	four := strings.Replace(seven, "1,1,,,50,61,0,0,,,,", "1,4,,,,,,,,,0,0", 1)
+	if _, err := csv.Read(four); err == nil || err.Error() != line {
+		t.Errorf("shape 4 in version 7 reports %v, and csv.md 5.1 has %q", err, line)
 	}
 }

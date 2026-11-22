@@ -55,7 +55,7 @@ final class Fade {
     /** A start of {@code source} on {@code setVoiceA} through
      *  {@code mapping}, at 64 ticks a second, both resets set. */
     static Start voice(Triple source, Mapping mapping) {
-        return new Start(new ThreeConnection(new SetVoice(Voice.A), source),
+        return Tunes.start(new ThreeConnection(new SetVoice(Voice.A), source),
                 new Timing(Prescaler.BY_200, 192, true, true), false, mapping);
     }
 

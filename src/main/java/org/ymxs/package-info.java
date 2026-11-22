@@ -12,19 +12,21 @@
  * Tune           metadata, frame rate and a Table of Rows
  * Table          rows and an optional repeat row
  * Row            register writes and timer operations
- * Effect         Start, Retune, Stop or Remap
+ * Effect         Start, Retune, Stop, Remap or Recut
  * Connection     source and target of matching width
  * Source         Single, Pair or Triple: values or lookup keys
  * Mapping        identity or transformation for each value
+ * Cut            the first and last row of the source an effect reads
  * Target         writes one, two or three mapped values
  * Transformation name and lookup entries
  * </pre>
  *
- * <p>A {@link org.ymxs.YMXS.Start} supplies a connection, timing and
- * mapping. A {@link org.ymxs.YMXS.Remap} changes the running effect's
- * mapping without restarting its source. A deferred start retains its
- * separate mapping while pending. Volume transformations can scale a
- * sample or fade it while playback continues from the current place.
+ * <p>A {@link org.ymxs.YMXS.Start} supplies a connection, timing, mapping
+ * and cut. A {@link org.ymxs.YMXS.Remap} changes the running effect's
+ * mapping without restarting its source, and a
+ * {@link org.ymxs.YMXS.Recut} its cut. A deferred start retains its
+ * separate mapping and cut while pending. Volume transformations can scale
+ * a sample or fade it while playback continues from the current place.
  *
  * <p>{@link org.ymxs.Tunes} provides constructors and access functions.
  * It lists sources and transformations in the order their operations
@@ -33,7 +35,8 @@
  *
  * <p>{@link org.ymxs.Check} validates lookup sizes, keys, mapped values
  * and mapping widths. A remap must fit every start on its timer,
- * including starts before and after it. Writer-rule warnings are
+ * including starts before and after it, and the cut of a recut every
+ * source a start on its timer connects. Writer-rule warnings are
  * checked separately from errors of the structure.
  *
  * <p>JSON, CSV and player binary layouts encode the same structure.

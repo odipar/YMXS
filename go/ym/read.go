@@ -218,7 +218,8 @@ func (r *reader) run() ([]map[ymxs.Register]int, []map[ymxs.Timer]ymxs.Effect) {
 							Source: sounds.(ymxs.Single)},
 						Timing: ymxs.Timing{Prescaler: slot[i].Prescaler,
 							Count: slot[i].Count, TimerReset: stopped,
-							PlaceReset: !unmoved}, Mapping: ymxs.Mapping{}}
+							PlaceReset: !unmoved}, Mapping: ymxs.Mapping{},
+						Cut: ymxs.Whole(sounds)}
 					running[i] = slot[i]
 					runs[i] = sounds
 					lastKind[i] = slot[i].Kind

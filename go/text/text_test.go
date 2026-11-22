@@ -54,12 +54,13 @@ func example(t *testing.T) string {
 	return found[1]
 }
 
-// The example of json.md 10 is the text this writes for it: version 7, an
-// empty transformations array and the mapping column after deferred.
+// The example of json.md 10 is the text this writes for it: version 8, an
+// empty transformations array, the mapping column after deferred, and the
+// cut of the whole table of its source after the mapping.
 func TestTheExampleOfTheDocumentIsTheTextThisWrites(t *testing.T) {
 	said := example(t)
-	for _, each := range []string{`"version": 7,`, `"transformations": [],`,
-		`"mapping": [0,-1,-1,-1]`} {
+	for _, each := range []string{`"version": 8,`, `"transformations": [],`,
+		`"mapping": [0,-1,-1,-1],`, `"first": [0,-1,-1,-1],`, `"last": [1,-1,-1,-1]`} {
 		if !strings.Contains(said, each) {
 			t.Fatalf("the example has no %s", each)
 		}
@@ -88,11 +89,11 @@ func volume(n int) ymxs.Transformation {
 func fade() ymxs.Tune {
 	note := ymxs.Triple{Name: "a note", Table: ymxs.Repeating([]ymxs.Three{
 		{First: 163, Second: 2, Third: 15}, {First: 142, Second: 12, Third: 12}}, 0)}
-	start := ymxs.Start{
+	start := ymxs.WholeTable(ymxs.Start{
 		Connection: ymxs.ThreeConnection{Target: ymxs.SetVoice{Voice: ymxs.VoiceA},
 			Source: note},
 		Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
-			PlaceReset: true}}
+			PlaceReset: true}})
 	remap := func(n int) ymxs.Row {
 		return ymxs.Row{Registers: map[ymxs.Register]int{}, Effects: map[ymxs.Timer]ymxs.Effect{
 			ymxs.TimerA: ymxs.Remap{Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{},
@@ -120,7 +121,8 @@ func TestATuneThroughTransformationsIsWrittenAsTheFormDefines(t *testing.T) {
 			"[0,0,0,1,1,1,2,2,2,3,3,3,4,4,4,5]},\n",
 		"        {\"name\": \"V10\", \"entries\": [0,0,1,2,2,3,4,4,5,6,6,7,8,8,9,10]}\n" +
 			"      ],\n      \"registers\": {",
-		"        \"deferred\": [0,-1,-1,-1],\n        \"mapping\": [0,[0,0,1],[0,0,2],-1]\n",
+		"        \"deferred\": [0,-1,-1,-1],\n        \"mapping\": [0,[0,0,1],[0,0,2],-1],\n" +
+			"        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]\n",
 		"        \"shape\": [0,3,3,2],\n        \"target\": [17,-1,-1,-1],\n",
 		"        \"prescaler\": [50,-1,-1,-1],\n",
 	} {
@@ -300,9 +302,9 @@ func TestAFileOfVersion6ReadsEveryStartWithTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	written := text.Write(multi)
-	if !strings.Contains(written, `"version": 7,`) || !strings.Contains(written,
-		`"mapping": [0,-1]`) {
-		t.Errorf("a file of version 6 is written as version 7:\n%s", written)
+	if !strings.Contains(written, `"version": 8,`) || !strings.Contains(written,
+		`"mapping": [0,-1],`) {
+		t.Errorf("a file of version 6 is written as version 8:\n%s", written)
 	}
 	line := "row 1 sets shape 3 on Timer A, and a shape is -1, 0, 1 or 2"
 	_, err = text.Read(strings.Replace(skipped, `"shape":[0,-1]`, `"shape":[0,3]`, 1))
@@ -358,8 +360,8 @@ func TestAnErrorOfTheFormOfAMappingIsItsLine(t *testing.T) {
 		{with(`{"a": 1}`), `Timer A's mapping is {"a":1}, and this form requires a column`},
 		{strings.Replace(said, ",\n        "+column, "", 1),
 			`Timer A has no "mapping" column`},
-		{strings.Replace(said, `"shape": [0,3,3,2]`, `"shape": [0,3,4,2]`, 1),
-			"row 2 sets shape 4 on Timer A, and a shape is -1, 0, 1, 2 or 3"},
+		{strings.Replace(said, `"shape": [0,3,3,2]`, `"shape": [0,3,5,2]`, 1),
+			"row 2 sets shape 5 on Timer A, and a shape is -1, 0, 1, 2, 3 or 4"},
 		{strings.Replace(said, entries, `"name": "V05", "entries": [0, "z"]`, 1),
 			`V05 at entry 1 is "z", and this form requires a whole number`},
 		{strings.Replace(said, entries, `"name": "V05", "entries": [0, [1]]`, 1),
@@ -477,5 +479,76 @@ func TestTheValueOfALineIsTheValueAsJSONText(t *testing.T) {
 		if err == nil || err.Error() != one.line {
 			t.Errorf("reports %v, and json.md 8.1 has %q", err, one.line)
 		}
+	}
+}
+
+// cuts is a tune of a start of a wave of six rows under the cut of rows 1
+// to 3, a recut to rows 2 to 5, and a stop: the tune of the Java tree's
+// TextTest.cuts.
+func cuts() ymxs.Multi {
+	wave := ymxs.RepeatingSource("wave", []int{0, 5, 10, 15, 10, 5}, 0)
+	rows := []ymxs.Row{
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Start{
+			Connection: ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8), Source: wave},
+			Timing: ymxs.Timing{Prescaler: ymxs.By4, Count: 100, TimerReset: true,
+				PlaceReset: true}, Cut: ymxs.Cut{First: 1, Last: 3}}}},
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Recut{
+			Cut: ymxs.Cut{First: 2, Last: 5}}}},
+		{Effects: map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Stop{}}},
+	}
+	return ymxs.NewMulti(ymxs.Tune{Title: "cut", Writer: "a test", Rate: 50,
+		Table: ymxs.Once(rows)})
+}
+
+// A start's cut and a recut are the columns first and last, -1 where the
+// shape selects neither (json.md 6.1, 6.2), and a start without them is an
+// error of the form.
+func TestACutAndARecutCrossTheForm(t *testing.T) {
+	said := text.Write(cuts())
+	for _, each := range []string{"\"shape\": [0,4,2],", "\"mapping\": [0,-1,-1],\n" +
+		"        \"first\": [1,2,-1],\n        \"last\": [3,5,-1]\n"} {
+		if !strings.Contains(said, each) {
+			t.Errorf("the text has no %q:\n%s", each, said)
+		}
+	}
+	back, err := text.Read(said)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text.Write(back) != said {
+		t.Errorf("the text moved reading back:\n%s", text.Write(back))
+	}
+	bare := strings.Replace(said, ",\n        \"first\": [1,2,-1]", "", 1)
+	line := `Timer A has no "first" column`
+	if _, err := text.Read(bare); err == nil || err.Error() != line {
+		t.Errorf("a start without first reports %v, and json.md 8.1 has %q", err, line)
+	}
+}
+
+// A file of version 7 has no cut: a reader reads every start under the
+// whole table of its source, and a shape of 4 is an error of the form
+// (json.md 2.4, 8.1).
+func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
+	said := example(t)
+	seven := strings.Replace(strings.Replace(said, `"version": 8`, `"version": 7`, 1),
+		",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]", "", 1)
+	if strings.Contains(seven, "first") {
+		t.Fatalf("the example of version 7 has a cut:\n%s", seven)
+	}
+	multi, err := text.Read(seven)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := multi.Tunes[0].Table.Rows[0].Effects[ymxs.TimerA].(ymxs.Start)
+	if start.Cut != (ymxs.Cut{First: 0, Last: 1}) {
+		t.Errorf("the start of version 7 reads under %v", start.Cut)
+	}
+	if text.Write(multi) != said {
+		t.Errorf("the tune of version 7 is written as\n%s", text.Write(multi))
+	}
+	line := "row 1 sets shape 4 on Timer A, and a shape is -1, 0, 1, 2 or 3"
+	four := strings.Replace(seven, `"shape": [0,1,-1,2]`, `"shape": [0,4,-1,2]`, 1)
+	if _, err := text.Read(four); err == nil || err.Error() != line {
+		t.Errorf("shape 4 in version 7 reports %v, and json.md 8.1 has %q", err, line)
 	}
 }

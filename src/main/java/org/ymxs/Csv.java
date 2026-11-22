@@ -7,11 +7,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
@@ -54,7 +56,8 @@ import org.ymxs.YMXS.Two;
  * rows to the preceding source; entry blocks append lookup entries to
  * the preceding transformation. Position determines these relationships.
  * A mapping cell is 0 for identity at every value, or space-separated
- * part numbers when transformation lookups are used.
+ * part numbers when transformation lookups are used. The first and last
+ * cells are the rows of a cut.
  */
 public final class Csv {
 
@@ -161,7 +164,8 @@ public final class Csv {
             return;
         }
         table(out, "timer" + timer.name(), "row", "shape", "target", "source",
-                "prescaler", "count", "timerReset", "placeReset", "deferred", "mapping");
+                "prescaler", "count", "timerReset", "placeReset", "deferred", "mapping",
+                "first", "last");
         for (int line = 0; line < rows.size(); line++) {
             Effect effect = rows.get(line).effects().get(timer);
             if (effect == null) {
@@ -174,14 +178,18 @@ public final class Csv {
                         Chip.divides(start.timing().prescaler()), start.timing().count(),
                         start.timing().timerReset() ? 1 : 0, start.timing().placeReset() ? 1 : 0,
                         start.deferred() ? 1 : 0,
-                        mapping(start.mapping(), transformations));
+                        mapping(start.mapping(), transformations),
+                        start.cut().first(), start.cut().last());
                 case Retune retune -> row(out, line, Json.RETUNE, "", "",
                         Chip.divides(retune.timing().prescaler()), retune.timing().count(),
                         retune.timing().timerReset() ? 1 : 0, retune.timing().placeReset() ? 1 : 0,
+                        "", "", "", "");
+                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "", "", "",
                         "", "");
-                case Stop ignored -> row(out, line, Json.STOP, "", "", "", "", "", "", "", "");
                 case Remap remap -> row(out, line, Json.REMAP, "", "", "", "", "", "", "",
-                        mapping(remap.mapping(), transformations));
+                        mapping(remap.mapping(), transformations), "", "");
+                case Recut recut -> row(out, line, Json.RECUT, "", "", "", "", "", "", "", "",
+                        recut.cut().first(), recut.cut().last());
             }
         }
     }
@@ -488,7 +496,8 @@ public final class Csv {
     }
 
     /** One row's operation on the effect of one timer, its target, its
-     *  deferral and its mapping read against the version (json.md 2.4),
+     *  deferral, its mapping and its cut read against the version (json.md
+     *  2.4),
      *  and a start's source verified to have the values a row its target
      *  reads as the start is built (5.1). */
     private static Effect effect(Block acts, List<String> one, List<Source> sources,
@@ -510,7 +519,10 @@ public final class Csv {
                         version >= Json.DEFERRED && flag(acts.of(one, "deferred")),
                         version >= Json.MAPPED
                                 ? mapping(acts.of(one, "mapping"), at, transformations)
-                                : Tunes.NO_PARTS);
+                                : Tunes.NO_PARTS,
+                        version >= Json.CUT
+                                ? cut(acts, one)
+                                : Tunes.whole(sources.get(number - 1)));
             }
             case Json.RETUNE -> new Retune(new Timing(
                     Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
@@ -523,16 +535,29 @@ public final class Csv {
                 }
                 yield new Remap(mapping(acts.of(one, "mapping"), at, transformations));
             }
+            case Json.RECUT -> {
+                if (version < Json.CUT) {
+                    throw shape(at, shape, version);
+                }
+                yield new Recut(cut(acts, one));
+            }
             default -> throw shape(at, shape, version);
         };
+    }
+
+    /** The cut of a start or a recut: the {@code first} cell, then the
+     *  {@code last} cell, each a whole number. Its range against the source
+     *  is an error of the structure (5.3). */
+    private static Cut cut(Block acts, List<String> one) {
+        int first = number(acts.of(one, "first"), "first");
+        return new Cut(first, number(acts.of(one, "last"), "last"));
     }
 
     /** The error of a shape outside the shapes of {@code version}. */
     private static IllegalArgumentException shape(int at, int shape, int version) {
         return new IllegalArgumentException("row " + at + " sets shape " + shape
                 + " of an effect, and a shape is " + Json.START + ", " + Json.RETUNE
-                + (version >= Json.MAPPED ? ", " + Json.STOP + " or " + Json.REMAP
-                        : " or " + Json.STOP));
+                + Json.shapes(version));
     }
 
     /**

@@ -18,13 +18,66 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.7.1` beside `v0.7.1`.
+version of it is a tag of that directory: `go/v0.8.0` beside `v0.8.0`.
 
-A player pins a version of this format: the structure's version is 7, a
-writer writes 7 and a reader reads 7, 6, 5, 4 and 3, and a release's
+A player pins a version of this format: the structure's version is 8, a
+writer writes 8 and a reader reads 8, 7, 6, 5, 4 and 3, and a release's
 number names the tools rather than the format.
 
 ## Published
+
+### 0.8.0, 2026-11-22
+
+<https://github.com/odipar/YMXS/releases/tag/v0.8.0>, built from the commit
+tagged `v0.8.0`.
+
+The structure's version is 8: a cut is the first row and the last row of
+its source that an effect reads (SPEC.md 3.7), for YMX issue 180. Each
+`Start` has one, and a fifth operation, `Recut`, sets the cut of the
+effect a timer runs, as a `Remap` sets its mapping. The tick after the
+last row of a cut reads the repeat row of the source where the cut
+includes it, and the first row of the cut where it does not, so a recut a
+frame moves a window over a wave table. A writer writes 8, and a reader
+reads 8, 7, 6, 5, 4 and 3; a reader reads every start of a file of version
+7 or before under the whole table of its source, rows 0 to R - 1, the
+reading of version 7.
+
+- **The structure.** `Start` is a `Connection`, its timing, the deferred
+  flag, its mapping and its `Cut(int first, int last)`, and `Recut` is a
+  fifth operation (SPEC.md 1.1). `placeReset` set puts the place at the
+  first row of the cut, clear puts it into the cut, and a recut moves a
+  place outside the new cut to its first row (3.4.3, 4.3).
+- **The errors.** A cut outside the rows of its source and a cut that ends
+  before it begins are errors of the structure, of a start and of a recut,
+  the cut of a recut read against the source of every start on its timer
+  (1.11, 1.12). A recut on an idle timer breaks rule 5, and the reckoning
+  of a source that plays once reads the rows of the cut of its start (6.4,
+  6.5).
+- **The forms.** JSON and CSV have `first` and `last` columns, and `shape`
+  4 is a recut (json.md 6, csv.md 3.9); a version other than 3 to 8
+  reports `version N, and this reads 3, 4, 5, 6, 7 or 8`. The record's
+  start has `first` and `last`, and a recut is
+  `{"recut":{"first":F,"last":L}}` (SPEC.md 7.4).
+- **The Go module.** `ymxs.Start` has a field `Cut`, whose zero value is
+  the cut of row 0 alone; `Whole` is the cut of the whole table of a
+  source, and `WholeTable` a start under it. `Starting` has a sixth
+  parameter, the cut, and a caller of it changes with it; `Recut` is a
+  fifth effect, `CutOf` reads the cut of a start or a recut,
+  `check.Recutting` reads a recut against a tune, and `text.Version` is 8.
+- **The examples.** `doc/tunes/cut.json` moves a window of 16 rows over a
+  triangle of 32, two rows a frame, and the kit gains a tune of cuts and
+  recuts. The examples and the kit's tunes are version 8, and the kit's
+  records gain the cut of each start alone.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release
+writes in 12 dumps of 12 the tune that `ym-to-ymxs` of 0.7.1 writes, read
+and written again by this release, and reports the same. `ymxs-check`
+exits, writes and reports the same on the eleven tunes of the kit and the
+nine example tunes of 0.7.1, each read as version 7, and
+`ymxs-csv-to-json` reads the two CSV examples of 0.7.1 into the tunes of
+version 8 under `doc/tunes`.
+
+Checks: `bin/suite` green, 227 tests and 0 skipped.
 
 ### 0.7.1, 2026-11-04
 

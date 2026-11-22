@@ -72,7 +72,7 @@ final class RecordTest {
                 "{\"result\":0,\"w\":{\"7\":62},\"e\":{\"A\":{\"start\":{\"target\":"
                         + "\"setVoiceA\",\"source\":1,\"prescaler\":200,\"count\":192,"
                         + "\"timerReset\":true,\"placeReset\":true,\"deferred\":false,"
-                        + "\"mapping\":[0,0,1]}}}}",
+                        + "\"mapping\":[0,0,1],\"first\":0,\"last\":1}}}}",
                 "{\"result\":0,\"w\":{},\"e\":{}}"), Record.record(Fade.wide()));
     }
 
@@ -91,7 +91,8 @@ final class RecordTest {
                 "V14 follows V15, 16 entries each: " + record.get(0));
         assertEquals(16, record.get(0).split("\\],\\[").length, "sixteen transformations");
         assertTrue(record.get(0).endsWith(",0,0,0]]}"), "V0 is last: " + record.get(0));
-        assertTrue(record.get(1).endsWith(",\"deferred\":false,\"mapping\":0}}}}"),
+        assertTrue(record.get(1).endsWith(",\"deferred\":false,\"mapping\":0,\"first\":0,"
+                + "\"last\":0}}}}"),
                 record.get(1));
         for (int n = 1; n <= 16; n++) {
             assertEquals("{\"result\":0,\"w\":{},\"e\":{\"A\":{\"remap\":{\"mapping\":[0,0,"
@@ -115,5 +116,20 @@ final class RecordTest {
                 + "\"transformations\":[[0,0,0,1,"), record.get(0));
         assertEquals("{\"result\":0,\"w\":{},\"e\":{\"C\":{\"remap\":{\"mapping\":[1]}}}}",
                 record.get(1));
+    }
+
+    /** A start records its cut, and a recut the cut it sets (SPEC.md 7.4). */
+    @Test
+    void aStartAndARecutRecordTheirCuts() {
+        assertEquals(List.of(
+                "{\"rate\":50,\"timers\":[\"A\"],\"sources\":[{\"rows\":[0,5,10,15,10,5],"
+                        + "\"repeat\":0}],\"transformations\":[]}",
+                "{\"result\":0,\"w\":{},\"e\":{\"A\":{\"start\":{\"target\":\"setR8\","
+                        + "\"source\":1,\"prescaler\":4,\"count\":100,\"timerReset\":true,"
+                        + "\"placeReset\":true,\"deferred\":false,\"mapping\":0,\"first\":1,"
+                        + "\"last\":3}}}}",
+                "{\"result\":0,\"w\":{},\"e\":{\"A\":{\"recut\":{\"first\":2,\"last\":5}}}}",
+                "{\"result\":0,\"w\":{},\"e\":{\"A\":{\"stop\":{}}}}"),
+                Record.record(TextTest.cuts()));
     }
 }

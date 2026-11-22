@@ -45,12 +45,12 @@ func song() ymxs.Tune {
 		at := block * 8
 		voices := [][]ymxs.Triple{{lead, pad}, {bass, lead}}
 		for i, timer := range []ymxs.Timer{ymxs.TimerA, ymxs.TimerB} {
-			rows[at].Effects[timer] = ymxs.Start{Connection: ymxs.ThreeConnection{
+			rows[at].Effects[timer] = ymxs.WholeTable(ymxs.Start{Connection: ymxs.ThreeConnection{
 				Target: ymxs.SetVoice{Voice: ymxs.Voice(i)},
-				Source: voices[i][block%2]}, Timing: timing}
+				Source: voices[i][block%2]}, Timing: timing})
 		}
-		rows[at].Effects[ymxs.TimerD] = ymxs.Start{Connection: ymxs.OneConnection{
-			Target: ymxs.Setting(ymxs.R10), Source: drum}, Timing: timing}
+		rows[at].Effects[ymxs.TimerD] = ymxs.WholeTable(ymxs.Start{Connection: ymxs.OneConnection{
+			Target: ymxs.Setting(ymxs.R10), Source: drum}, Timing: timing})
 		for k, off := range []int{2, 4, 6} {
 			volume := volumes[(block*3+k)%len(volumes)]
 			voice := ymxs.Remap{Mapping: ymxs.Mapped(ymxs.Identity{}, ymxs.Identity{},
@@ -98,10 +98,10 @@ func distinct(remaps bool) ymxs.Tune {
 	for i := 0; i < 4096; i++ {
 		values := make([]int, 64)
 		values[61], values[62], values[63] = i/256%16, i/16%16, i%16
-		rows[2*i].Effects[ymxs.TimerA] = ymxs.Start{Connection: ymxs.OneConnection{
+		rows[2*i].Effects[ymxs.TimerA] = ymxs.WholeTable(ymxs.Start{Connection: ymxs.OneConnection{
 			Target: ymxs.Setting(ymxs.R8), Source: ymxs.RepeatingSource("s", values, 0)},
 			Timing: ymxs.Timing{Prescaler: ymxs.By50, Count: 60, TimerReset: true,
-				PlaceReset: true}}
+				PlaceReset: true}})
 		if remaps && i%64 == 0 {
 			rows[2*i+1].Effects[ymxs.TimerA] = ymxs.Remap{}
 		}

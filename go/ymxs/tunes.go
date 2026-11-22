@@ -505,15 +505,15 @@ func ConnectionSource(connection Connection) Source {
 
 // ----------------------------------------------------------- an effect
 
-// Starting is the start of the source on the target through the mapping,
-// on the connection of the width they share. A reader of a form builds a
-// start this way, where the two come off text; code that names the
-// connection builds the value. Where the source has other values a row
-// than the target reads, the error is the line of json.md 8.1 and csv.md
-// 5.1, an error of the form.
+// Starting is the start of the source on the target through the mapping
+// under the cut, on the connection of the width they share. A reader of a
+// form builds a start this way, where the two come off text; code that
+// names the connection builds the value. Where the source has other values
+// a row than the target reads, the error is the line of json.md 8.1 and
+// csv.md 5.1, an error of the form.
 func Starting(target Target, source Source, timing Timing, deferred bool,
-	mapping Mapping) (Start, error) {
-	start := Start{Timing: timing, Deferred: deferred, Mapping: mapping}
+	mapping Mapping, cut Cut) (Start, error) {
+	start := Start{Timing: timing, Deferred: deferred, Mapping: mapping, Cut: cut}
 	one, okTarget := target.(OneTarget)
 	single, okSource := source.(Single)
 	if okTarget && okSource {
@@ -537,11 +537,49 @@ func Starting(target Target, source Source, timing Timing, deferred bool,
 }
 
 // Struck is a struck note: the source from its first row, the timer from a
-// whole period, at the row.
+// whole period, at the row, under the whole table.
 func Struck(target OneTarget, source Single, prescaler Prescaler, count int) Start {
 	return Start{Connection: OneConnection{Target: target, Source: source},
 		Timing: Timing{Prescaler: prescaler, Count: count, TimerReset: true,
-			PlaceReset: true}}
+			PlaceReset: true}, Cut: Whole(source)}
+}
+
+// SourceSize is how many rows the source has.
+func SourceSize(source Source) int {
+	return Size(SourceRows(source))
+}
+
+// Whole is the cut of the whole table of the source, rows 0 to R - 1 of
+// its R rows (SPEC.md 3.7.1). A reader of a file of version 7 or before
+// reads every start with this cut.
+func Whole(source Source) Cut {
+	return Cut{First: 0, Last: SourceSize(source) - 1}
+}
+
+// CutSize is the rows a cut reads, its last row less its first plus 1,
+// which the reckoning of a source that plays once reads (SPEC.md 6.4).
+func CutSize(cut Cut) int {
+	return cut.Last - cut.First + 1
+}
+
+// WholeTable is the start under the whole table of its source (SPEC.md
+// 3.7.1), the cut every start of a file of version 7 or before reads with.
+func WholeTable(start Start) Start {
+	start.Cut = Whole(ConnectionSource(start.Connection))
+	return start
+}
+
+// CutOf returns the cut supplied by a start or a recut, with true. A
+// retune, a stop or a remap returns the zero Cut with false; each
+// preserves the running effect's cut.
+func CutOf(effect Effect) (Cut, bool) {
+	switch e := effect.(type) {
+	case Start:
+		return e.Cut, true
+	case Recut:
+		return e.Cut, true
+	}
+	return Cut{}, false
 }
 
 // Bend is a bend: the count changes and both resets stay clear.

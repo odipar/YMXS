@@ -230,26 +230,27 @@ sources of a tune for the sources. A is the first step where the cuts of
 real tunes are few and fixed, since it leaves the player as it is. C is B
 without the index, for tunes whose sources are 128 rows at most.
 
-- [ ] The plan, this document
-- [ ] YMXS: the structure, the operation and the errors, sections 1, 3,
-      4 and 5 of SPEC.md, with the cut's section
-- [ ] YMXS: JSON, CSV and the record; the check; both trees; version 8
-- [ ] YMXS: the examples and the conformance kit gain a tune under a cut
-      and a tune that moves one
+- [x] The plan, this document
+- [x] YMXS: the structure, the operation and the errors, sections 1, 3,
+      4, 5 and 6 of SPEC.md, with the cut's section, 3.7
+- [x] YMXS: JSON, CSV and the record; the check; both trees; version 8
+- [x] YMXS: the examples and the conformance kit gain a tune under a cut
+      and a tune that moves one, `doc/tunes/cut.json` and the kit's
+      `cuts.json`
 - [ ] YMXR: encoding B in both trees, the index and the column; the rig
       plays a moved window against the model
 - [ ] YMXR: the cycles of a tick under a cut counted into
       performance.md
 - [ ] The specifications define what landed; this document goes
 
-## Questions
+## Settled
 
-- The name: a `Cut` of a first row and a last row, with a `Recut` beside
-  the `Remap`; or a `Window` with a `Rewindow`.
-- The fifth operation, against a `Start` a frame on the running source at
-  the running rate, which sets the cut and four values with it.
-- A cut on a `Retune` beside the rate, which leaves the operations at
-  four and sets the rate at each move of the window.
-- The row after the last row of a cut above the repeat row of its source:
-  the cut's first row, as above, or an error of the structure, which a
-  window reaches as soon as it moves past the repeat row.
+- The name: a `Cut` of a first row and a last row, and a `Recut` beside the
+  `Remap`.
+- The fifth operation, which sets the cut alone; the cut stays off the
+  `Retune`.
+- The row after the last row of a cut that excludes the repeat row of its
+  source: the cut's first row (SPEC.md 3.7.2).
+- The cut of a `Recut` is read against the source of every `Start` on its
+  timer, as the mapping of a `Remap` is, so a window moved over a wave table
+  fits every source a later row starts on that timer (SPEC.md 1.11).

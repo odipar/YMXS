@@ -1,6 +1,6 @@
 {
   "format": "ymxs",
-  "version": 7,
+  "version": 8,
   "tunes": [
     {
       "title": "First",
@@ -99,6 +99,16 @@
         ],
         "mapping": [
           0,
+          -1,
+          -1
+        ],
+        "first": [
+          0,
+          -1,
+          -1
+        ],
+        "last": [
+          1,
           -1,
           -1
         ]

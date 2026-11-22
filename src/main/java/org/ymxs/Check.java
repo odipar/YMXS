@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Connection;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
 import org.ymxs.YMXS.Mapping;
@@ -18,6 +19,7 @@ import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
 import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
@@ -79,9 +81,9 @@ public final class Check {
     }
 
     /** What a tune check reads, counted for a test of its cost: the rows of
-     *  the tune read for starts, the starts read into the targets and the
-     *  connections of their timers, and the source rows read through the
-     *  mapping of a remap. */
+     *  the tune read for starts, the starts read into the targets, the
+     *  connections and the sources of their timers, and the source rows read
+     *  through the mapping of a remap. */
     static final class Work {
         int rows;
         int starts;
@@ -89,8 +91,8 @@ public final class Check {
     }
 
     /** {@link #of(Tune)}, counting what it reads in {@code work}. The starts
-     *  on a timer are read once, at the first remap on it, and each mapping
-     *  once a timer. */
+     *  on a timer are read once, at the first remap or recut on it, and each
+     *  mapping and each cut once a timer. */
     static List<String> of(Tune tune, Work work) {
         List<String> said = new ArrayList<>();
         if (tune.rate() < 1) {
@@ -105,7 +107,8 @@ public final class Check {
                         + named(transformations.get(at).name()) + ": " + one);
             }
         }
-        // a remap is read against every start on its timer, at any row
+        // a remap and a recut are read against every start on its timer, at
+        // any row
         List<Row> rows = tune.table().rows();
         Remapping starts = new Remapping(rows);
         for (int at = 0; at < rows.size(); at++) {
@@ -137,8 +140,8 @@ public final class Check {
     }
 
     /** What is wrong with one row's operation on the effect of a timer, or
-     *  an empty list. A remap is read against the starts on its timer in
-     *  {@code starts}. */
+     *  an empty list. A remap and a recut are read against the starts on its
+     *  timer in {@code starts}. */
     private static List<String> of(Remapping starts, Timer timer, Effect effect,
                                    Work work) {
         return switch (effect) {
@@ -146,6 +149,7 @@ public final class Check {
                 List<String> said = new ArrayList<>(count(start.timing().count()));
                 said.addAll(rate(start.timing().prescaler(), start.timing().count()));
                 said.addAll(runs(start));
+                said.addAll(cut(start.cut(), Tunes.source(start.connection())));
                 yield said;
             }
             case Retune retune -> {
@@ -155,7 +159,47 @@ public final class Check {
             }
             case Stop ignored -> List.of();
             case Remap remap -> starts.on(timer, work).remapped(remap.mapping(), work);
+            case Recut recut -> starts.on(timer, work).recut(recut.cut());
         };
+    }
+
+    /** What is wrong with the cut of a start against its source, or an
+     *  empty list: the first row outside the source, the last row outside
+     *  it, and a last row below the first. Each rests on the row count, so a
+     *  source of no rows has none of them (SPEC.md 1.12). */
+    private static List<String> cut(Cut cut, Source source) {
+        int rows = Tunes.size(source);
+        if (rows == 0) {
+            return List.of();
+        }
+        List<String> said = new ArrayList<>(within(cut, rows));
+        said.addAll(ordered(cut));
+        return said;
+    }
+
+    /** The lines of a cut whose first or last row is outside the rows of a
+     *  source of {@code rows} rows, 1 or more (SPEC.md 3.7.1). */
+    private static List<String> within(Cut cut, int rows) {
+        List<String> said = new ArrayList<>();
+        if (cut.first() < 0 || cut.first() >= rows) {
+            said.add("the source has " + rows + " rows and the cut begins at row "
+                    + cut.first());
+        }
+        if (cut.last() < 0 || cut.last() >= rows) {
+            said.add("the source has " + rows + " rows and the cut ends at row "
+                    + cut.last());
+        }
+        return said;
+    }
+
+    /** The line of a cut whose last row is below its first, or an empty
+     *  list (SPEC.md 3.7.1). */
+    private static List<String> ordered(Cut cut) {
+        if (cut.last() < cut.first()) {
+            return List.of("a cut of rows " + cut.first() + " to " + cut.last()
+                    + ": a cut ends at or after the row it begins at");
+        }
+        return List.of();
     }
 
     /** What is wrong with a transformation, or an empty list: the number
@@ -325,9 +369,9 @@ public final class Check {
         return said;
     }
 
-    /** The starts of a tune that its remaps are read against, the starts on
-     *  a timer read at the first remap on it. A timer without a remap has
-     *  its starts left unread. */
+    /** The starts of a tune that its remaps and recuts are read against, the
+     *  starts on a timer read at the first remap or recut on it. A timer
+     *  without either has its starts left unread. */
     private static final class Remapping {
 
         private final List<Row> rows;
@@ -357,21 +401,52 @@ public final class Check {
     }
 
     /**
-     * The starts on one timer of a tune, read once for every remap on it:
-     * each target once, in first-start order, and each connection once, in
-     * first-start order with the row of its first start. {@code remaps}
-     * maps each mapping read against them to its lines.
+     * The starts on one timer of a tune, read once for every remap and
+     * every recut on it: each target once, in first-start order, each
+     * connection once and each source once, in first-start order with the
+     * row of its first start. {@code remaps} maps each mapping read against
+     * them to its lines, and {@code recuts} each cut.
      */
     private static final class Starts {
 
         private final Set<Target> targets = new LinkedHashSet<>();
         private final Map<Connection, Integer> connected = new LinkedHashMap<>();
+        private final Map<Source, Integer> sources = new LinkedHashMap<>();
         private final Map<Mapping, List<String>> remaps = new HashMap<>();
+        private final Map<Cut, List<String>> recuts = new HashMap<>();
 
         /** Reads the connection of a start at {@code row}. */
         void add(int row, Start start) {
             targets.add(Tunes.target(start.connection()));
             connected.putIfAbsent(start.connection(), row);
+            sources.putIfAbsent(Tunes.source(start.connection()), row);
+        }
+
+        /**
+         * What is wrong with a recut to {@code cut} on this timer: a last row
+         * below the first, then for each source a start on the timer connects,
+         * in first-start order, the first row and the last row outside its
+         * rows, prefixed {@code start of row S: } (SPEC.md 1.12). A source of
+         * no rows has those lines left out. Equal cuts have equal lines, so
+         * each is read once.
+         */
+        List<String> recut(Cut cut) {
+            List<String> said = recuts.get(cut);
+            if (said == null) {
+                said = new ArrayList<>(ordered(cut));
+                for (Map.Entry<Source, Integer> one : sources.entrySet()) {
+                    int rows = Tunes.size(one.getKey());
+                    if (rows == 0) {
+                        continue;
+                    }
+                    for (String line : within(cut, rows)) {
+                        said.add("start of row " + one.getValue() + ": " + line);
+                    }
+                }
+                said = List.copyOf(said);
+                recuts.put(cut, said);
+            }
+            return said;
         }
 
         /** What is wrong with a remap through {@code mapping} on this timer.
@@ -404,7 +479,7 @@ public final class Check {
                 Target target = Tunes.target(two.getKey());
                 Source source = Tunes.source(two.getKey());
                 if (parted(mapping, target)) {
-                    work.sources += size(source);
+                    work.sources += Tunes.size(source);
                     for (String one : mapped(target, source, mapping, true)) {
                         said.add("start of row " + two.getValue() + ": " + one);
                     }
@@ -412,15 +487,6 @@ public final class Check {
             }
             return List.copyOf(said);
         }
-    }
-
-    /** The row count of a source. */
-    private static int size(Source source) {
-        return switch (source) {
-            case Single single -> Tunes.size(single.table());
-            case Pair pair -> Tunes.size(pair.table());
-            case Triple triple -> Tunes.size(triple.table());
-        };
     }
 
     /**
@@ -653,6 +719,16 @@ public final class Check {
                                 + " is", reckoned(timer, at));
                     }
                 }
+                case Recut ignored -> {
+                    // as a remap: the effect, its run and a pending start are
+                    // as they were (6.3 step 2(d))
+                    Running runs = runs(timer, at);
+                    if (runs == null) {
+                        say(at, timer, "recuts an effect that is idle: a cut is set on a"
+                                + " running effect, and this row leaves the timer as it is",
+                                reckoned(timer, at));
+                    }
+                }
                 case Stop ignored -> {
                     pending.remove(timer);
                     Running runs = running.remove(timer);
@@ -724,11 +800,12 @@ public final class Check {
             int to = tune.table().repeat().getAsInt();
             int last = rows.size() - 1;
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
-                // a remap at the repeat row leaves the effect running from
-                // the pass before, as a row that leaves the timer alone does
+                // a remap or a recut at the repeat row leaves the effect
+                // running from the pass before, as a row that leaves the
+                // timer alone does
                 Effect there = rows.get(to).effects().get(one.getKey());
-                if (last >= one.getValue().until
-                        || there != null && !(there instanceof Remap)) {
+                if (last >= one.getValue().until || there != null
+                        && !(there instanceof Remap || there instanceof Recut)) {
                     continue;
                 }
                 said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
@@ -810,11 +887,11 @@ public final class Check {
             return at + frames(start);
         }
 
-        /** The frames a start's source runs for, played once at its
-         *  rate (6.4). */
+        /** The frames a start's source runs for, the rows of its cut played
+         *  once at its rate (6.4). */
         private int frames(Start start) {
-            return Chip.frames(Tunes.size(Tunes.rows(Tunes.source(start.connection()))),
-                    start.timing().prescaler(), start.timing().count(), tune.rate());
+            return Chip.frames(Tunes.size(start.cut()), start.timing().prescaler(),
+                    start.timing().count(), tune.rate());
         }
 
         private List<Register> written(Target target) {

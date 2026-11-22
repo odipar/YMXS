@@ -26,7 +26,12 @@ const Format = "ymxs"
 
 // Version is the version of the structure this maps, and the version a
 // writer writes.
-const Version = 7
+const Version = 8
+
+// Cut is the first version with a start's cut and a recut: in a file of a
+// version before it every start reads with the cut of the whole table of
+// its source, and shape 4 is an error of the form (json.md 2.4).
+const Cut = 8
 
 // Mapped is the first version with transformations, mappings and a remap:
 // in a file of a version before it every start reads with the mapping of
@@ -47,7 +52,7 @@ const Several = 4
 const Oldest = 3
 
 // Reads is the versions a reader reads, as its report lists them: Oldest
-// to Version, "3, 4, 5, 6 or 7".
+// to Version, "3, 4, 5, 6, 7 or 8".
 var Reads = func() string {
 	var said []string
 	for version := Oldest; version < Version; version++ {
@@ -67,7 +72,22 @@ const (
 	Retune = 1
 	Stop   = 2
 	Remap  = 3
+	Recut  = 4
 )
+
+// Shapes is the shapes of a version after the stop, as the line of a shape
+// outside them lists them: none before Mapped, the remap before Cut, and
+// the remap and the recut from it. The CSV reader calls it too.
+func Shapes(version int) string {
+	if version >= Cut {
+		return ", " + strconv.Itoa(Stop) + ", " + strconv.Itoa(Remap) + " or " +
+			strconv.Itoa(Recut)
+	}
+	if version >= Mapped {
+		return ", " + strconv.Itoa(Stop) + " or " + strconv.Itoa(Remap)
+	}
+	return " or " + strconv.Itoa(Stop)
+}
 
 // Arrays this deep and shallower put each value on a separate line: the
 // tunes, the sources, the transformations.
@@ -171,14 +191,21 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
 	placeReset := make([]int, len(rows))
 	deferred := make([]int, len(rows))
 	mapping := make([]cell, len(rows))
+	first := make([]int, len(rows))
+	last := make([]int, len(rows))
 	for at, row := range rows {
 		shape[at], target[at], source[at] = None, None, None
 		prescaler[at], count[at] = None, None
 		timerReset[at], placeReset[at], deferred[at] = None, None, None
 		mapping[at] = cell{number: None}
+		first[at], last[at] = None, None
 		effect, on := row.Effects[timer]
 		if !on {
 			continue
+		}
+		// json.md 6.2: a start and a recut select the two rows of a cut
+		if cut, ok := ymxs.CutOf(effect); ok {
+			first[at], last[at] = cut.First, cut.Last
 		}
 		switch e := effect.(type) {
 		case ymxs.Start:
@@ -202,6 +229,8 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
 		case ymxs.Remap:
 			shape[at] = Remap
 			mapping[at] = mappingCell(e.Mapping, transformations)
+		case ymxs.Recut:
+			shape[at] = Recut
 		}
 	}
 	w.object(depth, func(o *entries) {
@@ -220,6 +249,12 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
 		}
 		o.field("mapping", func() {
 			w.mapping(depth+1, mapping)
+		})
+		o.field("first", func() {
+			w.values(depth+1, first)
+		})
+		o.field("last", func() {
+			w.values(depth+1, last)
 		})
 	})
 }

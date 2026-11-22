@@ -9,11 +9,13 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Retune;
@@ -48,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  * since one row may act on all four. A timer object appears when some
  * row acts on it. Its mapping column uses 0 for mappings with only
  * identity parts and arrays of part numbers when a transformation is
- * used.
+ * used, and its first and last columns are the rows of a cut.
  *
  * <p>A source is written by its number, 1 upward into the sources a
  * tune's rows start ({@link Tunes#sources}). The name beside it appears
@@ -63,7 +65,12 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 7;
+    public static final int VERSION = 8;
+
+    /** The first version with a start's cut and a recut: in a file of a
+     *  version before it every start reads with the cut of the whole table
+     *  of its source, and a shape of 4 is an error of the form (2.4). */
+    public static final int CUT = 8;
 
     /** The first version with transformations, mappings and a remap: in
      *  a file of a version before it every start reads with the mapping
@@ -83,8 +90,8 @@ public final class Json {
      *  one to {@link #VERSION} (2.4). */
     public static final int OLDEST = 3;
 
-    /** The versions a reader reads, as its report lists them: 3, 4, 5, 6
-     *  or 7. */
+    /** The versions a reader reads, as its report lists them: 3, 4, 5, 6, 7
+     *  or 8. */
     static final String READS = reads();
 
     private static String reads() {
@@ -125,6 +132,7 @@ public final class Json {
     public static final int RETUNE = 1;
     public static final int STOP = 2;
     public static final int REMAP = 3;
+    public static final int RECUT = 4;
 
     /** One tune as a JSON tree. */
     public static ObjectNode of(Tune tune) {
@@ -214,7 +222,7 @@ public final class Json {
 
     /** One timer's columns: the operation on that effect at every row,
      *  and {@link #NONE} where the row leaves it alone. Only a timer some
-     *  row acts on has columns, the nine of 6.1. */
+     *  row acts on has columns, the eleven of 6.1. */
     private static void timer(ObjectNode out, Timer timer, List<Row> rows,
                               List<Source> sources, List<Transformation> transformations) {
         boolean any = false;
@@ -237,6 +245,8 @@ public final class Json {
         ArrayNode placeReset = into.putArray("placeReset");
         ArrayNode deferred = into.putArray("deferred");
         ArrayNode mapping = into.putArray("mapping");
+        ArrayNode first = into.putArray("first");
+        ArrayNode last = into.putArray("last");
         for (Row row : rows) {
             Effect effect = row.effects().get(timer);
             if (effect == null) {
@@ -249,8 +259,14 @@ public final class Json {
                 placeReset.add(NONE);
                 deferred.add(NONE);
                 mapping.add(NONE);
+                first.add(NONE);
+                last.add(NONE);
                 continue;
             }
+            // 6.2: a start and a recut select the two rows of a cut
+            Cut cut = Tunes.cut(effect);
+            first.add(cut == null ? NONE : cut.first());
+            last.add(cut == null ? NONE : cut.last());
             switch (effect) {
                 case Start start -> {
                     shape.add(START);
@@ -295,6 +311,17 @@ public final class Json {
                     placeReset.add(NONE);
                     deferred.add(NONE);
                     mapping.add(mapping(remap.mapping(), transformations));
+                }
+                case Recut ignored -> {
+                    shape.add(RECUT);
+                    target.add(NONE);
+                    source.add(NONE);
+                    prescaler.add(NONE);
+                    count.add(NONE);
+                    timerReset.add(NONE);
+                    placeReset.add(NONE);
+                    deferred.add(NONE);
+                    mapping.add(NONE);
                 }
             }
         }
@@ -408,7 +435,9 @@ public final class Json {
      *  is an error of the form; a file of version 4 or 3 has every start
      *  with {@code deferred} clear; a file of version 6 or before has every
      *  start with the mapping of no parts, and its {@code transformations}
-     *  and {@code mapping} are skipped (2.4). */
+     *  and {@code mapping} are skipped; a file of version 7 or before has
+     *  every start under the whole table of its source, and its
+     *  {@code first} and {@code last} are skipped (2.4). */
     public static Tune tune(JsonNode tree, int version) {
         int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
@@ -542,7 +571,10 @@ public final class Json {
                                 && column(columns, "deferred", at, timer, rows) == 1,
                         version >= MAPPED
                                 ? mapping(columns, at, timer, rows, transformations)
-                                : Tunes.NO_PARTS);
+                                : Tunes.NO_PARTS,
+                        version >= CUT
+                                ? cut(columns, at, timer, rows)
+                                : Tunes.whole(sources.get(source - 1)));
             }
             case RETUNE -> new Retune(new Timing(
                     Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
@@ -556,8 +588,36 @@ public final class Json {
                 }
                 yield new Remap(mapping(columns, at, timer, rows, transformations));
             }
+            case RECUT -> {
+                if (version < CUT) {
+                    throw shape(at, shape, timer, version);
+                }
+                yield new Recut(cut(columns, at, timer, rows));
+            }
             default -> throw shape(at, shape, timer, version);
         };
+    }
+
+    /** The cut of a start or a recut: {@code first}, then {@code last}, each
+     *  a whole number. Its range against the source is an error of the
+     *  structure (6.6). */
+    private static Cut cut(JsonNode columns, int at, Timer timer, int rows) {
+        int first = column(columns, "first", at, timer, rows);
+        return new Cut(first, column(columns, "last", at, timer, rows));
+    }
+
+    /** The shapes of a version after the stop, as the line of a shape
+     *  outside them lists them: none before {@link #MAPPED}, the remap
+     *  before {@link #CUT}, and the remap and the recut from it. The CSV
+     *  reader calls it too. */
+    static String shapes(int version) {
+        if (version >= CUT) {
+            return ", " + STOP + ", " + REMAP + " or " + RECUT;
+        }
+        if (version >= MAPPED) {
+            return ", " + STOP + " or " + REMAP;
+        }
+        return " or " + STOP;
     }
 
     /** The error of a shape outside the shapes of {@code version}. */
@@ -565,8 +625,7 @@ public final class Json {
                                                   int version) {
         return new IllegalArgumentException("row " + at + " sets shape " + shape
                 + " on Timer " + timer + ", and a shape is " + NONE + ", " + START + ", "
-                + RETUNE + (version >= MAPPED ? ", " + STOP + " or " + REMAP
-                        : " or " + STOP));
+                + RETUNE + shapes(version));
     }
 
     /**

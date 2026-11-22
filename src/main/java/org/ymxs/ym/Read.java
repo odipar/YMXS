@@ -205,7 +205,7 @@ public final class Read {
                                 && lastTarget[i] == slot[i].target();
                         here.put(TIMER_OF[i], Tunes.starting(Tunes.setting(slot[i].target()),
                                 sounds, slot[i].prescaler(), slot[i].count(), stopped,
-                                !unmoved, false, Tunes.NO_PARTS));
+                                !unmoved, false, Tunes.NO_PARTS, Tunes.whole(sounds)));
                         running[i] = slot[i];
                         runs[i] = sounds;
                         lastKind[i] = slot[i].kind();

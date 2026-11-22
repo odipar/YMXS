@@ -17,6 +17,7 @@ import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
@@ -189,13 +190,13 @@ final class CsvTest {
                 .dropWhile(one -> !one.startsWith("### timerA"))
                 .skip(2).takeWhile(one -> !one.isBlank()).toList();
         assertEquals(List.of(
-                "0,0,8,1,4,100,1,1,0,0",
-                "1,1,,,4,90,0,0,,",
-                "2,2,,,,,,,,"),
+                "0,0,8,1,4,100,1,1,0,0,0,1",
+                "1,1,,,4,90,0,0,,,,",
+                "2,2,,,,,,,,,,"),
                 rows,
-                "a shape, a target, the two resets, the deferral and the mapping are the"
-                        + " numbers JSON writes, and a cell is empty where that form writes"
-                        + " -1");
+                "a shape, a target, the two resets, the deferral, the mapping and the cut"
+                        + " are the numbers JSON writes, and a cell is empty where that form"
+                        + " writes -1");
         assertEquals(Tunes.multi(tune), Csv.read(Csv.write(Tunes.multi(tune))));
     }
 
@@ -230,7 +231,7 @@ final class CsvTest {
         Tune tune = Csv.read(five).tunes().get(0);
         assertTrue(deferred(tune, 1), "a start of version 5 reads its deferral");
         String written = Csv.write(Csv.read(five));
-        assertTrue(written.contains("1,0,8,1,50,60,0,1,1,0\n"),
+        assertTrue(written.contains("1,0,8,1,50,60,0,1,1,0,0,1\n"),
                 "the form writes the cell back: " + written);
         assertEquals(Csv.read(five), Csv.read(written), "the form crosses both ways");
         Tune four = Csv.read(five.replace("ymxs,5,1", "ymxs,4,1")).tunes().get(0);
@@ -267,7 +268,7 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, new Start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))),
+                        Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
                 new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
                 Tunes.EMPTY), 1));
@@ -484,11 +485,11 @@ final class CsvTest {
         List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### timerA"))
                 .skip(1).takeWhile(one -> !one.isBlank()).toList();
         assertEquals("row,shape,target,source,prescaler,count,timerReset,placeReset,"
-                + "deferred,mapping", rows.get(0));
-        assertEquals("0,0,17,1,200,192,1,1,0,0", rows.get(1));
-        assertEquals("1,3,,,,,,,,0 0 1", rows.get(2));
-        assertEquals("16,3,,,,,,,,0 0 16", rows.get(17));
-        assertEquals("22,2,,,,,,,,", rows.get(18));
+                + "deferred,mapping,first,last", rows.get(0));
+        assertEquals("0,0,17,1,200,192,1,1,0,0,0,0", rows.get(1));
+        assertEquals("1,3,,,,,,,,0 0 1,,", rows.get(2));
+        assertEquals("16,3,,,,,,,,0 0 16,,", rows.get(17));
+        assertEquals("22,2,,,,,,,,,,", rows.get(18));
         assertEquals(19, rows.size());
         assertEquals(fade, Text.read(Text.write(Csv.read(csv))), "and crosses to JSON");
     }
@@ -809,5 +810,38 @@ final class CsvTest {
             throw new AssertionError("row " + at + " starts Timer A");
         }
         return start;
+    }
+
+    /** A start's cut and a recut are the cells {@code first} and
+     *  {@code last}, empty where the shape selects neither (3.9). */
+    @Test
+    void aCutAndARecutCrossTheForm() {
+        String csv = Csv.write(Tunes.multi(TextTest.cuts()));
+        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### timerA"))
+                .skip(2).takeWhile(one -> !one.isBlank()).toList();
+        assertEquals(List.of("0,0,8,1,4,100,1,1,0,0,1,3", "1,4,,,,,,,,,2,5", "2,2,,,,,,,,,,"),
+                rows);
+        assertEquals(Tunes.multi(TextTest.cuts()), Csv.read(csv), "the form reads back");
+        assertEquals(Tunes.multi(TextTest.cuts()), Text.read(Text.write(Csv.read(csv))),
+                "and crosses to JSON");
+    }
+
+    /** A file of version 7 has no cut: a reader skips the cells, reads
+     *  every start under the whole table of its source, and a shape of 4 is
+     *  an error of the form (3.10, 5.1). */
+    @Test
+    void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
+        String seven = Files.readString(Path.of("doc/tunes/example.csv"))
+                .replace("ymxs,8,1", "ymxs,7,1");
+        Tune tune = Csv.read(seven).tunes().get(0);
+        assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
+        String eight = seven.replace("ymxs,7,1", "ymxs,8,1").replace("0,0,8,1,50,60,1,1,0,0,0,1",
+                "0,0,8,1,50,60,1,1,0,0,1,1");
+        assertEquals(new Cut(1, 1), start(Csv.read(eight).tunes().get(0), 0).cut(),
+                "a file of version 8 reads the cells");
+        String four = seven.replace("1,1,,,50,61,0,0,,,,", "1,4,,,,,,,,,0,0");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Csv.read(four)).getMessage());
+        assertEquals("row 1 sets shape 4 of an effect, and a shape is 0, 1, 2 or 3", said);
     }
 }

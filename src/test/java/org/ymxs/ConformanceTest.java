@@ -67,7 +67,11 @@ class ConformanceTest {
                             + " of a register, two transformations of one name, equal entries"
                             + " under two names (3.6.2), and a remap on a timer outside the"
                             + " tune (4.3); the file lists the transformations in another"
-                            + " order than 1.9 numbers them (3.6, 7.4)"));
+                            + " order than 1.9 numbers them (3.6, 7.4)"),
+            new Source("cuts", 1, 11,
+                    "a start under a cut, recuts of a running effect, a deferred start under"
+                            + " a cut of another source, and one source under two cuts on two"
+                            + " timers (3.7, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

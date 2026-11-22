@@ -2,13 +2,14 @@
 //
 // Tune checks transformations, sources, operations and register values,
 // reporting every error in SPEC.md 1.12 order. Optional lookups require
-// valid entry counts, keys and mapped register values. Remaps are
-// checked against every start on their timer, including earlier and
+// valid entry counts, keys and mapped register values. Remaps and recuts
+// are checked against every start on their timer, including earlier and
 // later starts. Tune reads the starts on a timer once, at the first remap
-// on it, and each mapping of a remap once a timer.
+// or recut on it, and each mapping of a remap and each cut of a recut once
+// a timer.
 //
-// Row and Effect lack tune context and leave remap checks to Tune or
-// Remapping. Writing separately reports breaches of the writer rules in
+// Row and Effect lack tune context and leave remap and recut checks to
+// Tune, Remapping or Recutting. Writing separately reports breaches of the writer rules in
 // SPEC.md 6. Form-specific parsing belongs to the text and csv
 // packages.
 package check
@@ -106,8 +107,8 @@ func Row(row ymxs.Row) []string {
 }
 
 // rowOf lists what is wrong with a row of the tune: the registers, then each
-// timer with a start, a retune or a remap, A to D. A remap is read against
-// the starts on its timer in the tune of starts.
+// timer with a start, a retune, a remap or a recut, A to D. A remap and a
+// recut are read against the starts on its timer in the tune of starts.
 func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 	var said []string
 	for _, one := range ymxs.Registered(row) {
@@ -122,6 +123,9 @@ func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 		if remap, ok := one.Effect.(ymxs.Remap); ok {
 			wrong = starts.on(one.Timer, w).remapped(remap.Mapping, w)
 		}
+		if recut, ok := one.Effect.(ymxs.Recut); ok {
+			wrong = starts.on(one.Timer, w).recut(recut.Cut)
+		}
 		for _, line := range wrong {
 			said = append(said, fmt.Sprintf("Timer %s: %s", one.Timer, line))
 		}
@@ -130,20 +134,58 @@ func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 }
 
 // Effect checks one operation without tune context. It cannot validate
-// a remap against starts on that timer; call Tune or Remapping for
-// those checks.
+// a remap or a recut against starts on that timer; call Tune, Remapping or
+// Recutting for those checks.
 func Effect(effect ymxs.Effect) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		said := count(e.Timing.Count)
 		said = append(said, rate(e.Timing.Prescaler, e.Timing.Count)...)
-		return append(said, runs(e)...)
+		said = append(said, runs(e)...)
+		return append(said, cutOf(e.Cut, ymxs.ConnectionSource(e.Connection))...)
 	case ymxs.Retune:
 		return append(count(e.Timing.Count), rate(e.Timing.Prescaler, e.Timing.Count)...)
-	case ymxs.Stop, ymxs.Remap:
+	case ymxs.Stop, ymxs.Remap, ymxs.Recut:
 		return nil
 	}
 	panic(fmt.Sprintf("no effect %T", effect))
+}
+
+// cutOf lists what is wrong with the cut of a start against its source: the
+// first row outside the source, the last row outside it, and a last row
+// below the first. Each rests on the row count, so a source of no rows has
+// none of them (SPEC.md 1.12).
+func cutOf(cut ymxs.Cut, source ymxs.Source) []string {
+	rows := ymxs.SourceSize(source)
+	if rows == 0 {
+		return nil
+	}
+	return append(within(cut, rows), ordered(cut)...)
+}
+
+// within lists the lines of a cut whose first or last row is outside the
+// rows of a source of rows rows, 1 or more (SPEC.md 3.7.1).
+func within(cut ymxs.Cut, rows int) []string {
+	var said []string
+	if cut.First < 0 || cut.First >= rows {
+		said = append(said, fmt.Sprintf("the source has %d rows and the cut begins at row %d",
+			rows, cut.First))
+	}
+	if cut.Last < 0 || cut.Last >= rows {
+		said = append(said, fmt.Sprintf("the source has %d rows and the cut ends at row %d",
+			rows, cut.Last))
+	}
+	return said
+}
+
+// ordered is the line of a cut whose last row is below its first, or none
+// (SPEC.md 3.7.1).
+func ordered(cut ymxs.Cut) []string {
+	if cut.Last < cut.First {
+		return []string{fmt.Sprintf("a cut of rows %d to %d: a cut ends at or after the row"+
+			" it begins at", cut.First, cut.Last)}
+	}
+	return nil
 }
 
 // Source checks the source table and negative values. Register limits
@@ -220,9 +262,17 @@ func Remapping(tune ymxs.Tune, timer ymxs.Timer, remap ymxs.Remap) []string {
 	return startsOn(tune, timer, w).remapped(remap.Mapping, w)
 }
 
-// remapping is the starts of a tune that its remaps are read against, the
-// starts on a timer read at the first remap on it. A timer without a remap
-// has its starts left unread.
+// Recutting checks the cut against the source of every start on the timer,
+// including earlier and later starts: a last row below the first, then each
+// distinct source in first-start order, its lines prefixed with "start of
+// row S: " (SPEC.md 1.12).
+func Recutting(tune ymxs.Tune, timer ymxs.Timer, recut ymxs.Recut) []string {
+	return startsOn(tune, timer, &work{}).recut(recut.Cut)
+}
+
+// remapping is the starts of a tune that its remaps and recuts are read
+// against, the starts on a timer read at the first remap or recut on it. A
+// timer without either has its starts left unread.
 type remapping struct {
 	tune   ymxs.Tune
 	timers map[ymxs.Timer]*started
@@ -242,9 +292,10 @@ func (r *remapping) on(timer ymxs.Timer, w *work) *started {
 }
 
 // started is the starts on one timer of a tune, read once for every remap
-// on it: each target once, in first-start order, and each connection once,
-// in first-start order with the row of its first start. remaps maps the key
-// of each mapping read against them to its lines.
+// and every recut on it: each target once, in first-start order, and each
+// connection once, in first-start order with the row of its first start.
+// remaps maps the key of each mapping read against them to its lines, and
+// recuts each cut; sources is each source once, read at the first recut.
 type started struct {
 	targets     []ymxs.Target
 	connections []connectedAt
@@ -252,6 +303,22 @@ type started struct {
 	connected   map[connectionKey][]int
 	remaps      map[string][]string
 	key         []byte
+	sources     []sourcedAt
+	recuts      map[ymxs.Cut][]string
+}
+
+// sourcedAt is a source and the row of its first start on a timer.
+type sourcedAt struct {
+	row    int
+	source ymxs.Source
+}
+
+// sourceKey is the name, the row count and a hash of the rows and the
+// repeat row of a source. Two equal sources have one key.
+type sourceKey struct {
+	name string
+	rows int
+	hash uint64
 }
 
 // connectedAt is a connection and the row of its first start on a timer.
@@ -318,6 +385,61 @@ func (s *started) remapped(mapping ymxs.Mapping, w *work) []string {
 	said := s.read(mapping, w)
 	s.remaps[string(s.key)] = said
 	return said
+}
+
+// recut lists what is wrong with a recut to the cut on this timer: a last
+// row below the first, then for each source a start on the timer connects,
+// in first-start order, the first row and the last row outside its rows,
+// prefixed with "start of row S: " (SPEC.md 1.12). A source of no rows has
+// those lines left out. Equal cuts have equal lines, so each is read once.
+func (s *started) recut(cut ymxs.Cut) []string {
+	if said, ok := s.recuts[cut]; ok {
+		return said
+	}
+	said := ordered(cut)
+	for _, one := range s.sourcesOf() {
+		rows := ymxs.SourceSize(one.source)
+		if rows == 0 {
+			continue
+		}
+		for _, line := range within(cut, rows) {
+			said = append(said, fmt.Sprintf("start of row %d: ", one.row)+line)
+		}
+	}
+	if s.recuts == nil {
+		s.recuts = map[ymxs.Cut][]string{}
+	}
+	s.recuts[cut] = said
+	return said
+}
+
+// sourcesOf is the source of each connection once, in first-start order
+// with the row of its first start, read from the connections at the first
+// call. The first connection of a source has the first start of it, since
+// the connections are in first-start order.
+func (s *started) sourcesOf() []sourcedAt {
+	if s.sources != nil {
+		return s.sources
+	}
+	s.sources = []sourcedAt{}
+	seen := map[sourceKey][]int{}
+	for _, one := range s.connections {
+		source := ymxs.ConnectionSource(one.connection)
+		rows, hash := hashed(source)
+		key := sourceKey{name: ymxs.SourceName(source), rows: rows, hash: hash}
+		fresh := true
+		for _, before := range seen[key] {
+			if ymxs.SourceEqual(s.sources[before].source, source) {
+				fresh = false
+				break
+			}
+		}
+		if fresh {
+			seen[key] = append(seen[key], len(s.sources))
+			s.sources = append(s.sources, sourcedAt{row: one.row, source: source})
+		}
+	}
+	return s.sources
 }
 
 // read checks the mapping against the starts: the part count once a
@@ -690,11 +812,14 @@ func (w *writing) wrap() {
 		if !running || last >= runs.until {
 			continue
 		}
-		// a remap at the repeat row leaves the effect running from the pass
-		// before, as a row that leaves the timer alone does (rule 1(d))
+		// a remap or a recut at the repeat row leaves the effect running from
+		// the pass before, as a row that leaves the timer alone does (rule
+		// 1(d))
 		set := false
 		for _, one := range ymxs.Effects(w.tune.Table.Rows[to]) {
-			if _, remap := one.Effect.(ymxs.Remap); one.Timer == timer && !remap {
+			_, remap := one.Effect.(ymxs.Remap)
+			_, recut := one.Effect.(ymxs.Recut)
+			if one.Timer == timer && !remap && !recut {
 				set = true
 			}
 		}
@@ -757,6 +882,13 @@ func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
 		// they were (SPEC.md 6.3 step 2(d))
 		if _, on := w.runs(timer, at); !on {
 			w.say(at, timer, "remaps an effect that is idle: a mapping is set on a running"+
+				" effect, and this row leaves the timer as it is", w.reckoned(timer, at))
+		}
+	case ymxs.Recut:
+		// as a remap: the effect in the model, its run and the pending start
+		// are as they were (SPEC.md 6.3 step 2(d))
+		if _, on := w.runs(timer, at); !on {
+			w.say(at, timer, "recuts an effect that is idle: a cut is set on a running"+
 				" effect, and this row leaves the timer as it is", w.reckoned(timer, at))
 		}
 	case ymxs.Stop:
@@ -857,11 +989,11 @@ func (w *writing) until(at int, start ymxs.Start) int {
 	return at + w.frames(start)
 }
 
-// frames is the frames a start's source runs for, played once at its rate
-// (SPEC.md 6.4).
+// frames is the frames a start's source runs for, the rows of its cut played
+// once at its rate (SPEC.md 6.4).
 func (w *writing) frames(start ymxs.Start) int {
-	return ymxs.Frames(len(ymxs.SourceRows(ymxs.ConnectionSource(start.Connection)).Rows),
-		start.Timing.Prescaler, start.Timing.Count, w.tune.Rate)
+	return ymxs.Frames(ymxs.CutSize(start.Cut), start.Timing.Prescaler,
+		start.Timing.Count, w.tune.Rate)
 }
 
 // written is the registers a target writes, value i of a row to register

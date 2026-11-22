@@ -66,10 +66,10 @@ func ym5(frames [][16]byte) []byte {
 	return append(out, "End!"...)
 }
 
-// ym-to-ymxs writes version 7, every start through the mapping of no parts
+// ym-to-ymxs writes version 8, every start through the mapping of no parts
 // (tools.md 9.1, ym.md 7.4): a square wave of a YM5! dump is a start whose
 // mapping column is 0, and the tune has no transformations.
-func TestADumpIsWrittenAsVersion7ThroughTheMappingOfNoParts(t *testing.T) {
+func TestADumpIsWrittenAsVersion8ThroughTheMappingOfNoParts(t *testing.T) {
 	var square [16]byte
 	square[1] = 0x10 // the first slot on voice A
 	square[6] = 3 << 5
@@ -89,7 +89,7 @@ func TestADumpIsWrittenAsVersion7ThroughTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start maps through %d parts", len(parts))
 	}
 	written := text.Write(ymxs.NewMulti(tune))
-	for _, each := range []string{`"version": 7,`, `"transformations": [],`,
+	for _, each := range []string{`"version": 8,`, `"transformations": [],`,
 		`"mapping": [0,-1]`} {
 		if !strings.Contains(written, each) {
 			t.Errorf("the tune has no %s:\n%s", each, written)

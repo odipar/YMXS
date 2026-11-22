@@ -397,7 +397,8 @@ type reading struct {
 // the row acts on it. Each column is read and verified before the next, in
 // the order of json.md 7.1 step 8: for a start source, target, prescaler,
 // count, timerReset, placeReset, in a file of version 5 or later deferred,
-// and in a file of version 7 mapping; for a remap mapping. A start then
+// in a file of version 7 or later mapping, and in a file of version 8 first
+// and last; for a remap mapping; for a recut first and last. A start then
 // has its source verified against its target, for the values a row the
 // target reads (ymxs.Starting), an error of the form.
 func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effect, bool,
@@ -442,8 +443,15 @@ func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effe
 				return nil, false, err
 			}
 		}
+		cut := ymxs.Whole(r.sources[source-1])
+		if r.version >= Cut {
+			cut, err = cutOf(columns, at, timer, r.rows)
+			if err != nil {
+				return nil, false, err
+			}
+		}
 		made, err := ymxs.Starting(run, r.sources[source-1], timing, deferred == 1,
-			mapping)
+			mapping, cut)
 		if err != nil {
 			return nil, false, err
 		}
@@ -462,13 +470,30 @@ func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effe
 			return nil, false, err
 		}
 		return ymxs.Remap{Mapping: mapping}, true, nil
-	}
-	if r.version < Mapped {
-		return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is"+
-			" %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop)
+	case shape == Recut && r.version >= Cut:
+		cut, err := cutOf(columns, at, timer, r.rows)
+		if err != nil {
+			return nil, false, err
+		}
+		return ymxs.Recut{Cut: cut}, true, nil
 	}
 	return nil, false, fmt.Errorf("row %d sets shape %d on Timer %s, and a shape is"+
-		" %d, %d, %d, %d or %d", at, shape, timer, None, Start, Retune, Stop, Remap)
+		" %d, %d, %d%s", at, shape, timer, None, Start, Retune, Shapes(r.version))
+}
+
+// cutOf is the cut of a start or a recut: first, then last, each a whole
+// number. Its range against the source is an error of the structure
+// (json.md 6.6).
+func cutOf(columns *members, at int, timer ymxs.Timer, rows int) (ymxs.Cut, error) {
+	first, err := column(columns, "first", at, timer, rows)
+	if err != nil {
+		return ymxs.Cut{}, err
+	}
+	last, err := column(columns, "last", at, timer, rows)
+	if err != nil {
+		return ymxs.Cut{}, err
+	}
+	return ymxs.Cut{First: first, Last: last}, nil
 }
 
 // mappingOf reads the mapping for a start or remap. Verify the column

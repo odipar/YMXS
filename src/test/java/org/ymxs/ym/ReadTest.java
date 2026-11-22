@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
+import org.ymxs.Json;
 import org.ymxs.Tunes;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Prescaler;
@@ -147,7 +148,7 @@ final class ReadTest {
         assertEquals(1, starts, "the square starts once");
         assertEquals(List.of(), Tunes.transformations(tune));
         String text = Text.write(Tunes.multi(tune)).replaceAll("\\s+", " ");
-        assertTrue(text.contains("\"version\": 7,"), text);
+        assertTrue(text.contains("\"version\": " + Json.VERSION + ","), text);
         assertTrue(text.contains("\"transformations\": [],"), text);
         assertTrue(text.contains("\"mapping\": [-1,-1,0,-1,-1,-1,-1,-1]"), text);
     }

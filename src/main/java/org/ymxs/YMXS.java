@@ -46,23 +46,25 @@ public interface YMXS {
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
 
     /** One row's operation on the effect of one timer. An effect is a
-     *  source connected to a target on one timer through a mapping, at
-     *  the rate its prescaler and count come to, and a row performs one
-     *  of four operations on it. */
-    sealed interface Effect permits Start, Retune, Stop, Remap { }
+     *  source connected to a target on one timer through a mapping, under
+     *  a cut, at the rate its prescaler and count come to, and a row
+     *  performs one of five operations on it. */
+    sealed interface Effect permits Start, Retune, Stop, Remap, Recut { }
 
     /**
-     * Starts the connection with its timing and mapping. A mapping with
-     * no parts uses identity for every source value; transformation
-     * lookups are optional.
+     * Starts the connection with its timing, its mapping and its cut. A
+     * mapping with no parts uses identity for every source value;
+     * transformation lookups are optional. The cut of rows 0 to R - 1 of
+     * a source of R rows reads the whole table.
      *
      * <p>With {@code deferred} set on a running effect, this start
-     * remains pending until the current source's last row. It keeps its
-     * mapping while pending, even if a {@link Remap} changes the
-     * running effect (SPEC.md 3.5).
+     * remains pending until the last row of the cut of the running
+     * effect. It keeps its mapping and its cut while pending, even if a
+     * {@link Remap} or a {@link Recut} changes the running effect
+     * (SPEC.md 3.5).
      */
     record Start(Connection connection, Timing timing, boolean deferred,
-                 Mapping mapping) implements Effect { }
+                 Mapping mapping, Cut cut) implements Effect { }
 
     /** The target a start runs its source on, and that source. A
      *  connection is a shape a width: each pairs a target with a source of
@@ -107,6 +109,27 @@ public interface YMXS {
      * restarting the sample, or an empty mapping to restore identity.
      */
     record Remap(Mapping mapping) implements Effect { }
+
+    /**
+     * Replaces the running effect's cut for subsequent ticks. Its source,
+     * target, timing and mapping are unchanged, and its place where the
+     * new cut includes it; a place outside the new cut moves to the cut's
+     * first row. A pending {@link Start} retains its separate cut; an
+     * idle timer stays idle.
+     *
+     * <p>A recut a frame moves a window over a wave table while the
+     * source plays at its rate (SPEC.md 3.7).
+     */
+    record Recut(Cut cut) implements Effect { }
+
+    /**
+     * The rows of its source that an effect reads, {@code first} to
+     * {@code last}, each 0 to R - 1 of a source of R rows. After the last
+     * row, the next tick of a source that repeats reads its repeat row where
+     * the cut includes it, and the first row of the cut where it does not; a
+     * source that plays once ends at the last row (SPEC.md 3.7).
+     */
+    record Cut(int first, int last) { }
 
     /**
      * Writes mapped source values to YM2149 registers in target order.

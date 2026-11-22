@@ -16,7 +16,9 @@ import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.OneTarget;
+import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Prescaler;
+import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Row;
@@ -43,7 +45,7 @@ final class CheckTest {
         return new Tune("", "", "", 0, Tunes.repeating(List.of(
                 Tunes.row(Map.of(Register.R8, 99)),
                 new Row(Map.of(), Map.of(Timer.A,
-                        new Start(new OneConnection(Tunes.setting(Register.R8), loud), new Timing(Prescaler.BY_4, 400, true, true), false, Tunes.NO_PARTS)))), 0));
+                        Tunes.start(new OneConnection(Tunes.setting(Register.R8), loud), new Timing(Prescaler.BY_4, 400, true, true), false, Tunes.NO_PARTS)))), 0));
     }
 
     @Test
@@ -105,7 +107,7 @@ final class CheckTest {
     }
 
     private static Row starts(Single source, boolean placeReset) {
-        return new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), source), new Timing(Prescaler.BY_4, 100, true, placeReset), false, Tunes.NO_PARTS)));
+        return new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), source), new Timing(Prescaler.BY_4, 100, true, placeReset), false, Tunes.NO_PARTS)));
     }
 
     @Test
@@ -126,7 +128,7 @@ final class CheckTest {
     @Test
     void anEffectOnTheEnvelopeShapeLeavesTheRowFree() {
         Single buzzer = Tunes.repeating("buzzer", List.of(10), 0);
-        Tune tune = of(new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS))),
+        Tune tune = of(new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS))),
                 Tunes.row(Map.of(Register.R13, 9)));
         assertEquals(List.of(), Check.writing(tune),
                 "the frame's write to R13 restarts the envelope alongside the ticks'");
@@ -155,7 +157,7 @@ final class CheckTest {
 
     @Test
     void aStartOnAnotherTargetKeepsThePlaceToo() {
-        Row elsewhere = new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R9), OTHER), new Timing(Prescaler.BY_4, 100, true, false), false, Tunes.NO_PARTS)));
+        Row elsewhere = new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R9), OTHER), new Timing(Prescaler.BY_4, 100, true, false), false, Tunes.NO_PARTS)));
         Tune tune = of(starts(SQUARE, true), elsewhere);
         assertEquals(List.of(), Check.writing(tune),
                 "the place is a row number of the source, on any target");
@@ -165,7 +167,7 @@ final class CheckTest {
      *  ticks a frame and both resets set: a source of two rows runs out in
      *  two frames by the reckoning (SPEC.md 6.4). */
     private static Row slow(Register register, Single source, boolean deferred) {
-        return new Row(Map.of(), Map.of(Timer.A, new Start(
+        return new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                 new OneConnection(Tunes.setting(register), source),
                 new Timing(Prescaler.BY_200, 200, true, true), deferred, Tunes.NO_PARTS)));
     }
@@ -173,7 +175,7 @@ final class CheckTest {
     /** A deferred start of {@code source} on {@code register} on Timer A, at
      *  one frame for every source of fifteen rows or fewer. */
     private static Row deferring(Register register, Single source) {
-        return new Row(Map.of(), Map.of(Timer.A, new Start(
+        return new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                 new OneConnection(Tunes.setting(register), source),
                 new Timing(Prescaler.BY_4, 100, true, true), true, Tunes.NO_PARTS)));
     }
@@ -238,9 +240,9 @@ final class CheckTest {
     @Test
     void aDeferredStartMeetsAnotherTimerWhereItBegins() {
         Row first = new Row(Map.of(), Map.of(
-                Timer.A, new Start(new OneConnection(Tunes.setting(Register.R9), OTHER),
+                Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R9), OTHER),
                         new Timing(Prescaler.BY_200, 200, true, true), false, Tunes.NO_PARTS),
-                Timer.B, new Start(new OneConnection(Tunes.setting(Register.R8), SQUARE),
+                Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R8), SQUARE),
                         new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
         Tune tune = of(first, deferring(Register.R8, DRUM), Tunes.EMPTY, Tunes.EMPTY);
         assertEquals(List.of("row 3: Timer A starts on R8, where Timer B runs: rule 2 leaves"
@@ -259,7 +261,7 @@ final class CheckTest {
     @Test
     void aPlayOnceSourceThatIsOverLeavesTheRegisterToTheRows() {
         // four rows at 4 x 100 are over inside one frame of a 50 Hz tune
-        Row start = new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
+        Row start = new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
         assertEquals(1, Chip.frames(4, Prescaler.BY_4, 100, 50));
         assertEquals(List.of(), Check.writing(of(start, Tunes.row(Map.of(Register.R8, 12)))),
                 "the source has run out, so the register is the rows' again");
@@ -268,7 +270,7 @@ final class CheckTest {
     @Test
     void whatRestsOnHowLongAPlayOnceSourceRunsSaysSo() {
         // four rows at 200 x 200 run about four frames of a 50 Hz tune
-        Row start = new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_200, 200, true, true), false, Tunes.NO_PARTS)));
+        Row start = new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_200, 200, true, true), false, Tunes.NO_PARTS)));
         Tune tune = of(start, Tunes.row(Map.of(Register.R8, 12)));
         List<String> said = Check.writing(tune);
         assertEquals(1, said.size(), said.toString());
@@ -289,7 +291,7 @@ final class CheckTest {
     void aRateNo68000ServicesIsAnError() {
         // 2,457,600 over 4 x 1 is 614,400 ticks a second
         Tune tune = of(new Row(Map.of(), Map.of(Timer.A,
-                new Start(new OneConnection(Tunes.setting(Register.R8), SQUARE), new Timing(Prescaler.BY_4, 1, true, true), false, Tunes.NO_PARTS))));
+                Tunes.start(new OneConnection(Tunes.setting(Register.R8), SQUARE), new Timing(Prescaler.BY_4, 1, true, true), false, Tunes.NO_PARTS))));
         assertEquals(List.of("row 0: Timer A: a rate of 614400 ticks a second: a 68000 at"
                 + " 8 MHz enters an interrupt and leaves it in 64 cycles, so 125000 a"
                 + " second is every cycle it has"), Check.of(tune));
@@ -299,7 +301,7 @@ final class CheckTest {
     @Test
     void theSlowestRateAnEffectRunsAtIsNoError() {
         Tune tune = of(new Row(Map.of(), Map.of(Timer.A,
-                new Start(new OneConnection(Tunes.setting(Register.R8), SQUARE), new Timing(Prescaler.BY_200, 0, true, true), false, Tunes.NO_PARTS))));
+                Tunes.start(new OneConnection(Tunes.setting(Register.R8), SQUARE), new Timing(Prescaler.BY_200, 0, true, true), false, Tunes.NO_PARTS))));
         assertEquals(List.of(), Check.of(tune),
                 "prescaler 200 with a count of 0 is 48 ticks a second");
     }
@@ -317,7 +319,7 @@ final class CheckTest {
 
     @Test
     void aSecondTimerOnOneRegisterIsSaidWhereItStarts() {
-        Row second = new Row(Map.of(), Map.of(Timer.B, new Start(new OneConnection(Tunes.setting(Register.R8), OTHER), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
+        Row second = new Row(Map.of(), Map.of(Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R8), OTHER), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
         assertEquals("row 1: Timer B starts on R8, where Timer A runs: rule 2 leaves the"
                 + " order of two timers writing one register to the writer",
                 Check.writing(of(starts(SQUARE, true), second)).get(0));
@@ -342,7 +344,7 @@ final class CheckTest {
         assertEquals(List.of(), Check.writing(of(stop, Tunes.EMPTY)),
                 "the row the tune repeats to stops every effect, started or not");
         assertEquals(List.of(), Check.writing(of(Tunes.EMPTY,
-                new Row(Map.of(), Map.of(Timer.A, new Start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS))), Tunes.EMPTY, stop)),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), DRUM), new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS))), Tunes.EMPTY, stop)),
                 "a source that has run out by the reckoning is stopped by rule 4");
     }
 
@@ -359,7 +361,7 @@ final class CheckTest {
     void twoSourcesUnderOneNameAreNoFault() {
         Single twin = Tunes.repeating("square", List.of(12, 0), 0);
         Tune tune = of(starts(SQUARE, true),
-                new Row(Map.of(), Map.of(Timer.B, new Start(new OneConnection(Tunes.setting(Register.R9), twin), new Timing(Chip.prescaler(4), 100, true, true), false, Tunes.NO_PARTS))));
+                new Row(Map.of(), Map.of(Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R9), twin), new Timing(Chip.prescaler(4), 100, true, true), false, Tunes.NO_PARTS))));
         assertEquals(List.of(), Check.declared(List.of(SQUARE, twin), tune),
                 "an effect names its source by a number, so two sources may share a name");
     }
@@ -434,7 +436,7 @@ final class CheckTest {
     /** A start of {@code source} on {@code target} through {@code mapping},
      *  at 64 ticks a second and both resets set. */
     private static Start mapped(OneTarget target, Single source, YMXS.Mapping mapping) {
-        return new Start(new OneConnection(target, source),
+        return Tunes.start(new OneConnection(target, source),
                 new Timing(Prescaler.BY_200, 192, true, true), false, mapping);
     }
 
@@ -547,7 +549,7 @@ final class CheckTest {
      *  no parts, at 819 ticks a second and both resets set. */
     private static Start starting(YMXS.Target target, Source source) {
         return Tunes.starting(target, source, Prescaler.BY_50, 60, true, true, false,
-                Tunes.NO_PARTS);
+                Tunes.NO_PARTS, Tunes.whole(source));
     }
 
     /** A tune of these effects, one map a row, at 50 Hz, repeating to row
@@ -896,7 +898,7 @@ final class CheckTest {
         YMXS.Mapping two = Tunes.mapping(Tunes.IDENTITY, Tunes.IDENTITY);
         Tune tune = new Tune("", "", "", 0, Tunes.repeating(List.of(
                 new Row(Map.of(Register.R8, 99), Map.of(
-                        Timer.A, new Start(
+                        Timer.A, Tunes.start(
                                 new YMXS.ThreeConnection(new YMXS.SetVoice(YMXS.Voice.A), chord),
                                 new Timing(Prescaler.BY_200, 400, true, true), false,
                                 Tunes.mapping(Tunes.IDENTITY, same, same)),
@@ -975,7 +977,7 @@ final class CheckTest {
                 "before the first start");
         assertEquals(List.of("row 2: Timer A " + IDLE), Check.writing(of(starts(SQUARE, true),
                 new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)), remaps())), "after a stop");
-        Row drum = new Row(Map.of(), Map.of(Timer.A, new Start(
+        Row drum = new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                 new OneConnection(Tunes.setting(Register.R8), DRUM),
                 new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS)));
         assertEquals(List.of("row 2: Timer A " + IDLE + RECKONED),
@@ -1034,5 +1036,139 @@ final class CheckTest {
         assertEquals(List.of("row 1: Timer B starts on R8, where Timer A runs: rule 2 leaves"
                 + " the order of two timers writing one register to the writer"),
                 Check.writing(two));
+    }
+
+    // ----------------------------------------------------- cuts, SPEC.md 3.7
+
+    /** A start on Timer A of {@code source} on setR8 under {@code cut}, at
+     *  {@code prescaler} and {@code count}, both resets set. */
+    private static Row cut(Single source, Cut cut, Prescaler prescaler, int count) {
+        return new Row(Map.of(), Map.of(Timer.A, new Start(
+                new OneConnection(Tunes.setting(Register.R8), source),
+                new Timing(prescaler, count, true, true), false, Tunes.NO_PARTS, cut)));
+    }
+
+    /** A recut of Timer A to rows {@code first} to {@code last}. */
+    private static Row recuts(int first, int last) {
+        return new Row(Map.of(), Map.of(Timer.A, new Recut(new Cut(first, last))));
+    }
+
+    /** The first row and the last row of a cut are rows of the source of its
+     *  start, the last at or above the first: each outside is a line, after
+     *  the lines of the source and its mapping (SPEC.md 1.11, 1.12). */
+    @Test
+    void aCutOutsideItsSourceIsAnErrorOfAStart() {
+        assertEquals(List.of(), Check.of(of(cut(LONGER, new Cut(1, 2), Prescaler.BY_4, 100))),
+                "a cut of the rows of the source");
+        assertEquals(List.of(
+                "row 0: Timer A: the source has 2 rows and the cut begins at row 2",
+                "row 0: Timer A: the source has 2 rows and the cut ends at row 5"),
+                Check.of(of(cut(SQUARE, new Cut(2, 5), Prescaler.BY_4, 100))));
+        assertEquals(List.of(
+                "row 0: Timer A: the source has 2 rows and the cut begins at row -1"),
+                Check.of(of(cut(SQUARE, new Cut(-1, 1), Prescaler.BY_4, 100))));
+        assertEquals(List.of(
+                "row 0: Timer A: a cut of rows 1 to 0: a cut ends at or after the row it"
+                        + " begins at"),
+                Check.of(of(cut(SQUARE, new Cut(1, 0), Prescaler.BY_4, 100))));
+        Single loud = Tunes.repeating("loud", List.of(40, 0), 0);
+        assertEquals(List.of(
+                "row 0: Timer A: a source on setR8 whose row 0 is 40, and the target is 0 to 31",
+                "row 0: Timer A: the source has 2 rows and the cut ends at row 2"),
+                Check.of(of(cut(loud, new Cut(0, 2), Prescaler.BY_4, 100))),
+                "the lines of the cut follow those of the source");
+    }
+
+    /** A source of no rows is the error of its table alone: the cut of its
+     *  whole table, rows 0 to -1, rests on that (SPEC.md 1.12). */
+    @Test
+    void aCutOfASourceOfNoRowsIsLeftToTheErrorOfItsTable() {
+        Single none = Tunes.once("none", List.of());
+        assertEquals(new Cut(0, -1), Tunes.whole(none));
+        assertEquals(List.of("row 0: Timer A: the source has no rows: a clock reads one"),
+                Check.of(of(cut(none, Tunes.whole(none), Prescaler.BY_4, 100))));
+    }
+
+    /** A recut is read against the source of each start on its timer, at
+     *  any row, each source once in first-start order with the row of its
+     *  first start; a last row below the first is one line, before them
+     *  (SPEC.md 1.11, 1.12). */
+    @Test
+    void aRecutIsReadAgainstTheSourceOfEachStartOnItsTimer() {
+        Row square = cut(SQUARE, new Cut(0, 1), Prescaler.BY_4, 100);
+        Row longer = cut(LONGER, new Cut(0, 2), Prescaler.BY_4, 100);
+        Row drum = cut(DRUM, new Cut(0, 3), Prescaler.BY_4, 100);
+        assertEquals(List.of("row 2: Timer A: start of row 0: the source has 2 rows and the"
+                + " cut ends at row 2"),
+                Check.of(of(square, longer, recuts(1, 2), drum, square)),
+                "the drum of four rows, started after the recut, has row 2");
+        assertEquals(List.of(
+                "row 1: Timer A: a cut of rows 3 to 2: a cut ends at or after the row it"
+                        + " begins at",
+                "row 1: Timer A: start of row 0: the source has 2 rows and the cut begins at"
+                        + " row 3",
+                "row 1: Timer A: start of row 0: the source has 2 rows and the cut ends at"
+                        + " row 2",
+                "row 1: Timer A: start of row 2: the source has 3 rows and the cut begins at"
+                        + " row 3"),
+                Check.of(of(square, recuts(3, 2), longer)));
+        assertEquals(List.of(), Check.of(of(recuts(4, 5))),
+                "a timer that starts no source has none to read the cut against");
+    }
+
+    /** The rule 5 line of a recut (SPEC.md 6.5). */
+    private static final String UNCUT = "recuts an effect that is idle: a cut is set on a"
+            + " running effect, and this row leaves the timer as it is";
+
+    @Test
+    void aRecutOfAnIdleEffectIsSaid() {
+        assertEquals(List.of("row 0: Timer A " + UNCUT), Check.writing(of(recuts(0, 0))),
+                "before the first start");
+        assertEquals(List.of("row 2: Timer A " + UNCUT), Check.writing(of(starts(SQUARE, true),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)), recuts(0, 0))), "after a stop");
+        assertEquals(List.of("row 2: Timer A " + UNCUT + RECKONED),
+                Check.writing(of(cut(DRUM, new Cut(0, 3), Prescaler.BY_4, 100), Tunes.EMPTY,
+                        recuts(0, 1))),
+                "after its source has run out by the reckoning");
+    }
+
+    /** A recut leaves the run of the effect and a pending start as they
+     *  were (SPEC.md 6.3 step 2(d)). */
+    @Test
+    void aRecutLeavesTheRunAndThePendingStartAsTheyWere() {
+        Row sets = Tunes.row(Map.of(Register.R8, 12));
+        assertEquals(List.of("rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set"
+                + " it"), Check.writing(of(starts(SQUARE, true), sets, recuts(0, 0), sets)));
+        Tune tune = of(slow(Register.R8, SQUARE, false), deferring(Register.R9, DRUM),
+                recuts(1, 1), Tunes.row(Map.of(Register.R9, 12)), Tunes.EMPTY);
+        assertEquals(List.of("row 3: Timer A runs on R9, and this row sets it" + RECKONED),
+                Check.writing(tune), "the recut is of the square, which still runs");
+    }
+
+    /** Rule 1(d): a recut at the repeat row leaves the effect running from
+     *  the pass before (SPEC.md 6.3 step 5). */
+    @Test
+    void aRecutAtTheRepeatRowLeavesTheWrapToTheRule() {
+        assertEquals(List.of("the tune repeats to row 1, and Timer A runs on R8 when its"
+                + " last row has played: the wrap resumes with the timer running from the"
+                + " pass before"),
+                Check.writing(new Tune("", "", "", 50,
+                        Tunes.repeating(List.of(starts(SQUARE, true), recuts(1, 1)), 1))));
+    }
+
+    /** The reckoning of a source that plays once reads the rows of the cut
+     *  of its start: the drum of four rows at 200 x 200 runs four frames of
+     *  a 50 Hz tune, and two under the cut of rows 0 to 1. A recut leaves
+     *  the reckoning as it was (SPEC.md 6.4). */
+    @Test
+    void theReckoningReadsTheRowsOfTheCutOfTheStart() {
+        assertEquals(2, Chip.frames(Tunes.size(new Cut(0, 1)), Prescaler.BY_200, 200, 50));
+        Row sets = Tunes.row(Map.of(Register.R8, 12));
+        assertEquals(List.of("row 1: Timer A runs on R8, and this row sets it" + RECKONED),
+                Check.writing(of(cut(DRUM, new Cut(0, 1), Prescaler.BY_200, 200), sets, sets)),
+                "the cut has run out by row 2");
+        assertEquals(List.of("rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set it"
+                + RECKONED), Check.writing(of(cut(DRUM, Tunes.whole(DRUM), Prescaler.BY_200,
+                200), sets, recuts(0, 1), sets)), "the recut leaves four frames");
     }
 }

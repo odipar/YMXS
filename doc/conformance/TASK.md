@@ -46,6 +46,7 @@ its repeat row remaps, and remaps a timer outside the tune.
 | `multi.json` | 2 | 6 |
 | `deferred.json` | 1 | 17 |
 | `transformations.json` | 1 | 12 |
+| `cuts.json` | 1 | 11 |
 
 **4. The rules.**
 

@@ -237,10 +237,10 @@ without the index, for tunes whose sources are 128 rows at most.
 - [x] YMXS: the examples and the conformance kit gain a tune under a cut
       and a tune that moves one, `doc/tunes/cut.json` and the kit's
       `cuts.json`
-- [ ] YMXR: encoding B in both trees, the index and the column; the rig
-      plays a moved window against the model
-- [ ] YMXR: the cycles of a tick under a cut counted into
-      performance.md
+- [x] YMXR: encoding B in both trees, the index and the column; the rig
+      plays a moved window against the model (YMXR pull request 363)
+- [x] YMXR: the cycles of a tick under a cut counted into
+      performance.md (YMXR pull request 363)
 - [ ] The specifications define what landed; this document goes
 
 ## Settled

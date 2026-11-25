@@ -30,6 +30,7 @@ import org.ymxs.YMXS.SetEnvelope;
 import org.ymxs.YMXS.SetNoise;
 import org.ymxs.YMXS.SetRegister;
 import org.ymxs.YMXS.SetTone;
+import org.ymxs.YMXS.SyncTone;
 import org.ymxs.YMXS.SetVoice;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.Source;
@@ -73,7 +74,7 @@ public final class Tunes {
     /** An empty row. A player advancing over it leaves every register as it
      *  is and
      *  moves no timer. */
-    public static final Row EMPTY = new Row(Map.of(), Map.of());
+    public static final Row EMPTY = new Row(Map.of(), Map.of(), Set.of());
 
     private Tunes() {
     }
@@ -97,7 +98,7 @@ public final class Tunes {
 
     /** A row that sets these registers and leaves every effect alone. */
     public static Row row(Map<Register, Integer> registers) {
-        return new Row(registers, Map.of());
+        return new Row(registers, Map.of(), Set.of());
     }
 
     /**
@@ -293,6 +294,7 @@ public final class Tunes {
         return switch (target) {
             case SetRegister set -> List.of(set.register());
             case SetTone tone -> List.of(Chip.fine(tone.voice()), Chip.coarse(tone.voice()));
+            case SyncTone sync -> List.of(Chip.fine(sync.voice()), Chip.coarse(sync.voice()));
             case SetNoise noise -> List.of(Register.R6, Chip.volume(noise.voice()));
             case SetEnvelope ignored -> List.of(Register.R11, Register.R12);
             case SetVoice voice -> List.of(Chip.fine(voice.voice()),
@@ -315,8 +317,9 @@ public final class Tunes {
             case 20 -> new SetEnvelope();
             case 21 -> new SetBuzzer();
             case 22, 23, 24 -> new SetNoise(voice(number - 22));
+            case 25, 26, 27 -> new SyncTone(voice(number - 25));
             default -> throw new IllegalArgumentException("no target " + number
-                    + ": a tune reaches 0 to 24");
+                    + ": a tune reaches 0 to 27");
         };
     }
 
@@ -344,12 +347,14 @@ public final class Tunes {
             case SetEnvelope ignored -> 20;
             case SetBuzzer ignored -> 21;
             case SetNoise noise -> 22 + noise.voice().ordinal();
+            case SyncTone sync -> 25 + sync.voice().ordinal();
         };
     }
 
-    /** The name of this target: {@code setR0} to {@code setR13}, and
+    /** The name of this target: {@code setR0} to {@code setR13},
      *  {@code setToneA} to {@code setNoiseC} for the targets of several
-     *  registers. */
+     *  registers, and {@code syncToneA} to {@code syncToneC} for the
+     *  targets of a sync. */
     public static String name(Target target) {
         return switch (target) {
             case SetRegister set -> "set" + set.register();
@@ -358,6 +363,7 @@ public final class Tunes {
             case SetEnvelope ignored -> "setEnvelope";
             case SetBuzzer ignored -> "setBuzzer";
             case SetNoise noise -> "setNoise" + noise.voice();
+            case SyncTone sync -> "syncTone" + sync.voice();
         };
     }
 

@@ -18,6 +18,7 @@ import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.Voice;
 
 /**
  * The record of SPEC.md 7: the figures of a tune once, then one line a
@@ -73,11 +74,20 @@ final class Record {
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             writes.add("\"" + Chip.number(one.getKey()) + "\":" + one.getValue());
         }
+        // the voices the row syncs in voice order, where it syncs one (7.4)
+        StringJoiner syncs = new StringJoiner(",", "[", "]");
+        for (Voice voice : Voice.values()) {
+            if (row.syncs().contains(voice)) {
+                syncs.add('"' + voice.name() + '"');
+            }
+        }
         StringJoiner effects = new StringJoiner(",", "{", "}");
         for (Map.Entry<Timer, Effect> one : Tunes.effects(row).entrySet()) {
             effects.add('"' + one.getKey().name() + "\":" + operation(tune, one.getValue()));
         }
-        return "{\"result\":0,\"w\":" + writes + ",\"e\":" + effects + "}";
+        return "{\"result\":0,\"w\":" + writes
+                + (row.syncs().isEmpty() ? "" : ",\"s\":" + syncs)
+                + ",\"e\":" + effects + "}";
     }
 
     /** The object of an operation, as the table of 7.4 lists it. */

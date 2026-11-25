@@ -168,7 +168,7 @@ volume, joins the targets a later version defines (SPEC.md 8.2).
 The encoding:
 
 - The sync at a frame is bit 5 of the voice's coarse column, 1, 3 or 5
-  (YMXR's SPEC.md 1.2.2), where bits 5 and 4 are unassigned; bit 6 there
+  (YMXR's SPEC.md, 1.2.2), where bits 5 and 4 are unassigned; bit 6 there
   marks the fine column's 0 as a value (1.1.2). A writer sets bit 5 where
   the frame syncs the voice, and leaves it clear where an effect runs on
   the voice's period (1(f)). On a row with bit 5 set it sets both columns
@@ -176,7 +176,7 @@ The encoding:
   register unset, so a player writes the period from the row alone. A
   player reads bit 5 where the row sets the coarse column.
 - The targets are 25, 26 and 27 in a start's target column, whose bits 6
-  to 0 reach 127 (YMXR's SPEC.md 1.8.2), and the map of targets gains
+  to 0 reach 127 (YMXR's SPEC.md, 1.8.2), and the map of targets gains
   their three rows (2.1).
 - The tune file is version 13, with a bit of its header set for a tune
   that syncs a voice, at a frame or through a target. Init aims the frame

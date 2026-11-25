@@ -1,5 +1,6 @@
 package org.ymxs;
 
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -110,9 +111,9 @@ final class CsvTest {
     void eachSourceOpensATableOfItsOwn() {
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(Timer.A, Tunes.struck(Tunes.setting(Register.R8),
-                        Tunes.repeating("first", List.of(15, 0), 0), Prescaler.BY_4, 100))),
+                        Tunes.repeating("first", List.of(15, 0), 0), Prescaler.BY_4, 100)), Set.of()),
                 new Row(Map.of(), Map.of(Timer.D, Tunes.struck(Tunes.setting(Register.R9),
-                        Tunes.once("second", List.of(1, 2, 3)), Prescaler.BY_4, 100)))), 0));
+                        Tunes.once("second", List.of(1, 2, 3)), Prescaler.BY_4, 100)), Set.of())), 0));
         List<String> named = Csv.write(Tunes.multi(tune)).lines()
                 .filter(one -> one.startsWith("###"))
                 .map(one -> one.substring(3).strip()).toList();
@@ -183,9 +184,9 @@ final class CsvTest {
         Single square = Tunes.repeating("square", List.of(15, 0), 0);
         Tune tune = new Tune("", "", "", 50, Tunes.repeating(List.of(
                 new Row(Map.of(), Map.of(Timer.A, Tunes.struck(
-                        Tunes.setting(Register.R8), square, Prescaler.BY_4, 100))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
+                        Tunes.setting(Register.R8), square, Prescaler.BY_4, 100)), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 90)), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP), Set.of())), 0));
         List<String> rows = Csv.write(Tunes.multi(tune)).lines()
                 .dropWhile(one -> !one.startsWith("### timerA"))
                 .skip(2).takeWhile(one -> !one.isBlank()).toList();
@@ -268,9 +269,9 @@ final class CsvTest {
                 new Row(Map.of(), Map.of(
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 122),
-                        Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118))),
-                new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP)),
+                        Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS)), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.bend(Prescaler.BY_4, 118)), Set.of()),
+                new Row(Map.of(Register.R8, 12), Map.of(Timer.A, Tunes.STOP), Set.of()),
                 Tunes.EMPTY), 1));
         Multi multi = Tunes.multi(tune);
         assertEquals(multi, Csv.read(Csv.write(multi)));
@@ -757,7 +758,7 @@ final class CsvTest {
                 Fade.volumes(5).entries());
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(new Row(Map.of(),
                 Map.of(Timer.A, Fade.voice(Fade.NOTE, Tunes.mapping(Tunes.IDENTITY,
-                        Tunes.IDENTITY, two))))), 0));
+                        Tunes.IDENTITY, two))), Set.of())), 0));
         assertEquals("a value with a line feed or a carriage return in it, which this form"
                 + " cannot write: two\\nlines", assertThrows(IllegalArgumentException.class,
                         () -> Csv.write(Tunes.multi(tune))).getMessage());
@@ -823,7 +824,7 @@ final class CsvTest {
         assertEquals(Tunes.multi(TextTest.copies()), Csv.read(csv), "the form reads back");
         assertEquals(Tunes.multi(TextTest.copies()), Text.read(Text.write(Csv.read(csv))),
                 "and crosses to JSON");
-        String eight = csv.replace("ymxs,9,1", "ymxs,8,1");
+        String eight = csv.replace("ymxs,10,1", "ymxs,8,1");
         String said = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Csv.read(eight)).getMessage());
         assertEquals("row 0 starts source 0, and the tune runs 1", said);
@@ -849,7 +850,7 @@ final class CsvTest {
     @Test
     void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
         String seven = Files.readString(Path.of("doc/tunes/example.csv"))
-                .replace("ymxs,9,1", "ymxs,7,1");
+                .replace("ymxs,10,1", "ymxs,7,1");
         Tune tune = Csv.read(seven).tunes().get(0);
         assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
         String eight = seven.replace("ymxs,7,1", "ymxs,8,1").replace("0,0,8,1,50,60,1,1,0,0,0,1",
@@ -861,4 +862,25 @@ final class CsvTest {
                 () -> Csv.read(four)).getMessage());
         assertEquals("row 1 sets shape 4 of an effect, and a shape is 0, 1, 2 or 3", said);
     }
+
+    /** A row's syncs are the cells {@code syncA} to {@code syncC} of the
+     *  registers table, written for each voice some row syncs, 1 or empty;
+     *  in a file of version 9 or before such a cell is an error of the form
+     *  (csv.md 3.8, 2.4). */
+    @Test
+    void aSyncCrossesTheForm() {
+        String csv = Csv.write(Tunes.multi(TextTest.syncs()));
+        assertTrue(csv.contains("row,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,syncA,syncB,"
+                + "syncC\n0,100,1,,,,,,56,,,,,,,1,,\n2,,,50,,,,,,,,,,,,,1,1\n"), csv);
+        assertEquals(Tunes.multi(TextTest.syncs()), Csv.read(csv), "the form reads back");
+        assertEquals(Tunes.multi(TextTest.syncs()), Text.read(Text.write(Csv.read(csv))),
+                "the two forms read one tune");
+        String nine = csv.replace("ymxs,10,1", "ymxs,9,1");
+        assertEquals("syncA, and version 9 has no syncs", String.valueOf(assertThrows(
+                IllegalArgumentException.class, () -> Csv.read(nine)).getMessage()));
+        String two = csv.replace("\n0,100,1,,,,,,56,,,,,,,1,,\n", "\n0,100,1,,,,,,56,,,,,,,2,,\n");
+        assertEquals("syncA at row 0 is 2, and a sync is 1 or empty", String.valueOf(
+                assertThrows(IllegalArgumentException.class, () -> Csv.read(two)).getMessage()));
+    }
+
 }

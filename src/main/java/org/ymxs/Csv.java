@@ -3,10 +3,12 @@ package org.ymxs;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
@@ -32,6 +34,7 @@ import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 import org.ymxs.YMXS.Two;
+import org.ymxs.YMXS.Voice;
 
 /**
  * The other form: a tune as tables, for reading in a spreadsheet
@@ -127,20 +130,33 @@ public final class Csv {
             }
         }
 
+        List<Row> rows = Tunes.rows(tune);
+        // a voice's sync cell where some row syncs that voice (3.8)
+        List<Voice> synced = new ArrayList<>();
+        for (Voice voice : Voice.values()) {
+            if (rows.stream().anyMatch(row -> row.syncs().contains(voice))) {
+                synced.add(voice);
+            }
+        }
         List<Object> named = new ArrayList<>(List.of("registers", "row"));
         for (Register register : Register.values()) {
             named.add(Json.name(register));
         }
+        for (Voice voice : synced) {
+            named.add(name(voice));
+        }
         table(out, named.toArray());
-        List<Row> rows = Tunes.rows(tune);
         for (int line = 0; line < rows.size(); line++) {
             Map<Register, Integer> sets = rows.get(line).registers();
-            if (sets.isEmpty()) {
+            if (sets.isEmpty() && rows.get(line).syncs().isEmpty()) {
                 continue;
             }
             List<Object> said = new ArrayList<>(List.of((Object) line));
             for (Register register : Register.values()) {
                 said.add(sets.containsKey(register) ? sets.get(register) : "");
+            }
+            for (Voice voice : synced) {
+                said.add(rows.get(line).syncs().contains(voice) ? 1 : "");
             }
             row(out, said.toArray());
         }
@@ -357,6 +373,10 @@ public final class Csv {
         List<List<Integer>> entries = new ArrayList<>();
         List<Map<Register, Integer>> registers = empty(count, Register.class);
         List<Map<Timer, Effect>> effects = empty(count, Timer.class);
+        List<Set<Voice>> syncs = new ArrayList<>();
+        for (int at = 0; at < count; at++) {
+            syncs.add(EnumSet.noneOf(Voice.class));
+        }
         List<Block> acts = new ArrayList<>();
         for (Block block : mine) {
             switch (block.name()) {
@@ -425,6 +445,12 @@ public final class Csv {
                     }
                 }
                 case "registers" -> {
+                    for (Voice voice : Voice.values()) {
+                        if (version < Json.SYNC && block.columns().contains(name(voice))) {
+                            throw new IllegalArgumentException(name(voice) + ", and version "
+                                    + version + " has no syncs");
+                        }
+                    }
                     for (List<String> line : block.rows()) {
                         int at = row(count, block.of(line, "row"), "tune " + number
                                 + " sets a row");
@@ -433,6 +459,15 @@ public final class Csv {
                             if (!cell.isEmpty()) {
                                 registers.get(at).put(register,
                                         number(cell, Json.name(register)));
+                            }
+                        }
+                        for (Voice voice : Voice.values()) {
+                            String cell = block.of(line, name(voice));
+                            if (cell.equals("1")) {
+                                syncs.get(at).add(voice);
+                            } else if (!cell.isEmpty()) {
+                                throw new IllegalArgumentException(name(voice) + " at row "
+                                        + at + " is " + cell + ", and a sync is 1 or empty");
                             }
                         }
                     }
@@ -465,7 +500,7 @@ public final class Csv {
         }
         List<Row> rows = new ArrayList<>();
         for (int at = 0; at < count; at++) {
-            rows.add(new Row(registers.get(at), effects.get(at)));
+            rows.add(new Row(registers.get(at), effects.get(at), syncs.get(at)));
         }
         Tune tune = new Tune(told.of(one, "title"), told.of(one, "composer"),
                 told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
@@ -561,6 +596,12 @@ public final class Csv {
     private static Cut cut(Block acts, List<String> one) {
         int first = number(acts.of(one, "first"), "first");
         return new Cut(first, number(acts.of(one, "last"), "last"));
+    }
+
+    /** The name of a voice's sync cell in the registers table: {@code
+     *  syncA}, {@code syncB} or {@code syncC} (3.8). */
+    static String name(Voice voice) {
+        return "sync" + voice.name();
     }
 
     /** The error of a shape outside the shapes of {@code version}. */

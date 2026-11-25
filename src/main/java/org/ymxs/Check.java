@@ -36,6 +36,7 @@ import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.Voice;
 
 /**
  * The rules a structure must satisfy for a player to play it, read off the
@@ -736,6 +737,7 @@ public final class Check {
                     effect(at, one.getKey(), one.getValue(), rows.get(at));
                 }
                 registers(at, rows.get(at));
+                syncs(at, rows.get(at));
                 set.addAll(rows.get(at).registers().keySet());
             }
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
@@ -956,6 +958,31 @@ public final class Check {
                     continue;
                 }
                 runs.collides(at);
+            }
+        }
+
+        /** Rule 1(f): a row that syncs a voice while an effect runs on a
+         *  register of the voice's period at step 4, copy from frame
+         *  included, leaves that sync to the effect (SPEC.md 3.9). */
+        private void syncs(int at, Row row) {
+            for (Voice voice : Voice.values()) {
+                if (!row.syncs().contains(voice)) {
+                    continue;
+                }
+                List<Register> period = List.of(Chip.fine(voice), Chip.coarse(voice));
+                for (Timer timer : Timer.values()) {
+                    Running runs = runs(timer, at);
+                    if (runs == null) {
+                        continue;
+                    }
+                    Register register = written(runs.target()).stream()
+                            .filter(period::contains).findFirst().orElse(null);
+                    if (register != null) {
+                        say(at, timer, "runs on " + register + ", and this row syncs voice "
+                                + voice + ": the frame leaves the sync to the effect",
+                                runs.reckoned());
+                    }
+                }
             }
         }
 

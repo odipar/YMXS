@@ -3,6 +3,7 @@ package org.ymxs;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 
 /**
  * The tune data structure. These declarations are its specification, and
@@ -39,11 +40,13 @@ public interface YMXS {
      *  tick, and that is the whole difference. */
     record Table<T>(List<T> rows, OptionalInt repeat) { }
 
-    /** One row: the registers it sets, and its operation on the effect of
-     *  each timer. A register absent from the first map is one the row
-     *  does not write; a timer absent from the second is one the row
-     *  leaves running. */
-    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
+    /** One row: the registers it sets, its operation on the effect of
+     *  each timer, and the voices whose square it syncs before it writes
+     *  their periods (SPEC.md 3.9). A register absent from the first map is
+     *  one the row does not write; a timer absent from the second is one
+     *  the row leaves running. */
+    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects,
+               Set<Voice> syncs) { }
 
     /** One row's operation on the effect of one timer. An effect is a
      *  source connected to a target on one timer through a mapping, under
@@ -152,7 +155,8 @@ public interface YMXS {
 
     /** A target of two values a row, the first value to the first
      *  register it writes. */
-    sealed interface TwoTarget extends Target permits SetTone, SetNoise, SetEnvelope { }
+    sealed interface TwoTarget extends Target permits SetTone, SyncTone, SetNoise,
+            SetEnvelope { }
 
     /** A target of three values a row, in the order of the registers it
      *  writes. */
@@ -166,6 +170,11 @@ public interface YMXS {
 
     /** The tone period of one voice, fine then coarse. */
     record SetTone(Voice voice) implements TwoTarget { }
+
+    /** The tone period of one voice, fine then coarse, after a sync of its
+     *  square: 0 to both registers, a wait of at least 9 cycles of the
+     *  chip's clock, then the period (SPEC.md 3.9). */
+    record SyncTone(Voice voice) implements TwoTarget { }
 
     /** The noise period and the volume of one voice. R6 is one register
      *  for the three voices, so two of these running at once write one

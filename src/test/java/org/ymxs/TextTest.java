@@ -1,5 +1,6 @@
 package org.ymxs;
 
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +34,7 @@ import org.ymxs.YMXS.Table;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
+import org.ymxs.YMXS.Voice;
 
 /**
  * JSON against the structure: every tune under {@code doc/tunes} read and
@@ -127,16 +129,16 @@ final class TextTest {
         rows.add(new Row(Map.of(Register.R8, 15), Map.of(
                 Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                         Prescaler.BY_4, 122),
-                Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS))));
+                Timer.D, Tunes.start(new OneConnection(Tunes.setting(Register.R10), drum), new Timing(Prescaler.BY_200, 0, false, true), false, Tunes.NO_PARTS)), Set.of()));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R13), buzzer), new Timing(Prescaler.BY_50, 1, true, false), true, Tunes.NO_PARTS),
-                Timer.C, Tunes.start(new OneConnection(Tunes.setting(Register.R9), square), new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS))));
+                Timer.C, Tunes.start(new OneConnection(Tunes.setting(Register.R9), square), new Timing(Prescaler.BY_10, 3, false, false), false, Tunes.NO_PARTS)), Set.of()));
         rows.add(new Row(Map.of(), Map.of(
                 Timer.A, Tunes.bend(Prescaler.BY_4, 118),
-                Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true)))));
+                Timer.D, new Retune(new Timing(Prescaler.BY_100, 7, true, true))), Set.of()));
         rows.add(new Row(Map.of(Register.R8, 12), Map.of(
                 Timer.A, Tunes.STOP, Timer.B, Tunes.STOP,
-                Timer.C, Tunes.STOP, Timer.D, Tunes.STOP)));
+                Timer.C, Tunes.STOP, Timer.D, Tunes.STOP), Set.of()));
         Tune tune = new Tune("every shape", "a test", "TextTest", 50,
                 Tunes.repeating(rows, 1));
         Tune once = new Tune("plays once", "", "", 60,
@@ -218,10 +220,10 @@ final class TextTest {
         String on = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(target)).getMessage());
         assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
-        String later = three.replace("\"version\":3", "\"version\":10");
+        String later = three.replace("\"version\":3", "\"version\":11");
         String other = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(later)).getMessage());
-        assertEquals("version 10, and this reads 3, 4, 5, 6, 7, 8 or 9", other);
+        assertEquals("version 11, and this reads 3, 4, 5, 6, 7, 8, 9 or 10", other);
     }
 
     /** A start's deferral is a column of version 5: a reader of a file of
@@ -323,8 +325,8 @@ final class TextTest {
                         Timer.A, Tunes.struck(Tunes.setting(Register.R8), square,
                                 Prescaler.BY_4, 100),
                         Timer.D, Tunes.struck(Tunes.setting(Register.R9), square,
-                                Prescaler.BY_4, 100))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP))), 0));
+                                Prescaler.BY_4, 100)), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP), Set.of())), 0));
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.contains("\"timerA\""), "Timer A is timerA");
         assertTrue(text.contains("\"timerD\""), "Timer D is timerD");
@@ -370,12 +372,12 @@ final class TextTest {
                         Timer.B, Tunes.start(new OneConnection(Tunes.setting(Register.R9), square),
                                 new Timing(Prescaler.BY_200, 192, true, true), false,
                                 Tunes.mapping(Fade.volumes(5))),
-                        Timer.A, Fade.voice(Fade.NOTE, Fade.volume(10)))),
+                        Timer.A, Fade.voice(Fade.NOTE, Fade.volume(10))), Set.of()),
                 new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(Tunes.IDENTITY,
-                        Fade.volumes(3), Fade.volumes(5))))),
+                        Fade.volumes(3), Fade.volumes(5)))), Set.of()),
                 new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(Tunes.IDENTITY,
-                        Tunes.IDENTITY, ten)))),
-                new Row(Map.of(), Map.of(Timer.A, new Remap(Fade.volume(10))))), 0));
+                        Tunes.IDENTITY, ten))), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, new Remap(Fade.volume(10))), Set.of())), 0));
         assertEquals(List.of(Fade.volumes(10), Fade.volumes(5), Fade.volumes(3), ten),
                 Tunes.transformations(tune));
         assertEquals(0, Tunes.number(Tunes.transformations(tune), Tunes.IDENTITY),
@@ -410,8 +412,8 @@ final class TextTest {
                 new Row(Map.of(), Map.of(Timer.A, Tunes.start(
                         new OneConnection(Tunes.setting(Register.R8), square),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
-                        Tunes.mapping(short16)))),
-                new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(long256))))), 0));
+                        Tunes.mapping(short16))), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(long256))), Set.of())), 0));
         assertEquals(List.of(short16, long256), Tunes.transformations(tune));
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.replaceAll("\\s+", " ").contains("\"mapping\": [[1],[2]]"), text);
@@ -470,13 +472,13 @@ final class TextTest {
                         new OneConnection(Tunes.setting(Register.R8),
                                 Tunes.repeating("keys", List.of(0, 31), 0)),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
-                        Tunes.mapping(levels)))),
-                new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.NO_PARTS))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)))));
+                        Tunes.mapping(levels))), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.NO_PARTS)), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP), Set.of()))));
         String expected = """
                 {
                   "format": "ymxs",
-                  "version": 9,
+                  "version": 10,
                   "tunes": [
                     {
                       "title": "keys",
@@ -533,7 +535,7 @@ final class TextTest {
         Tune tune = new Tune("", "", "t", 50, Tunes.repeating(List.of(new Row(Map.of(),
                 Map.of(Timer.A, Tunes.start(new OneConnection(Tunes.setting(Register.R8), square),
                         new Timing(Prescaler.BY_200, 192, true, true), false,
-                        Tunes.mapping(Tunes.IDENTITY))))), 0));
+                        Tunes.mapping(Tunes.IDENTITY))), Set.of())), 0));
         String text = Text.write(Tunes.multi(tune));
         assertTrue(text.replaceAll("\\s+", " ").contains("\"mapping\": [0]"), text);
         assertTrue(text.contains("\"transformations\": []"), text);
@@ -778,9 +780,9 @@ final class TextTest {
                 new Row(Map.of(), Map.of(Timer.A, new Start(
                         new OneConnection(Tunes.setting(Register.R8), wave),
                         new Timing(Prescaler.BY_4, 100, true, true), false, Tunes.NO_PARTS,
-                        new Cut(1, 3)))),
-                new Row(Map.of(), Map.of(Timer.A, new Recut(new Cut(2, 5)))),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)))));
+                        new Cut(1, 3))), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, new Recut(new Cut(2, 5))), Set.of()),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP), Set.of()))));
     }
 
     /** A tune of three rows that plays once: copy from frame on setVoiceB
@@ -797,9 +799,9 @@ final class TextTest {
                                         Tunes.mapping(Tunes.IDENTITY, Tunes.IDENTITY, half),
                                         new Cut(0, 0)),
                                 Timer.B, Tunes.struck(Tunes.setting(Register.R10), square,
-                                        Prescaler.BY_4, 150))),
+                                        Prescaler.BY_4, 150)), Set.of()),
                 Tunes.row(Map.of(Register.R9, 12)),
-                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP, Timer.B, Tunes.STOP)))));
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP, Timer.B, Tunes.STOP), Set.of()))));
     }
 
     /** Copy from frame is source 0 of a start, and a file of version 8 or
@@ -810,7 +812,7 @@ final class TextTest {
         assertTrue(text.contains("\"source\": [0,-1,-1],"), text);
         assertTrue(text.contains("\"source\": [1,-1,-1],"), text);
         assertEquals(Tunes.multi(copies()), Text.read(text), "the text reads back");
-        String eight = text.replace("\"version\": 9", "\"version\": 8");
+        String eight = text.replace("\"version\": 10", "\"version\": 8");
         String said = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(eight)).getMessage());
         assertEquals("row 0 starts source 0, and the tune runs 1", said);
@@ -837,14 +839,14 @@ final class TextTest {
     @Test
     void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
         String seven = Files.readString(Path.of("doc/tunes/example.json"))
-                .replace("\"version\": 9", "\"version\": 7")
+                .replace("\"version\": 10", "\"version\": 7")
                 .replace(",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]",
                         "");
         assertFalse(seven.contains("first"), seven);
         Tune tune = Text.read(seven).tunes().get(0);
         assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
         assertEquals(Text.read(Files.readString(Path.of("doc/tunes/example.json"))),
-                Text.read(seven), "the tune of version 9 with the cut of its whole table");
+                Text.read(seven), "the tune of version 10 with the cut of its whole table");
         String four = seven.replace("\"shape\": [0,1,-1,2]", "\"shape\": [0,4,-1,2]");
         String said = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(four)).getMessage());
@@ -855,4 +857,62 @@ final class TextTest {
                 () -> Text.read(five)).getMessage());
         assertEquals("row 1 sets shape 5 on Timer A, and a shape is -1, 0, 1, 2, 3 or 4", other);
     }
+
+    // ---------------------------------------------- a sync, SPEC.md 3.9
+
+    /** A tune that syncs: voice A at row 0, voices B and C at row 2, and
+     *  copy from frame on {@code syncToneA} on Timer A from row 1. */
+    static Tune syncs() {
+        Start start = Tunes.copying(Tunes.target(25), Prescaler.BY_4, 100, true, true, false,
+                Tunes.NO_PARTS, new Cut(0, 0));
+        return new Tune("syncs", "", "TextTest", 50, Tunes.repeating(List.of(
+                new Row(Map.of(Register.R0, 100, Register.R1, 1, Register.R7, 56), Map.of(),
+                        Set.of(Voice.A)),
+                new Row(Map.of(), Map.of(Timer.A, start), Set.of()),
+                new Row(Map.of(Register.R2, 50), Map.of(), Set.of(Voice.B, Voice.C))), 0));
+    }
+
+    /** A row's syncs are {@code syncs}, a column of 0 and 1 for each voice
+     *  some row syncs, and the targets of a sync are 25 to 27; in a file
+     *  of version 9 or before each is an error of the form (json.md 2.4,
+     *  5.4, 6.2). */
+    @Test
+    void aSyncCrossesTheForm() {
+        String text = Text.write(Tunes.multi(syncs()));
+        assertTrue(text.contains("\"syncs\": {"), text);
+        assertTrue(text.contains("\"a\": [1,0,0],"), text);
+        assertTrue(text.contains("\"c\": [0,0,1]"), text);
+        assertTrue(text.contains("\"target\": [-1,25,-1],"), text);
+        assertEquals(Tunes.multi(syncs()), Text.read(text), "the text reads back");
+        String nine = text.replace("\"version\": 10", "\"version\": 9");
+        assertEquals("syncs, and version 9 has no syncs", String.valueOf(assertThrows(
+                IllegalArgumentException.class, () -> Text.read(nine)).getMessage()));
+        String targets = Text.write(Tunes.multi(new Tune("t", "", "TextTest", 50,
+                Tunes.repeating(List.of(syncs().table().rows().get(1)), 0))))
+                .replace("\"version\": 10", "\"version\": 9");
+        assertEquals("target 25, and version 9 reaches 0 to 24", String.valueOf(assertThrows(
+                IllegalArgumentException.class, () -> Text.read(targets)).getMessage()));
+        String two = text.replace("\"a\": [1,0,0],", "\"a\": [2,0,0],");
+        assertEquals("syncs a at row 0 is 2, and a sync is 0 or 1", String.valueOf(
+                assertThrows(IllegalArgumentException.class, () -> Text.read(two))
+                        .getMessage()));
+    }
+
+    /** A sync target reads the row of a tone target: a source of one value
+     *  a row on {@code syncToneA} is the error of a width (json.md 8.1). */
+    @Test
+    void aSyncTargetReadsTwoValuesARow() {
+        String one = """
+                {"format":"ymxs","version":10,"tunes":[{"title":"","composer":"",
+                "writer":"t","rate":50,"rows":1,"repeat":0,
+                "sources":[{"name":"one","repeat":0,"values":[12]}],
+                "transformations":[],"registers":{"r7":[56]},
+                "timerA":{"shape":[0],"target":[25],"source":[1],
+                "prescaler":[50],"count":[60],"timerReset":[1],"placeReset":[1],
+                "deferred":[0],"mapping":[0],"first":[0],"last":[0]}}]}""";
+        assertEquals("a source of 1 values a row on syncToneA, which reads 2", String.valueOf(
+                assertThrows(IllegalArgumentException.class, () -> Text.read(one))
+                        .getMessage()));
+    }
+
 }

@@ -26,7 +26,12 @@ const Format = "ymxs"
 
 // Version is the version of the structure this maps, and the version a
 // writer writes.
-const Version = 9
+const Version = 10
+
+// Sync is the first version with a row's syncs and the targets of a sync,
+// syncToneA to syncToneC: in a file of a version before it syncs and a
+// target of 25 to 27 are errors of the form (json.md 2.4).
+const Sync = 10
 
 // Frame is the first version with copy from frame, a start of source 0: in
 // a file of a version before it a source of 0 is an error of the form
@@ -57,7 +62,7 @@ const Several = 4
 const Oldest = 3
 
 // Reads is the versions a reader reads, as its report lists them: Oldest
-// to Version, "3, 4, 5, 6, 7, 8 or 9".
+// to Version, "3, 4, 5, 6, 7, 8, 9 or 10".
 var Reads = func() string {
 	var said []string
 	for version := Oldest; version < Version; version++ {
@@ -171,6 +176,20 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				}
 			})
 		})
+		if synced(rows) {
+			o.field("syncs", func() {
+				w.object(depth+1, func(sets *entries) {
+					for _, voice := range ymxs.Voices {
+						column, any := syncColumn(rows, voice)
+						if any {
+							sets.field(SyncName(voice), func() {
+								w.values(depth+2, column)
+							})
+						}
+					}
+				})
+			})
+		}
 		for _, timer := range ymxs.Timers {
 			if !acts(rows, timer) {
 				continue
@@ -304,6 +323,36 @@ func registerColumn(rows []ymxs.Row, register ymxs.Register) ([]int, bool) {
 			any = true
 		} else {
 			column[at] = None
+		}
+	}
+	return column, any
+}
+
+// SyncName is the key of a voice's column of syncs: a, b or c (json.md
+// 5.4).
+func SyncName(voice ymxs.Voice) string {
+	return strings.ToLower(voice.String())
+}
+
+// synced is whether some row syncs a voice.
+func synced(rows []ymxs.Row) bool {
+	for _, voice := range ymxs.Voices {
+		if _, any := syncColumn(rows, voice); any {
+			return true
+		}
+	}
+	return false
+}
+
+// syncColumn is one voice's syncs: 1 on each row that syncs it and 0
+// elsewhere, with whether any row syncs it.
+func syncColumn(rows []ymxs.Row, voice ymxs.Voice) ([]int, bool) {
+	column := make([]int, len(rows))
+	any := false
+	for at, row := range rows {
+		if row.Syncs[voice] {
+			column[at] = 1
+			any = true
 		}
 	}
 	return column, any

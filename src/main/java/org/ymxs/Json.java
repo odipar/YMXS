@@ -6,9 +6,12 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
@@ -34,6 +37,7 @@ import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Triple;
 import org.ymxs.YMXS.Tune;
 import org.ymxs.YMXS.Two;
+import org.ymxs.YMXS.Voice;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -66,7 +70,13 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 9;
+    public static final int VERSION = 10;
+
+    /** The first version with a row's syncs and the targets of a sync,
+     *  {@code syncToneA} to {@code syncToneC}: in a file of a version
+     *  before it {@code syncs} and a target of 25 to 27 are errors of the
+     *  form (2.4). */
+    public static final int SYNC = 10;
 
     /** The first version with copy from frame, a start of {@code source}
      *  0: in a file of a version before it a source of 0 is an error of the
@@ -186,10 +196,38 @@ public final class Json {
         for (Register register : Register.values()) {
             column(sets, name(register), rows, register);
         }
+        ObjectNode syncs = MAKE.objectNode();
+        for (Voice voice : Voice.values()) {
+            synced(syncs, voice, rows);
+        }
+        if (!syncs.isEmpty()) {
+            out.set("syncs", syncs);
+        }
         for (Timer timer : Timer.values()) {
             timer(out, timer, rows, sources, transformations);
         }
         return out;
+    }
+
+    /** One voice's column of syncs: 1 on each row that syncs it and 0
+     *  elsewhere. Only a voice some row syncs has a column (5.4). */
+    private static void synced(ObjectNode out, Voice voice, List<Row> rows) {
+        ArrayNode values = MAKE.arrayNode();
+        boolean any = false;
+        for (Row row : rows) {
+            boolean synced = row.syncs().contains(voice);
+            values.add(synced ? 1 : 0);
+            any = any || synced;
+        }
+        if (any) {
+            out.set(name(voice), values);
+        }
+    }
+
+    /** The key of a voice's column of syncs: {@code a}, {@code b} or
+     *  {@code c} (5.4). */
+    public static String name(Voice voice) {
+        return voice.name().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -458,9 +496,11 @@ public final class Json {
         }
         List<Map<Register, Integer>> registers = new ArrayList<>();
         List<Map<Timer, Effect>> effects = new ArrayList<>();
+        List<Set<Voice>> syncs = new ArrayList<>();
         for (int at = 0; at < count; at++) {
             registers.add(new EnumMap<>(Register.class));
             effects.add(new EnumMap<>(Timer.class));
+            syncs.add(EnumSet.noneOf(Voice.class));
         }
         JsonNode sets = tree.get("registers");
         if (sets != null) {
@@ -479,6 +519,35 @@ public final class Json {
                             + " is " + column.get(at));
                     if (value != NONE) {
                         registers.get(at).put(register, value);
+                    }
+                }
+            }
+        }
+        JsonNode synced = tree.get("syncs");
+        if (synced != null) {
+            if (version < SYNC) {
+                throw new IllegalArgumentException("syncs, and version " + version
+                        + " has no syncs");
+            }
+            if (!synced.isObject()) {
+                throw new IllegalArgumentException("syncs is " + kind(synced)
+                        + ", and this form requires a column a voice");
+            }
+            for (Voice voice : Voice.values()) {
+                JsonNode column = synced.get(name(voice));
+                if (column == null) {
+                    continue;
+                }
+                sized(column, count, "syncs " + name(voice));
+                for (int at = 0; at < count; at++) {
+                    int value = whole(column.get(at), "syncs " + name(voice) + " at row " + at
+                            + " is " + column.get(at));
+                    if (value != 0 && value != 1) {
+                        throw new IllegalArgumentException("syncs " + name(voice) + " at row "
+                                + at + " is " + value + ", and a sync is 0 or 1");
+                    }
+                    if (value == 1) {
+                        syncs.get(at).add(voice);
                     }
                 }
             }
@@ -503,7 +572,7 @@ public final class Json {
         }
         List<Row> built = new ArrayList<>();
         for (int at = 0; at < count; at++) {
-            built.add(new Row(registers.get(at), effects.get(at)));
+            built.add(new Row(registers.get(at), effects.get(at), syncs.get(at)));
         }
         Tune tune = new Tune(text(tree, "title"), text(tree, "composer"),
                 text(tree, "writer"), number(tree, "rate"),
@@ -543,6 +612,10 @@ public final class Json {
         if (version < SEVERAL && number > 13) {
             throw new IllegalArgumentException("target " + number + ", and version "
                     + version + " reaches 0 to 13");
+        }
+        if (version < SYNC && number > 24) {
+            throw new IllegalArgumentException("target " + number + ", and version "
+                    + version + " reaches 0 to 24");
         }
         return Tunes.target(number);
     }

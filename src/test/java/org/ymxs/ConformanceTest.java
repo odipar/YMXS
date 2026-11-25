@@ -75,7 +75,12 @@ class ConformanceTest {
             new Source("copy-from-frame", 1, 11,
                     "copy from frame on setR13, then on setBuzzer, and on setVoiceB through a"
                             + " mapping, remapped and recut, recorded as source 0 beside a"
-                            + " source of the tune (3.8, 7.4)"));
+                            + " source of the tune (3.8, 7.4)"),
+            new Source("sync", 1, 17,
+                    "a row that syncs the three voices, copy from frame on syncToneA and on"
+                            + " syncToneC through a transformation, a source of two rows on"
+                            + " syncToneB, and a row that syncs a voice an effect runs on, the"
+                            + " sync recorded as the frame leaves it to the effect (3.9, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

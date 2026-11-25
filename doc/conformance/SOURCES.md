@@ -10,16 +10,18 @@ The lines are the first line of SPEC.md 7.3 and the frames 7.5 defines
 where a host omits the count: R + (R - RR) for a tune that repeats, and
 R + 1 for one that plays once, whose last line is `{"result":-1}`.
 
-`ymxs-check` reports a warning on `four-timers`, `registers`, `several`
-and `transformations`, and every other tune of this kit satisfies every
-rule of SPEC.md 6. `registers` sets R8 on the row after the one that
-starts an effect on it (rule 1), and the frame's line records the write
-(7.4); `four-timers` and `several` wrap with timers running, and
+`ymxs-check` reports a warning on `four-timers`, `registers`, `several`,
+`transformations` and `sync`, and every other tune of this kit satisfies
+every rule of SPEC.md 6. `registers` sets R8 on the row after the one
+that starts an effect on it (rule 1), and the frame's line records the
+write (7.4); `four-timers` and `several` wrap with timers running, and
 `transformations` with a timer running that its repeat row remaps (rule
 1(d)). `transformations` also remaps Timer D, a timer outside the tune
 (1.10, rule 5): the frame's line records the remap, the first line
 leaves Timer D out of `timers`, and 1.9 numbers the transformation of
-its mapping (4.3, 7.3, 7.4).
+its mapping (4.3, 7.3, 7.4). `sync` syncs voice A at row 5, where Timer A
+runs copy from frame on `syncToneA` (rule 1(f)): the frame leaves the
+sync to the effect, and the frame's line records it (3.9, 7.4).
 
 | tune | of the file | lines | what it reaches |
 |---|---|---|---|
@@ -36,3 +38,4 @@ its mapping (4.3, 7.3, 7.4).
 | `transformations` | 1 | 12 | a start through a transformation, a fade of remaps, a remap at the repeat row, a target of three registers through a mapping, transformations of 16 entries and of 256, keys above the most of a register, two transformations of one name, equal entries under two names (3.6.2), and a remap on a timer outside the tune (4.3); the file lists the transformations in another order than 1.9 numbers them (3.6, 7.4) |
 | `cuts` | 1 | 11 | a start under a cut, recuts of a running effect, a deferred start under a cut of another source, and one source under two cuts on two timers (3.7, 7.4) |
 | `copy-from-frame` | 1 | 11 | copy from frame on setR13, then on setBuzzer, and on setVoiceB through a mapping, remapped and recut, recorded as source 0 beside a source of the tune (3.8, 7.4) |
+| `sync` | 1 | 17 | a row that syncs the three voices, copy from frame on syncToneA and on syncToneC through a transformation, a source of two rows on syncToneB, and a row that syncs a voice an effect runs on, the sync recorded as the frame leaves it to the effect (3.9, 7.4) |

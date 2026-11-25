@@ -110,7 +110,7 @@ final class RecordTest {
     void aRemapOnATimerOfNoStartIsRecorded() {
         Tune tune = new Tune("", "", "", 50, Tunes.once(List.of(
                 new YMXS.Row(java.util.Map.of(), java.util.Map.of(YMXS.Timer.C,
-                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5))))))));
+                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5)))), java.util.Set.of()))));
         List<String> record = Record.record(tune);
         assertTrue(record.get(0).startsWith("{\"rate\":50,\"timers\":[],\"sources\":[],"
                 + "\"transformations\":[[0,0,0,1,"), record.get(0));
@@ -132,4 +132,18 @@ final class RecordTest {
                 "{\"result\":0,\"w\":{},\"e\":{\"A\":{\"stop\":{}}}}"),
                 Record.record(TextTest.cuts()));
     }
+
+    /** A frame's line lists the voices the row syncs as {@code s}, after
+     *  {@code w}, where the row syncs one (SPEC.md 7.4). */
+    @Test
+    void aFrameListsTheVoicesItsRowSyncs() {
+        Tune tune = TextTest.syncs();
+        List<String> lines = Record.record(tune);
+        assertEquals("{\"result\":0,\"w\":{\"0\":100,\"1\":1,\"7\":56},\"s\":[\"A\"],\"e\":{}}",
+                lines.get(1));
+        assertEquals("{\"result\":0,\"w\":{\"2\":50},\"s\":[\"B\",\"C\"],\"e\":{}}",
+                lines.get(3));
+        assertTrue(!lines.get(2).contains("\"s\""), lines.get(2));
+    }
+
 }

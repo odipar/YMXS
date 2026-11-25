@@ -1,13 +1,13 @@
 # The YMXS format
 
-Version 9 defines tune data and playback on the Atari ST's YM2149 and
+Version 10 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player. A
-file includes its version beside the structure: a writer writes 9, and a
-reader reads 9 and the six versions before it, 8, 7, 6, 5, 4 and 3
+file includes its version beside the structure: a writer writes 10, and a
+reader reads 10 and the seven versions before it, 9, 8, 7, 6, 5, 4 and 3
 (json.md 2.4). A reader reads the version before the structure; another
 version is an error of the form.
 
@@ -17,8 +17,8 @@ informative sentence. A range includes both ends. Integer division
 discards the remainder. In a reported text, `Rn` is a register, `setRn`
 and `setRm` are two targets by their names of 3.1.2, `setToneA` among
 them, `NAME` is a text, a capital letter after `Timer` is a timer's
-letter, and each other capital letter, and `i`, is a decimal figure, each
-defined beside the text.
+letter, one after `voice` a voice's letter, and each other capital letter,
+and `i`, is a decimal figure, each defined beside the text.
 
 **Roles.** A player performs sections 4 and 5 on the two chips. A recorder
 performs section 4 with every register a row sets and every timer
@@ -40,7 +40,7 @@ frames from the one that reads row 0 to the one that reads the last row;
 a *loop* the frames from the one that reads the repeat row to the one
 that reads the last row (4.5). Section 6.2 defines *runs*, *idle* and
 *run out*; 6.3 defines a *run*. Section 3.8 defines *copy from frame*
-and the *frame value* of a register.
+and the *frame value* of a register, and 3.9 a *sync*.
 
 ---
 
@@ -51,10 +51,10 @@ names are the names of this document. Read as Java: a `record` is a tuple of
 named fields in declared order; a `sealed interface` with `permits` is a
 choice among the records listed; an `enum` is a choice among its constants,
 numbered from 0 in declared order; `List<T>` is a sequence numbered from 0;
-`Map<K, V>` is a set of pairs, one at most under each key; `OptionalInt` is
-an integer, present or absent; `int` and `Integer` are 32-bit signed
-integers; `boolean` is true or false; `String` is text, the empty text
-included.
+`Map<K, V>` is a set of pairs, one at most under each key; `Set<T>` is a
+set of values, each at most once; `OptionalInt` is an integer, present or
+absent; `int` and `Integer` are 32-bit signed integers; `boolean` is true
+or false; `String` is text, the empty text included.
 
 ```java
 package org.ymxs;
@@ -62,6 +62,7 @@ package org.ymxs;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 
 public interface YMXS {
 
@@ -72,7 +73,8 @@ public interface YMXS {
 
     record Table<T>(List<T> rows, OptionalInt repeat) { }
 
-    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects) { }
+    record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects,
+               Set<Voice> syncs) { }
 
     sealed interface Effect permits Start, Retune, Stop, Remap, Recut { }
 
@@ -107,13 +109,16 @@ public interface YMXS {
 
     sealed interface OneTarget extends Target permits SetRegister { }
 
-    sealed interface TwoTarget extends Target permits SetTone, SetNoise, SetEnvelope { }
+    sealed interface TwoTarget extends Target permits SetTone, SyncTone, SetNoise,
+            SetEnvelope { }
 
     sealed interface ThreeTarget extends Target permits SetVoice, SetBuzzer { }
 
     record SetRegister(Register register) implements OneTarget { }
 
     record SetTone(Voice voice) implements TwoTarget { }
+
+    record SyncTone(Voice voice) implements TwoTarget { }
 
     record SetNoise(Voice voice) implements TwoTarget { }
 
@@ -176,9 +181,10 @@ is n + 1 for n below R - 1; for n = R - 1, the repeat row where present,
 and where absent the table has ended.
 
 **1.6 A row.** `registers` maps each register to the value the row sets;
-`effects` maps each timer to its operation. An absent register keeps its
-value; an absent timer continues unchanged. A row sets each register at
-most once and performs at most one operation on each timer.
+`effects` maps each timer to its operation; `syncs` is the voices whose
+square the row syncs at step 4 of its frame (3.9). An absent register
+keeps its value; an absent timer continues unchanged. A row sets each
+register at most once and performs at most one operation on each timer.
 
 **1.7 An effect and the five operations.** The effect of a timer is the
 source connected to a target on it through a mapping, under a cut, at the
@@ -408,6 +414,7 @@ that many parts (3.6.3).
 | `setEnvelope` | R11 R12 | 2 |
 | `setBuzzer` | R11 R12 R13 | 3 |
 | `setNoiseA`, `setNoiseB`, `setNoiseC` | R6 R8, R6 R9, R6 R10 | 2 |
+| `syncToneA`, `syncToneB`, `syncToneC` | R0 R1, R2 R3, R4 R5, after a sync of the voice (3.9) | 2 |
 
 `setR7` writes bits 5 to 0 of the value written (3.6.4) and leaves 7 and 6
 (2.4). A tone target writes the twelve bits of a voice's period, fine then
@@ -417,7 +424,8 @@ the envelope period (2.2), and a buzzer target those and the shape, which
 every write restarts (2.5). A noise target writes the noise period and one
 voice's volume; R6 is one register for the three voices (2.1), so two noise
 targets running at once write one period and the later tick's write
-remains.
+remains. A sync target syncs its voice (3.9.1), then writes the period as
+a tone target does.
 
 The order of the writes is the player's, with the two the sound depends on
 fixed here: a voice's fine byte before its coarse nibble, so the period
@@ -427,11 +435,11 @@ writing the shape restarts the generator on the period in effect.
 
 **3.1.2** A target of one register is numbered by its register, 0 to 13, and
 named `set` followed by the register's name. The targets of several
-registers are numbered 14 to 24, in the order of the table above:
+registers are numbered 14 to 27, in the order of the table above:
 `setToneA` 14, `setToneB` 15, `setToneC` 16, `setVoiceA` 17, `setVoiceB`
 18, `setVoiceC` 19, `setEnvelope` 20, `setBuzzer` 21, `setNoiseA` 22,
-`setNoiseB` 23 and `setNoiseC` 24. A later version numbers further targets
-25 to 127 (8.2).
+`setNoiseB` 23, `setNoiseC` 24, `syncToneA` 25, `syncToneB` 26 and
+`syncToneC` 27. A later version numbers further targets 28 to 127 (8.2).
 
 ### 3.2 The sources
 
@@ -751,6 +759,55 @@ of another source. In `doc/conformance/tunes/copy-from-frame.json` copy
 from frame runs on `setR13`, then on `setBuzzer`, and on `setVoiceB`
 through a mapping.
 
+### 3.9 A sync
+
+**3.9.1 The writes.** A *sync* of a voice restarts the count of its tone
+generator. In order: write 0 to the two registers of the voice's period,
+R0 and R1 for voice A, R2 and R3 for voice B, R4 and R5 for voice C; wait
+(3.9.2); then write the period to the two registers, fine then coarse
+(3.1.1). The period is the frame's at a frame (3.9.3) and the row's of a
+source at a tick (3.9.4).
+
+Note: the tone generator of a voice steps once every 8 cycles of the
+chip's clock: it adds 1 to a count, and where the count is at or above the
+period it flips the square and sets the count to 0; a period of 0 steps as
+a period of 1. With the period at 0 the square flips at each step of the
+wait and its count is 0 after the last of them, so its next edge falls one
+period after that step. The level of the square after a sync, high or low,
+is the chip's.
+
+**3.9.2 The wait.** At least 9 cycles of the chip's clock between the
+zeros and the period: one step of the tone generator and a cycle more, 36
+cycles of an 8 MHz 68000. Note: on an STE the CPU's clock is 4.0053 times
+the chip's, so 32 cycles of the CPU, a step on an ST, are 7.98 cycles of
+the chip there.
+
+**3.9.3 At a frame.** Before step 1 of 4.4, for each voice of the row's
+`syncs` on whose period no effect runs at step 4 (6.2 d), in the order A,
+B, C: write 0 to the two registers of its period. Then wait once (3.9.2),
+and write the two registers of each such voice, fine then coarse, with
+their frame values (3.8.1): the row's value where the row sets the
+register, which step 1 then leaves written, and the value it last had
+where the row leaves it. A tick inside the wait lengthens it. Where an
+effect runs on a register of the voice's period at step 4, copy from frame
+included, the frame leaves the sync out: the sync of that voice is the
+effect's, through a sync target (3.9.4), and the row breaks rule 1(f).
+
+**3.9.4 At a tick.** A sync target syncs its voice at each tick and writes
+the row's two values through the mapping as the period (3.1.1). The writes
+of a sync at a tick are one step of the tick: a tick of another timer due
+during them occurs after them. Every source of two values a row runs on a
+sync target, copy from frame among them (3.8.2).
+
+Note: copy from frame on `syncToneA` at the rate of a timer restarts voice
+A's square at each tick at the period the rows set: a hard sync, whose
+restarts the timer sets and whose pitch between restarts the rows set.
+
+**3.9.5 Uses (informative).** In `doc/conformance/tunes/sync.json` a row
+syncs the three voices; copy from frame runs on `syncToneA`, and on
+`syncToneC` through a mapping; a source of two rows runs on `syncToneB`;
+and a row syncs voice A while Timer A runs on it, which rule 1(f) reports.
+
 ---
 
 ## 4. What a frame does
@@ -823,8 +880,9 @@ unchanged (rule 5).
 Whether a tick occurs between two steps of an operation, or between an
 operation and 4.4, is left to a later version (8.6).
 
-**4.4 The registers.** Write the registers the row sets in this order,
-in any order within a step:
+**4.4 The registers.** Sync the voices the row syncs as 3.9.3 defines,
+then write the registers the row sets in this order, in any order within
+a step:
 
 1. R0 to R5.
 2. R6, R11 and R12.
@@ -938,6 +996,9 @@ row leaves that register alone.**
   reported as where the row leaves the timer alone (6.3).
 - 1(e) A register a copy-from-frame effect runs on is excluded: the rows
   set it, and copy from frame reads its frame value (3.8).
+- 1(f) A row breaks the rule where it syncs a voice while an effect runs
+  on a register of the voice's period at step 4 of its frame, copy from
+  frame included: the frame leaves that sync out (3.9.3).
 
 **Rule 2: where two timers write one register, the writer fixes the
 order.**
@@ -1040,7 +1101,9 @@ from 0 to the last:
 3. For each timer with an effect in the model running at N, A to D, other
    than an effect of copy from frame (rule 1(e)): where the target's
    register is among R0 to R12 and row N sets it, count row N among the
-   run's rows.
+   run's rows. Then for each voice of the row's `syncs`, A to C, and each
+   timer, A to D, whose effect in the model runs at N on a register of the
+   voice's period, copy from frame included: report the rule 1(f) line.
 
 After the last row:
 
@@ -1075,15 +1138,17 @@ of the cut, so the source plays W rows at most from it, and the reckoning
 reads W.
 
 **6.5 What a check reports.** Each warning is one line of the table. X
-and Y are timer letters; N the row of the operation, S the start row, F
-and L the first and last row of a run that set the register, K how many
-did, T the repeat row. Where the third column names the suffix, the line
-ends with the suffix of 6.4 under the condition named.
+and Y are timer letters, V a voice's letter; N the row of the operation, S
+the start row, F and L the first and last row of a run that set the
+register, K how many did, T the repeat row. Where the third column names
+the suffix, the line ends with the suffix of 6.4 under the condition
+named.
 
 | rule | condition | reported as |
 |---|---|---|
 | 1 | one row of the run, row F, sets the register while the effect runs (6.3), alone among the rows of the run | `row F: Timer X runs on Rn, and this row sets it`, with the suffix where the effect is reckoned |
 | 1 | several rows of the run set the register while the effect runs (6.3), the first at row F, the last at row L, K of them | `rows F to L: Timer X runs on Rn from row S, and K of them set it`, with the suffix where the effect is reckoned |
+| 1(f) | row N syncs voice V, and the effect of Timer X runs at step 4 on Rn, the first register of the voice's period its target writes | `row N: Timer X runs on Rn, and this row syncs voice V: the frame leaves the sync to the effect`, with the suffix where the effect is reckoned |
 | 1(d) | the tune repeats to row T, the effect of Timer X runs when the last row has been read, and row T leaves Timer X alone or performs a `Remap` or a `Recut` on it | `the tune repeats to row T, and Timer X runs on Rn when its last row has played: the wrap resumes with the timer running from the pass before`, with the suffix where the effect is reckoned |
 | 2 | a `Start` on Timer X at row N has a target writing Rn, on which the effect of Timer Y runs | `row N: Timer X starts on Rn, where Timer Y runs: rule 2 leaves the order of two timers writing one register to the writer`, with the suffix where the effect of Timer Y is reckoned or step 1 of 6.3 performs the `Start` |
 | 3 | a `Start` at row N with `placeReset` clear on a timer before any `Start` on it | `row N: Timer X starts a source without the place's reset, and this timer has run none: the place is where the player left it` |
@@ -1154,16 +1219,19 @@ the tune has no sources; `transformations` the transformations of the tune
 where the tune has none.
 
 **7.4 A frame's line.** For a frame that reads a row,
-`{"result":0,"w":{...},"e":{...}}`: `w` the registers the row sets (4.4),
-keyed by number as text, `"0"` to `"13"`, in ascending numeric order, `"2"`
-before `"10"`, each with the row's value, R7's its six bits (2.4), `{}`
-where empty, a register an effect runs on included (6.1), and a register
-the frame leaves to the ticks of copy from frame, whose frame value the
-row sets (3.8.3); `e` the timers the row acts on, as the row has them,
-whether or not the timer is one of the tune (4.3), keyed by letter `"A"`
-to `"D"`, in that order, each with the operation as one object of the
-table, `{}` where empty. For the first frame after the end (4.6),
-`{"result":-1}`.
+`{"result":0,"w":{...},"e":{...}}`, and `{"result":0,"w":{...},"s":[...],
+"e":{...}}` where the row syncs a voice: `w` the registers the row sets
+(4.4), keyed by number as text, `"0"` to `"13"`, in ascending numeric
+order, `"2"` before `"10"`, each with the row's value, R7's its six bits
+(2.4), `{}` where empty, a register an effect runs on included (6.1), and
+a register the frame leaves to the ticks of copy from frame, whose frame
+value the row sets (3.8.3); `s` the voices the row syncs (1.6), each as
+its letter `"A"` to `"C"`, in that order, a voice whose sync the frame
+leaves out among them (3.9.3); `e` the timers the row acts on, as the row
+has them, whether or not the timer is one of the tune (4.3), keyed by
+letter `"A"` to `"D"`, in that order, each with the operation as one
+object of the table, `{}` where empty. For the first frame after the end
+(4.6), `{"result":-1}`.
 
 Note: a deferred `Start` begins its effect at a tick (5.2), so whether copy
 from frame runs at step 4 of a frame can rest on the ticks; `w` reads the
@@ -1221,12 +1289,13 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3 to 9,
+**8.1** What a reader does with a file whose version is other than 3 to 10,
 beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
-**8.2** Targets past the twenty-five: a procedure writing a register of the
-MC68901, one writing other registers of the YM2149 together, and one reading
-a row wider than a byte, numbered 25 to 127 (3.1.2).
+**8.2** Targets past the twenty-eight: a procedure writing a register of
+the MC68901, one writing other registers of the YM2149 together, a voice's
+period and its volume after a sync among them, and one reading a row wider
+than a byte, numbered 28 to 127 (3.1.2).
 
 **8.3** Sources of more than three values a row (3.2.1).
 

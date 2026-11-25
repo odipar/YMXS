@@ -14,6 +14,7 @@ package csv
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -95,20 +96,40 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 		}
 	}
 
+	rows := ymxs.Rows(tune)
+	// a voice's sync cell where some row syncs that voice (csv.md 3.8)
+	var synced []ymxs.Voice
+	for _, voice := range ymxs.Voices {
+		for _, one := range rows {
+			if one.Syncs[voice] {
+				synced = append(synced, voice)
+				break
+			}
+		}
+	}
 	named := []any{"registers", "row"}
 	for _, register := range ymxs.Registers {
 		named = append(named, text.Name(register))
 	}
+	for _, voice := range synced {
+		named = append(named, SyncName(voice))
+	}
 	table(out, named...)
-	rows := ymxs.Rows(tune)
 	for line, one := range rows {
-		if len(one.Registers) == 0 {
+		if len(one.Registers) == 0 && one.Syncs == [3]bool{} {
 			continue
 		}
 		said := []any{line}
 		for _, register := range ymxs.Registers {
 			if value, set := one.Registers[register]; set {
 				said = append(said, value)
+			} else {
+				said = append(said, "")
+			}
+		}
+		for _, voice := range synced {
+			if one.Syncs[voice] {
+				said = append(said, 1)
 			} else {
 				said = append(said, "")
 			}
@@ -360,6 +381,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	// (SPEC.md 1.11), and a line of the form reports the count as read.
 	registers := make([]map[ymxs.Register]int, max(count, 0))
 	effects := make([]map[ymxs.Timer]ymxs.Effect, max(count, 0))
+	syncs := make([][3]bool, max(count, 0))
 	for at := 0; at < count; at++ {
 		registers[at] = map[ymxs.Register]int{}
 		effects[at] = map[ymxs.Timer]ymxs.Effect{}
@@ -445,6 +467,12 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 				last.Entries = append(last.Entries, entry)
 			}
 		case "registers":
+			for _, voice := range ymxs.Voices {
+				if version < text.Sync && slices.Contains(one.columns, SyncName(voice)) {
+					return ymxs.Tune{}, fmt.Errorf("%s, and version %d has no syncs",
+						SyncName(voice), version)
+				}
+			}
 			for _, line := range one.rows {
 				at, err := rowAt(count, one.of(line, "row"),
 					fmt.Sprintf("tune %d sets a row", number))
@@ -461,6 +489,15 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 						return ymxs.Tune{}, err
 					}
 					registers[at][register] = value
+				}
+				for _, voice := range ymxs.Voices {
+					said := one.of(line, SyncName(voice))
+					if said == "1" {
+						syncs[at][voice] = true
+					} else if said != "" {
+						return ymxs.Tune{}, fmt.Errorf("%s at row %d is %s, and a sync is 1"+
+							" or empty", SyncName(voice), at, said)
+					}
 				}
 			}
 		default:
@@ -501,7 +538,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	}
 	rows := make([]ymxs.Row, max(count, 0))
 	for at := 0; at < count; at++ {
-		rows[at] = ymxs.Row{Registers: registers[at], Effects: effects[at]}
+		rows[at] = ymxs.Row{Registers: registers[at], Effects: effects[at], Syncs: syncs[at]}
 	}
 	rate, err := whole(told.of(one, "rate"), "rate")
 	if err != nil {
@@ -522,6 +559,12 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 		return ymxs.Tune{}, errors.New(strings.Join(wrong, "\n"))
 	}
 	return tune, nil
+}
+
+// SyncName is the name of a voice's sync cell in the registers table:
+// syncA, syncB or syncC (csv.md 3.8).
+func SyncName(voice ymxs.Voice) string {
+	return "sync" + voice.String()
 }
 
 // foreign is the error of a block of tune number, its name outside those

@@ -925,3 +925,46 @@ func TestTheCutOfCopyFromFrameIsRow0(t *testing.T) {
 		"row 2: Timer A: start of row 1: the source has 1 rows and the cut begins at row 1",
 		"row 2: Timer A: start of row 1: the source has 1 rows and the cut ends at row 1"})
 }
+
+// Rule 1(f): a row that syncs a voice while an effect runs on a register of
+// the voice's period at step 4 of its frame, copy from frame included,
+// leaves the sync to the effect; the row that starts the effect is such a
+// row, and a sync of another voice is within the rule (SPEC.md 3.9). The
+// lines are those of the Java tree's CheckTest.
+func TestASyncOfAVoiceAnEffectRunsOnIsLeftToTheEffect(t *testing.T) {
+	sets := ymxs.Row{Registers: map[ymxs.Register]int{ymxs.R0: 100, ymxs.R1: 1}}
+	tone := copies(ymxs.SetTone{Voice: ymxs.VoiceA}, ymxs.Mapping{}, ymxs.Cut{})
+	syncA := ymxs.Row{Syncs: [3]bool{true, false, false}}
+	syncB := ymxs.Row{Syncs: [3]bool{false, true, false}}
+	left := ", and this row syncs voice A: the frame leaves the sync to the effect"
+	lines(t, "copy from frame on setToneA", check.Writing(tune([]ymxs.Row{sets, tone, syncA,
+		syncB}, 50)), []string{"row 2: Timer A runs on R0" + left})
+	both := tone
+	both.Syncs = syncA.Syncs
+	lines(t, "the row that starts the effect", check.Writing(tune([]ymxs.Row{sets, both}, 50)),
+		[]string{"row 1: Timer A runs on R0" + left})
+	lines(t, "no effect on voice A", check.Writing(tune([]ymxs.Row{sets, syncA, syncB}, 50)),
+		nil)
+	sync := copies(ymxs.SyncTone{Voice: ymxs.VoiceA}, ymxs.Mapping{}, ymxs.Cut{})
+	lines(t, "copy from frame on syncToneA", check.Writing(tune([]ymxs.Row{sets, sync, syncA},
+		50)), []string{"row 2: Timer A runs on R0" + left})
+}
+
+// A target of a sync writes the registers of a tone target, and is
+// numbered 25 to 27 (SPEC.md 3.1.2).
+func TestTheTargetsOfASyncAre25To27(t *testing.T) {
+	for _, voice := range ymxs.Voices {
+		target, err := ymxs.TargetAt(25 + int(voice))
+		if err != nil || target != (ymxs.SyncTone{Voice: voice}) ||
+			ymxs.TargetName(target) != "syncTone"+voice.String() ||
+			ymxs.TargetNumber(target) != 25+int(voice) ||
+			fmt.Sprint(ymxs.TargetRegisters(target)) !=
+				fmt.Sprint(ymxs.TargetRegisters(ymxs.SetTone{Voice: voice})) {
+			t.Errorf("target %d is %v, %v", 25+int(voice), target, err)
+		}
+	}
+	if _, err := ymxs.TargetAt(28); err == nil ||
+		err.Error() != "no target 28: a tune reaches 0 to 27" {
+		t.Errorf("target 28 reads %v", err)
+	}
+}

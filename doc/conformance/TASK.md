@@ -25,13 +25,15 @@ order, `sort_keys` left at its default.
 **3. The tunes.** Each is a `.json` under `tunes/`; `SOURCES.md` lists
 what each reaches and is left out of a run against this kit, since the
 record of a tune beside it has the lines a recorder produces.
-`four-timers.json`, `registers.json`, `several.json` and
-`transformations.json` break a rule of `SPEC.md` 6, which a checker
-reports as a warning, and every other tune satisfies every rule:
-`registers.json` sets a register an effect runs on, and the frame's line
-records the write (7.4); `four-timers.json` and `several.json` wrap with
-timers running; `transformations.json` wraps with a timer running that
-its repeat row remaps, and remaps a timer outside the tune.
+`four-timers.json`, `registers.json`, `several.json`,
+`transformations.json` and `sync.json` break a rule of `SPEC.md` 6, which
+a checker reports as a warning, and every other tune satisfies every
+rule: `registers.json` sets a register an effect runs on, and the frame's
+line records the write (7.4); `four-timers.json` and `several.json` wrap
+with timers running; `transformations.json` wraps with a timer running
+that its repeat row remaps, and remaps a timer outside the tune;
+`sync.json` syncs a voice an effect runs on, and the frame's line records
+the sync (7.4).
 
 | file | the tune of it | lines |
 |---|---|---:|
@@ -48,6 +50,7 @@ its repeat row remaps, and remaps a timer outside the tune.
 | `transformations.json` | 1 | 12 |
 | `cuts.json` | 1 | 11 |
 | `copy-from-frame.json` | 1 | 11 |
+| `sync.json` | 1 | 17 |
 
 **4. The rules.**
 

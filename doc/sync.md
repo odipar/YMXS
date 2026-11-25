@@ -49,13 +49,10 @@ Two additions, both of version 10:
 - three targets, `syncToneA`, `syncToneB` and `syncToneC`, each of which
   syncs its voice at each tick before writing the period.
 
+`Row` gains a third field, `Set<Voice> syncs`, after `effects`, and
+`TwoTarget` permits a fourth record:
+
 ```java
-record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects,
-           Set<Voice> syncs) { }
-
-sealed interface TwoTarget extends Target permits SetTone, SyncTone, SetNoise,
-        SetEnvelope { }
-
 record SyncTone(Voice voice) implements TwoTarget { }
 ```
 
@@ -143,7 +140,7 @@ Rule 1 gains a clause and a warning:
 
 | rule | condition | reported as |
 |---|---|---|
-| 1(f) | row N syncs voice V, and the effect of Timer X runs on a register of that voice's period at step 4 | `row N: syncs voice V, whose period Timer X runs on: the frame leaves the sync to the effect` |
+| 1(f) | row N syncs voice V, and the effect of Timer X runs at step 4 on Rn, the first register of the voice's period its target writes | `row N: Timer X runs on Rn, and this row syncs voice V: the frame leaves the sync to the effect` |
 
 ### The forms
 
@@ -171,7 +168,7 @@ volume, joins the targets a later version defines (SPEC.md 8.2).
 The encoding:
 
 - The sync at a frame is bit 5 of the voice's coarse column, 1, 3 or 5
-  (YMXR's SPEC.md 1.2.2), where bits 5 and 4 are unassigned; bit 6 there
+  (YMXR's SPEC.md, 1.2.2), where bits 5 and 4 are unassigned; bit 6 there
   marks the fine column's 0 as a value (1.1.2). A writer sets bit 5 where
   the frame syncs the voice, and leaves it clear where an effect runs on
   the voice's period (1(f)). On a row with bit 5 set it sets both columns
@@ -179,7 +176,7 @@ The encoding:
   register unset, so a player writes the period from the row alone. A
   player reads bit 5 where the row sets the coarse column.
 - The targets are 25, 26 and 27 in a start's target column, whose bits 6
-  to 0 reach 127 (YMXR's SPEC.md 1.8.2), and the map of targets gains
+  to 0 reach 127 (YMXR's SPEC.md, 1.8.2), and the map of targets gains
   their three rows (2.1).
 - The tune file is version 13, with a bit of its header set for a tune
   that syncs a voice, at a frame or through a target. Init aims the frame
@@ -212,12 +209,12 @@ The player:
 ## The plan
 
 - [x] The plan, this document
-- [ ] YMXS: the structure, `syncs` and the three targets, in sections 1,
+- [x] YMXS: the structure, `syncs` and the three targets, in sections 1,
       3.1, 4.4, 5, 6, 7 and 8 of SPEC.md, with a section on the sync, 3.9,
       and the chip's steps in 2
-- [ ] YMXS: JSON, CSV and the record; the check and rule 1(f); both trees;
+- [x] YMXS: JSON, CSV and the record; the check and rule 1(f); both trees;
       version 10
-- [ ] YMXS: a tune of the conformance kit that syncs at frames and through
+- [x] YMXS: a tune of the conformance kit that syncs at frames and through
       each target, on copy from frame
 - [ ] YMXR: the encoding in both trees, version 13; the frame's sync and
       the sync handler; the rig against the model and the wait under Hatari

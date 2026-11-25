@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.Chip;
 import org.ymxs.Tunes;
@@ -104,7 +105,7 @@ public final class Read {
         read.run(registers, effects);
         List<Row> rows = new ArrayList<>();
         for (int f = 0; f < song.frames(); f++) {
-            rows.add(new Row(registers.get(f), effects.get(f)));
+            rows.add(new Row(registers.get(f), effects.get(f), Set.of()));
         }
         Tune tune = new Tune(song.name(), song.author(), writer, song.playerHz(),
                 new Table<>(rows, repeat));

@@ -71,7 +71,11 @@ class ConformanceTest {
             new Source("cuts", 1, 11,
                     "a start under a cut, recuts of a running effect, a deferred start under"
                             + " a cut of another source, and one source under two cuts on two"
-                            + " timers (3.7, 7.4)"));
+                            + " timers (3.7, 7.4)"),
+            new Source("copy-from-frame", 1, 11,
+                    "copy from frame on setR13, then on setBuzzer, and on setVoiceB through a"
+                            + " mapping, remapped and recut, recorded as source 0 beside a"
+                            + " source of the tune (3.8, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

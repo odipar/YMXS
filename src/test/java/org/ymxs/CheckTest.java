@@ -16,7 +16,9 @@ import org.ymxs.YMXS.Timing;
 import org.ymxs.YMXS.Single;
 import org.ymxs.YMXS.OneConnection;
 import org.ymxs.YMXS.OneTarget;
+import org.ymxs.YMXS.CopyFromFrame;
 import org.ymxs.YMXS.Cut;
+import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
@@ -24,6 +26,7 @@ import org.ymxs.YMXS.Remap;
 import org.ymxs.YMXS.Row;
 import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
+import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Transformation;
 import org.ymxs.YMXS.Tune;
@@ -1170,5 +1173,111 @@ final class CheckTest {
         assertEquals(List.of("rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set it"
                 + RECKONED), Check.writing(of(cut(DRUM, Tunes.whole(DRUM), Prescaler.BY_200,
                 200), sets, recuts(0, 1), sets)), "the recut leaves four frames");
+    }
+
+    // ------------------------------------------ copy from frame, SPEC.md 3.8
+
+    /** A start on Timer A of copy from frame on {@code target} through
+     *  {@code mapping} under {@code cut}, at 4 and 100, both resets set. */
+    private static Row copies(Target target, Mapping mapping, Cut cut) {
+        return new Row(Map.of(), Map.of(Timer.A, Tunes.copying(target, Prescaler.BY_4, 100,
+                true, true, false, mapping, cut)));
+    }
+
+    /** Copy from frame on setR8 through the identity, under rows 0 to 0. */
+    private static final Row COPIES = copies(Tunes.setting(Register.R8), Tunes.NO_PARTS,
+            new Cut(0, 0));
+
+    /** Copy from frame is a source of one row that repeats to row 0,
+     *  outside the sources of the tune, and a form writes it as source 0
+     *  (SPEC.md 1.9, 3.8.2, 7.4). */
+    @Test
+    void copyFromFrameIsOutsideTheSourcesOfTheTune() {
+        Tune tune = of(Tunes.row(Map.of(Register.R8, 12)), COPIES, starts(SQUARE, true));
+        assertEquals(List.of(SQUARE), Tunes.sources(tune));
+        CopyFromFrame copy = new CopyFromFrame(Tunes.setting(Register.R8));
+        assertEquals(0, Tunes.number(Tunes.sources(tune), copy));
+        assertEquals(1, Tunes.number(Tunes.sources(tune),
+                new OneConnection(Tunes.setting(Register.R8), SQUARE)));
+        assertEquals(new Cut(0, 0), Tunes.whole(copy));
+        assertTrue(Tunes.repeats(copy));
+        assertEquals(List.of(), Check.of(tune));
+    }
+
+    /** The rows set the registers copy from frame runs on, and rule 1
+     *  excludes them, at every row and at the wrap (rule 1(e)). */
+    @Test
+    void theRowsSetTheRegistersCopyFromFrameRunsOn() {
+        Row sets = Tunes.row(Map.of(Register.R8, 12));
+        assertEquals(List.of(), Check.writing(of(sets, COPIES, sets, sets)));
+        assertEquals(List.of("rows 2 to 3: Timer A runs on R8 from row 1, and 2 of them set it",
+                "the tune repeats to row 0, and Timer A runs on R8 when its last row has played:"
+                        + " the wrap resumes with the timer running from the pass before"),
+                Check.writing(of(sets, starts(SQUARE, true), sets, sets)), "a source on R8");
+    }
+
+    /** Rule 7: a start of copy from frame follows a row that sets each
+     *  register its target writes, the start row or one before it; the
+     *  lines come in the order of the target, after the rule 3 line
+     *  (SPEC.md 6.3 step 2(a)). */
+    @Test
+    void aStartOfCopyFromFrameBeforeARowSetsItsRegisterIsSaid() {
+        Row voice = copies(Tunes.target(17), Tunes.NO_PARTS, new Cut(0, 0));
+        Row both = new Row(Map.of(Register.R0, 200), voice.effects());
+        String before = "row 0: Timer A starts copy from frame on setVoiceA before a row sets ";
+        assertEquals(List.of(before + "R1: its frame value is 0",
+                before + "R8: its frame value is 0"), Check.writing(of(both)),
+                "the start row sets R0");
+        assertEquals(List.of(),
+                Check.writing(of(Tunes.row(Map.of(Register.R1, 1, Register.R8, 15)), both)),
+                "a row before sets R1 and R8");
+        Row unplaced = new Row(Map.of(), Map.of(Timer.A, Tunes.copying(
+                Tunes.setting(Register.R8), Prescaler.BY_4, 100, true, false, false,
+                Tunes.NO_PARTS, new Cut(0, 0))));
+        assertEquals(List.of("row 0: Timer A starts a source without the place's reset, and"
+                + " this timer has run none: the place is where the player left it",
+                "row 0: Timer A starts copy from frame on setR8 before a row sets R8: its frame"
+                        + " value is 0"), Check.writing(of(unplaced)));
+    }
+
+    /** Through a transformation a frame value is a key: a key above the
+     *  last key and an entry above the most of the register are errors of
+     *  the start and of a remap, reported at the row that sets the value,
+     *  and a value outside its register is the error of its row alone
+     *  (SPEC.md 1.11, 3.8.4). */
+    @Test
+    void aFrameValueThroughATransformationIsAKey() {
+        Transformation half = new Transformation("half",
+                List.of(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 40));
+        Row copies = copies(Tunes.setting(Register.R8), Tunes.mapping(half), new Cut(0, 0));
+        Tune tune = of(Tunes.row(Map.of(Register.R8, 20)), copies,
+                Tunes.row(Map.of(Register.R8, 15)), Tunes.row(Map.of(Register.R8, 40)));
+        assertEquals(List.of(
+                "row 1: Timer A: row 0 sets R8 to 20, which copy from frame on setR8 reads, and a"
+                        + " key is 0 to 15",
+                "row 1: Timer A: row 2 sets R8 to 15, which maps to 40 on setR8, and the target"
+                        + " is 0 to 31",
+                "row 3: R8 is 0 to 31, and this row sets it to 40"), Check.of(tune));
+        Tune remapped = of(Tunes.row(Map.of(Register.R8, 20)), COPIES,
+                new Row(Map.of(), Map.of(Timer.A, new Remap(Tunes.mapping(half)))));
+        assertEquals(List.of("row 2: Timer A: start of row 1: row 0 sets R8 to 20, which copy"
+                + " from frame on setR8 reads, and a key is 0 to 15"), Check.of(remapped));
+    }
+
+    /** Copy from frame is a source of one row: a cut of a start or a recut
+     *  outside row 0 is an error (SPEC.md 1.11, 3.8.4). */
+    @Test
+    void theCutOfCopyFromFrameIsRow0() {
+        Row sets = Tunes.row(Map.of(Register.R8, 12));
+        assertEquals(List.of("row 1: Timer A: the source has 1 rows and the cut ends at row 1"),
+                Check.of(of(sets, copies(Tunes.setting(Register.R8), Tunes.NO_PARTS,
+                        new Cut(0, 1)))));
+        assertEquals(List.of(
+                "row 2: Timer A: start of row 1: the source has 1 rows and the cut begins at"
+                        + " row 1",
+                "row 2: Timer A: start of row 1: the source has 1 rows and the cut ends at"
+                        + " row 1"),
+                Check.of(of(sets, COPIES, recuts(1, 1), starts(SQUARE, true))),
+                "the square of two rows has row 1");
     }
 }

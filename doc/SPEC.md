@@ -1,15 +1,15 @@
 # The YMXS format
 
-Version 8 defines tune data and playback on the Atari ST's YM2149 and
+Version 9 defines tune data and playback on the Atari ST's YM2149 and
 MC68901: structure (1), chip values (2, 3), frames (4), ticks (5), writer
 rules and checks (6), recorder output (7), and later versions (8).
 
 A form is an encoding of the structure: [json.md](json.md),
 [csv.md](csv.md), or a player's binary layout, defined by that player. A
-file includes its version beside the structure: a writer writes 8, and a
-reader reads 8 and the five versions before it, 7, 6, 5, 4 and 3 (json.md
-2.4). A reader reads the version before the structure; another version is an
-error of the form.
+file includes its version beside the structure: a writer writes 9, and a
+reader reads 9 and the six versions before it, 8, 7, 6, 5, 4 and 3
+(json.md 2.4). A reader reads the version before the structure; another
+version is an error of the form.
 
 **Conventions.** A clause is cited by number, 4.3 or 3.2.1; a rule of
 section 6 as rule 1, a condition of one as rule 1(a). `Note:` begins an
@@ -21,25 +21,26 @@ letter, and each other capital letter, and `i`, is a decimal figure, each
 defined beside the text.
 
 **Roles.** A player performs sections 4 and 5 on the two chips. A recorder
-performs section 4 with every register write and every timer operation
-recorded as an entry of section 7 in place of the chip. A check reports the
-errors of 1.11 in the order of 1.12 and the warnings of 6.5 in the order of
-6.3. A writer produces a structure free of the conditions of 1.11 that
-satisfies the rules of section 6. A reader reads a file of a form into the
-structure, and an emitter emits one from it. The host selects a tune (1.2),
-calls the player once a frame, and owns bits 7 and 6 of R7 and every timer
-outside the tune's (1.10).
+performs section 4 with every register a row sets and every timer
+operation recorded as an entry of section 7 in place of the chip. A check
+reports the errors of 1.11 in the order of 1.12 and the warnings of 6.5 in
+the order of 6.3. A writer produces a structure free of the conditions of
+1.11 that satisfies the rules of section 6. A reader reads a file of a
+form into the structure, and an emitter emits one from it. The host
+selects a tune (1.2), calls the player once a frame, and owns bits 7 and 6
+of R7 and every timer outside the tune's (1.10).
 
 **Terms.** A *frame* is one call of the player (4.2); a *tick* one
 interrupt of a timer (5.1); a *row* one entry of a table (1.6). The rate
 of a tune is in frames a second (1.3), the rate of an effect in ticks a
 second (3.3.1). An *error of the structure* is a condition of 1.11, an
 *error of the form* a condition of json.md 8.1 or csv.md 5.1, and a
-*warning* a breach of rule 1, 2, 3, 5 or 6 (6.5). A *pass* is the frames
-from the one that reads row 0 to the one that reads the last row; a
-*loop* the frames from the one that reads the repeat row to the one that
-reads the last row (4.5). Section 6.2 defines *runs*, *idle* and *run
-out*; 6.3 defines a *run*.
+*warning* a breach of rule 1, 2, 3, 5, 6 or 7 (6.5). A *pass* is the
+frames from the one that reads row 0 to the one that reads the last row;
+a *loop* the frames from the one that reads the repeat row to the one
+that reads the last row (4.5). Section 6.2 defines *runs*, *idle* and
+*run out*; 6.3 defines a *run*. Section 3.8 defines *copy from frame*
+and the *frame value* of a register.
 
 ---
 
@@ -78,13 +79,16 @@ public interface YMXS {
     record Start(Connection connection, Timing timing, boolean deferred,
                  Mapping mapping, Cut cut) implements Effect { }
 
-    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection { }
+    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection,
+            CopyFromFrame { }
 
     record OneConnection(OneTarget target, Single source) implements Connection { }
 
     record TwoConnection(TwoTarget target, Pair source) implements Connection { }
 
     record ThreeConnection(ThreeTarget target, Triple source) implements Connection { }
+
+    record CopyFromFrame(Target target) implements Connection { }
 
     record Timing(Prescaler prescaler, int count, boolean timerReset,
                   boolean placeReset) { }
@@ -178,17 +182,18 @@ most once and performs at most one operation on each timer.
 
 **1.7 An effect and the five operations.** The effect of a timer is the
 source connected to a target on it through a mapping, under a cut, at the
-rate of its prescaler and count (3.3, 3.6, 3.7). Four timers, each running
-one effect at most; the timer identifies the effect. An operation is a value
-of the type `Effect` (1.1): a `Start` connects `source` to `target` through
-`mapping` under `cut` on the timer and sets `prescaler` and `count`; a
-`Retune` sets `prescaler` and `count` of the effect the timer runs; a `Stop`
-stops the timer; a `Remap` sets the mapping of the effect the timer runs; a
-`Recut` sets its cut. A `Start` and a `Retune` have the resets `timerReset`
-and `placeReset` (3.4), and a `Start` has `deferred` (3.5). A `Start` on a
-timer running an effect ends it and begins another: at its frame where
-`deferred` is clear, and where it is set at the tick that reads the last row
-of the cut of that effect. Section 4 defines each operation as steps.
+rate of its prescaler and count (3.3, 3.6, 3.7, 3.8). Four timers, each
+running one effect at most; the timer identifies the effect. An operation
+is a value of the type `Effect` (1.1): a `Start` connects the source of
+`connection` to its target through `mapping` under `cut` on the timer and
+sets `prescaler` and `count`; a `Retune` sets `prescaler` and `count` of
+the effect the timer runs; a `Stop` stops the timer; a `Remap` sets the
+mapping of the effect the timer runs; a `Recut` sets its cut. A `Start`
+and a `Retune` have the resets `timerReset` and `placeReset` (3.4), and a
+`Start` has `deferred` (3.5). A `Start` on a timer running an effect ends
+it and begins another: at its frame where `deferred` is clear, and where
+it is set at the tick that reads the last row of the cut of that effect.
+Section 4 defines each operation as steps.
 
 **1.8 Targets, sources and mappings.** Targets write one, two or three
 registers (3.1). `SetRegister` writes one; `SetTone`, `SetNoise` and
@@ -197,7 +202,9 @@ registers (3.1). `SetRegister` writes one; `SetTone`, `SetNoise` and
 Sources match those widths: `Single`, `Pair` and `Triple` each have a
 name and a table of one, two or three values per row (3.2). A
 `OneConnection`, `TwoConnection` or `ThreeConnection` pairs a source
-with a target of the same width.
+with a target of the same width. A `CopyFromFrame` pairs a target of any
+width with copy from frame, a source of one row whose values are the
+frame values of the registers the target writes (3.8).
 
 A `Start` supplies that connection, a `Mapping` and a `Cut`. An empty
 mapping leaves every value unchanged. Otherwise, each value has an identity
@@ -207,13 +214,13 @@ the last row of the source that the ticks of the effect read (3.7).
 **1.9 The sources and the transformations of a tune.** The sources are
 the list this procedure produces from an empty list: read the rows from
 row 0 to the last, within a row the timers A, B, C, D; where the operation
-is a `Start` whose source is new to the list, append it. The order is the
-*first-start order*; the sources are numbered from 1 in it, and a source
-is selected by number. Two sources are equal where their names are equal,
-their values equal in number and order a row at a time, and their repeat
-rows both absent or both present and equal; two `Start`s of equal sources
-start one source of the tune, and equal values under two names are two
-sources.
+is a `Start` whose source is new to the list, append it, copy from frame
+excepted (3.8). The order is the *first-start order*; the sources are
+numbered from 1 in it, and a source is selected by number. Two sources are
+equal where their names are equal, their values equal in number and order
+a row at a time, and their repeat rows both absent or both present and
+equal; two `Start`s of equal sources start one source of the tune, and
+equal values under two names are two sources.
 
 To list transformations, scan rows from first to last, timers A to D
 within each row, and parts from part 0 within each `Start` or `Remap`.
@@ -251,6 +258,8 @@ of a cut, and i the number of a value in a row and of its part, from 0.
 | value i of row N of the source of a `Start` is V, above the last key K of the transformation of 1 to 256 entries that is part i of its mapping (3.6.5) | `a source on setRn whose row N is V, and a key is 0 to K` |
 | the mapping of a `Start` has P parts, P of 1 or more and other than the U values its target reads | `a mapping of P parts on setRn, which reads U` |
 | value i of row N of the source of a `Start`, through a transformation that is part i of its mapping, maps to V, above the most M of register i of its target | `value i of row N maps to V on setRn, and the target is 0 to M` |
+| row N sets Rn to V, value i of copy from frame (3.8.4) on setRm, above the last key K of the transformation of 1 to 256 entries that is part i of the mapping of a `Start` of copy from frame on setRm, or of a `Remap` on its timer | `row N sets Rn to V, which copy from frame on setRm reads, and a key is 0 to K` |
+| row N sets Rn to K, value i of copy from frame on setRm, and the transformation that is part i of the mapping of a `Start` of copy from frame on setRm, or of a `Remap` on its timer, maps K to V, above the most M of Rn | `row N sets Rn to K, which maps to V on setRm, and the target is 0 to M` |
 | the first row of the cut of a `Start` is F, outside 0 to R - 1, R the rows of its source, 1 or more | `the source has R rows and the cut begins at row F` |
 | the last row of the cut of a `Start` is L, outside 0 to R - 1, R the rows of its source, 1 or more | `the source has R rows and the cut ends at row L` |
 | the last row L of the cut of a `Start` of a source of 1 row or more is below its first row F | `a cut of rows F to L: a cut ends at or after the row it begins at` |
@@ -264,7 +273,8 @@ of a cut, and i the number of a value in a row and of its part, from 0.
 The mapping of a `Remap` is read against each `Start` on its timer at any
 row of the tune, before or after the `Remap`, with the target and the source
 of that `Start` (3.6.5). The cut of a `Recut` is read against the source of
-each `Start` on its timer in the same way (3.7.1).
+each `Start` on its timer in the same way (3.7.1). Copy from frame is read
+as a source of one row, with the values of 3.8.4.
 
 **1.12 The order of the report.**
 
@@ -293,7 +303,8 @@ Report each condition present, in this order:
             transformation above the register's most in row order. Then,
             where the source table has a row, the first row of the cut
             outside 0 to R - 1, the last row outside it, and a last row
-            below the first.
+            below the first. Of copy from frame, the rows and their order
+            are those of 3.8.4.
          4. For a `Remap`: for each target a `Start` on the timer
             connects, in the row order of the first `Start` that connects
             it, the number of parts of the mapping; then for each target
@@ -372,8 +383,9 @@ a tick (3.1.1), writes bits 5 to 0 and leaves bits 7 and 6 as they were.
 
 **2.5 The envelope shape.** Every write to R13 restarts the envelope,
 the value changed or the same. A player writes R13 on every row that
-sets it, the value R13 already has included; every tick of an effect
-whose target is `setR13` writes it, the value written through its mapping
+sets it, the value R13 already has included, except where the frame leaves
+R13 to the ticks of copy from frame (3.8.3); every tick of an effect whose
+target is `setR13` writes it, the value written through its mapping
 (3.1.1, 3.6.4).
 
 ---
@@ -688,6 +700,57 @@ cut (3.7.2).
 on `setR8`, under the cut 0 to 15 at row 0, moved two rows a frame by a
 `Recut` to the cut 16 to 31, then narrowed to 16 to 23 and to 20 to 23.
 
+### 3.8 Copy from frame
+
+**3.8.1 The frame value.** The frame value of a register is the value the
+last row that set it set, from step 4 of the frame of that row (4.4). A
+row that leaves the register unset leaves its frame value as it is, and
+the wrap (4.5) leaves every frame value as it is. Before the first row
+that sets a register, its frame value is 0 (rule 7).
+
+**3.8.2 The source.** *Copy from frame* is a source of one row that
+repeats to row 0, the source of every `CopyFromFrame` (1.8). A
+`CopyFromFrame` connects it to a target of any width, and its row has the
+values a row of that target reads (3.2.1): at a tick, value i is the frame
+value of register i of the target (3.1.1). On `setR8` a tick writes the
+frame value of R8 to R8; on `setVoiceA` the frame values of R0, R1 and R8
+to R0, R1 and R8. As for any source of one row:
+
+- the place is row 0 at every tick, a place modulo 1 (3.4.3);
+- its cut is rows 0 to 0, the whole table (3.7.1);
+- each tick reads the last row of the cut, so a deferred `Start` pending on
+  its timer is performed at the next tick (3.5.2);
+- each value passes through its part of the mapping (3.6.4), and a `Remap`
+  replaces the mapping (4.3).
+
+**3.8.3 The frame.** A frame leaves a register a copy-from-frame effect
+runs on at its step 4 to the ticks: the row sets the frame value of the
+register (3.8.1), the register on the chip keeps its value, and the next
+tick writes the frame value through the mapping (3.6.4). The register then
+has the values the ticks write, through a transformation its entries. An
+effect started on the row runs at step 4, so the first tick writes the
+register; an effect stopped on the row has ended by step 4, so the frame
+writes it (6.2 d). Rule 1(e) excludes such a register.
+
+**3.8.4 The checks.** For the conditions of 1.11 and the order of 1.12,
+copy from frame is a source of one row, R = 1, and its values are the
+values the rows of the tune set on the registers of its target: value i
+of row N where row N sets register i to a value 0 to its most, in row
+order and within a row in the order of 3.1.1. A value outside 0 to its
+most is an error of its row (1.11). Through the identity a value fits its
+register, and through a transformation it is a key: 1.11 has two
+conditions of copy from frame, a key above the last key of its
+transformation and a key whose entry is above the most of the register.
+
+**3.8.5 Uses (informative).** On `setR13` at the rate of a timer, copy
+from frame writes R13 at each tick and restarts the envelope with the
+shape the rows set (2.5): a sync buzzer whose shape follows the rows. On
+`setBuzzer` the envelope period follows them as well. A source of one row
+on `setR13` has the shape in its row, and a change of shape is a `Start`
+of another source. In `doc/conformance/tunes/copy-from-frame.json` copy
+from frame runs on `setR13`, then on `setBuzzer`, and on `setVoiceB`
+through a mapping.
+
 ---
 
 ## 4. What a frame does
@@ -770,7 +833,9 @@ in any order within a step:
 5. R13, restarting the envelope even if its value is unchanged (2.5).
 
 An absent register keeps its value. The player also writes registers
-with running effects (rule 1).
+with running effects (rule 1), and leaves a register a copy-from-frame
+effect runs on to the ticks (3.8.3). Each register the row sets has the
+row's value as its frame value (3.8.1).
 
 **4.5 The wrap.** Where a tune repeats, the row after its last row is its
 repeat row (1.5), performed as any row. A timer running when the last row is
@@ -827,11 +892,11 @@ has a source connected.
 
 ## 6. The rules a writer satisfies
 
-**6.1** A player assumes the six rules and writes each value as the row or
-the tick has it, so a tune that breaks one plays. A breach is a warning
+**6.1** A player assumes the seven rules and writes each value as the row
+or the tick has it, so a tune that breaks one plays. A breach is a warning
 (6.5); a breach of rule 4 leaves every write as it is (4(a)). A check reads
-rules 1, 2, 3, 5 and 6 (6.3) of a structure free of the conditions of 1.11;
-a structure with one is outside the check.
+rules 1, 2, 3, 5, 6 and 7 (6.3) of a structure free of the conditions of
+1.11; a structure with one is outside the check.
 
 **6.2 Terms of the rules.**
 
@@ -871,6 +936,8 @@ row leaves that register alone.**
   `Start`, or a `Retune` (rule 5). A `Remap` or a `Recut` at the repeat row
   leaves the effect running from the pass before, and the line of 1(d) is
   reported as where the row leaves the timer alone (6.3).
+- 1(e) A register a copy-from-frame effect runs on is excluded: the rows
+  set it, and copy from frame reads its frame value (3.8).
 
 **Rule 2: where two timers write one register, the writer fixes the
 order.**
@@ -919,19 +986,26 @@ with one exception.**
 Note: a writer stops every effect at the repeat row so that the wrap
 resumes from a setting that row defines.
 
-**6.3 The check.** A check reads rules 1, 2, 3, 5 and 6 across the rows
-in one pass with a model of each timer: the effect in the model, present
-or absent; whether a `Start` has been performed on the timer; and the
-pending `Start` (3.5), present or absent. The effect in the model is its
-target, its source, its start row S, and the row U from which its source
-has run out by the reckoning (6.4), unbounded for a source that repeats
-until a deferred `Start` bounds it. At row N the effect in the model runs
-where N is below U; otherwise the timer is idle. An effect is *reckoned*
-where its U is bounded or step 1 set its S. A *run* is one effect of the
-model from its start row to the row of the `Stop` or `Start` that removes
-it, or to the last row; the rows of a run that set its register are those
-step 3 counts. Closing a run reports its rule 1 line (6.5) where step 3
-counted one row or more.
+**Rule 7: a `Start` of copy from frame follows a row that sets each
+register its target writes.**
+
+- 7(a) The row that sets the register is the start row or a row before it.
+  Before the first row that sets a register, its frame value is 0 (3.8.1),
+  and a tick writes 0 through the mapping (3.6.4).
+
+**6.3 The check.** A check reads rules 1, 2, 3, 5, 6 and 7 across the
+rows in one pass with a model of each timer: the effect in the model,
+present or absent; whether a `Start` has been performed on the timer; and
+the pending `Start` (3.5), present or absent. The effect in the model is
+its target, its source, its start row S, and the row U from which its
+source has run out by the reckoning (6.4), unbounded for a source that
+repeats until a deferred `Start` bounds it. At row N the effect in the
+model runs where N is below U; otherwise the timer is idle. An effect is
+*reckoned* where its U is bounded or step 1 set its S. A *run* is one
+effect of the model from its start row to the row of the `Stop` or `Start`
+that removes it, or to the last row; the rows of a run that set its
+register are those step 3 counts. Closing a run reports its rule 1 line
+(6.5) where step 3 counted one row or more.
 
 Initial condition: the model of every timer is empty, its effect and its
 pending `Start` absent, and no `Start` performed on it. For each row N
@@ -942,16 +1016,17 @@ from 0 to the last:
    2(a) on it from its rule 2 lines on, S = N.
 2. For each timer the row acts on, in the order A, B, C, D:
    - (a) a `Start`: report the rule 3 line where the `Start` meets the
-     condition of rule 3 (6.5). Where it is deferred and the effect of
-     the timer in the model runs at N, it is the pending `Start` of the
-     timer now, in place of the one before it, the effect's U is bounded
-     as 6.4 defines, and this step ends there. Otherwise: remove the
-     pending `Start`; report a rule 2 line for each other timer, A to D,
-     whose effect in the model runs at N on the register the target
-     writes; where the timer has an effect in the model, close its run
-     and remove it; put the effect of the `Start` in the model, S = N, U
-     as 6.4 defines; record that a `Start` has been performed on the
-     timer.
+     condition of rule 3 (6.5); for a `Start` of copy from frame, report
+     the rule 7 line of each register its target writes, in the order of
+     3.1.1, where rows 0 to N leave it unset. Where it is deferred and the
+     effect of the timer in the model runs at N, it is the pending `Start`
+     of the timer now, in place of the one before it, the effect's U is
+     bounded as 6.4 defines, and this step ends there. Otherwise: remove
+     the pending `Start`; report a rule 2 line for each other timer, A to
+     D, whose effect in the model runs at N on the register the target
+     writes; where the timer has an effect in the model, close its run and
+     remove it; put the effect of the `Start` in the model, S = N, U as 6.4
+     defines; record that a `Start` has been performed on the timer.
    - (b) a `Retune`: report the rule 5 line where the effect of the
      timer is absent from the model or has run out at N.
    - (c) a `Stop`: remove the pending `Start`; report the rule 6 line
@@ -962,18 +1037,19 @@ from 0 to the last:
      where the effect of the timer is absent from the model or has run out
      at N. The effect in the model, its run and the pending `Start` are as
      they were.
-3. For each timer with an effect in the model running at N, A to D: where
-   the target's register is among R0 to R12 and row N sets it, count row N
-   among the run's rows.
+3. For each timer with an effect in the model running at N, A to D, other
+   than an effect of copy from frame (rule 1(e)): where the target's
+   register is among R0 to R12 and row N sets it, count row N among the
+   run's rows.
 
 After the last row:
 
 4. For each timer with an effect in the model, A to D: close its run; the
    effect stays for step 5, and a pending `Start` stays pending.
 5. Where the tune repeats: for each timer with an effect in the model
-   running at the last row, A to D, report the rule 1(d) line where the
-   repeat row leaves the timer alone or performs a `Remap` or a `Recut` on
-   it.
+   running at the last row, A to D, other than an effect of copy from frame
+   (rule 1(e)), report the rule 1(d) line where the repeat row leaves the
+   timer alone or performs a `Remap` or a `Recut` on it.
 
 The report is the lines in the order reported.
 
@@ -1015,6 +1091,7 @@ ends with the suffix of 6.4 under the condition named.
 | 5 | a `Remap` at row N on an idle timer | `row N: Timer X remaps an effect that is idle: a mapping is set on a running effect, and this row leaves the timer as it is`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a bounded U and N is at or above U (6.3), run out by the reckoning |
 | 5 | a `Recut` at row N on an idle timer | `row N: Timer X recuts an effect that is idle: a cut is set on a running effect, and this row leaves the timer as it is`, with the suffix where the effect in the model for the timer, one a `Stop` has yet to remove, has a bounded U and N is at or above U (6.3), run out by the reckoning |
 | 6 | a `Stop` at row N on a timer whose effect is absent from the model, N other than the repeat row | `row N: Timer X stops an effect this timer has not started` |
+| 7 | a `Start` of copy from frame on Timer X at row N on setRm, which writes Rn, and rows 0 to N leave Rn unset | `row N: Timer X starts copy from frame on setRm before a row sets Rn: its frame value is 0` |
 
 Rules 1, 2 and 5 are read with the effect running until U (6.3); rule
 6 with the effect in the model until a `Stop` or `Start` removes it, so a
@@ -1051,10 +1128,10 @@ lines are reported.
 ## 7. What a recorder reports
 
 **7.1** A recorder performs the frames of section 4 of one tune with every
-register write and every timer operation recorded in place of the chip, and
-produces the record: the figures of the tune once, then one entry a frame in
-order. The ticks and their writes are outside the record. Of a multi, it
-performs the tune the host selects (1.2).
+register a row sets and every timer operation recorded in place of the
+chip, and produces the record: the figures of the tune once, then one
+entry a frame in order. The ticks and their writes are outside the record.
+Of a multi, it performs the tune the host selects (1.2).
 
 **7.2 The record.** Lines of JSON, one entry a line: spaces inside strings
 alone, integers in decimal, the keys of each object in the order this
@@ -1077,14 +1154,20 @@ the tune has no sources; `transformations` the transformations of the tune
 where the tune has none.
 
 **7.4 A frame's line.** For a frame that reads a row,
-`{"result":0,"w":{...},"e":{...}}`: `w` the registers the frame writes
-(4.4), keyed by number as text, `"0"` to `"13"`, in ascending numeric order,
-`"2"` before `"10"`, each with the value written, R7's its six bits (2.4),
-`{}` where empty, a register an effect runs on included where the row sets
-it (6.1); `e` the timers the row acts on, as the row has them, whether or
-not the timer is one of the tune (4.3), keyed by letter `"A"` to `"D"`, in
-that order, each with the operation as one object of the table, `{}` where
-empty. For the first frame after the end (4.6), `{"result":-1}`.
+`{"result":0,"w":{...},"e":{...}}`: `w` the registers the row sets (4.4),
+keyed by number as text, `"0"` to `"13"`, in ascending numeric order, `"2"`
+before `"10"`, each with the row's value, R7's its six bits (2.4), `{}`
+where empty, a register an effect runs on included (6.1), and a register
+the frame leaves to the ticks of copy from frame, whose frame value the
+row sets (3.8.3); `e` the timers the row acts on, as the row has them,
+whether or not the timer is one of the tune (4.3), keyed by letter `"A"`
+to `"D"`, in that order, each with the operation as one object of the
+table, `{}` where empty. For the first frame after the end (4.6),
+`{"result":-1}`.
+
+Note: a deferred `Start` begins its effect at a tick (5.2), so whether copy
+from frame runs at step 4 of a frame can rest on the ticks; `w` reads the
+row, so a record rests on the rows alone.
 
 | operation | object |
 |---|---|
@@ -1096,15 +1179,16 @@ empty. For the first frame after the end (4.6), `{"result":-1}`.
 
 `target` is the name of the target (3.1.2), `source` the number S of the
 source in first-start order (1.9), which the numbering of a file matches
-where a writer emitted it (json.md 3.4), `prescaler` the divisor P (3.3.2),
-`count` the count C (3.3.3), `timerReset` and `placeReset` the resets (3.4),
-`deferred` the deferral (3.5), each B `true` or `false`, `mapping` the
-mapping M (3.6): 0 for a mapping whose every part is the identity, the
-mapping of no parts included (3.6.3), and otherwise an array of a number a
-part in part order, 0 the identity and n transformation n (1.9); and `first`
-and `last` the first row F and the last row L of the cut (3.7). A deferred
-`Start` is recorded at the frame of its row, as every operation is; the tick
-that performs it is outside the record (7.1).
+where a writer emitted it (json.md 3.4), and 0 for copy from frame (3.8),
+`prescaler` the divisor P (3.3.2), `count` the count C (3.3.3),
+`timerReset` and `placeReset` the resets (3.4), `deferred` the deferral
+(3.5), each B `true` or `false`, `mapping` the mapping M (3.6): 0 for a
+mapping whose every part is the identity, the mapping of no parts included
+(3.6.3), and otherwise an array of a number a part in part order, 0 the
+identity and n transformation n (1.9); and `first` and `last` the first
+row F and the last row L of the cut (3.7). A deferred `Start` is recorded
+at the frame of its row, as every operation is; the tick that performs it
+is outside the record (7.1).
 
 **7.5 The length.** The first line and the lines of as many frames as the
 host requires, from frame 0, except that the record of a tune that plays
@@ -1137,7 +1221,7 @@ one loop is eight frames (7.5).
 
 A player of this version is unconstrained in each item below.
 
-**8.1** What a reader does with a file whose version is other than 3 to 8,
+**8.1** What a reader does with a file whose version is other than 3 to 9,
 beyond reporting the error of the form (json.md 8.1, csv.md 5.1).
 
 **8.2** Targets past the twenty-five: a procedure writing a register of the

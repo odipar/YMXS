@@ -218,10 +218,10 @@ final class TextTest {
         String on = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(target)).getMessage());
         assertTrue(on.contains("target 14, and version 3 reaches 0 to 13"), on);
-        String later = three.replace("\"version\":3", "\"version\":9");
+        String later = three.replace("\"version\":3", "\"version\":10");
         String other = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(later)).getMessage());
-        assertEquals("version 9, and this reads 3, 4, 5, 6, 7 or 8", other);
+        assertEquals("version 10, and this reads 3, 4, 5, 6, 7, 8 or 9", other);
     }
 
     /** A start's deferral is a column of version 5: a reader of a file of
@@ -476,7 +476,7 @@ final class TextTest {
         String expected = """
                 {
                   "format": "ymxs",
-                  "version": 8,
+                  "version": 9,
                   "tunes": [
                     {
                       "title": "keys",
@@ -783,6 +783,39 @@ final class TextTest {
                 new Row(Map.of(), Map.of(Timer.A, Tunes.STOP)))));
     }
 
+    /** A tune of three rows that plays once: copy from frame on setVoiceB
+     *  on Timer A, through a mapping of the volume, and a square on Timer B,
+     *  source 1 of the tune. */
+    static Tune copies() {
+        Transformation half = new Transformation("half",
+                List.of(0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7));
+        Single square = Tunes.repeating("square", List.of(12, 0), 0);
+        return new Tune("copy", "", "a test", 50, Tunes.once(List.of(
+                new Row(Map.of(Register.R2, 100, Register.R3, 1, Register.R9, 15),
+                        Map.of(Timer.A, Tunes.copying(Tunes.target(18), Prescaler.BY_4, 100,
+                                        true, true, false,
+                                        Tunes.mapping(Tunes.IDENTITY, Tunes.IDENTITY, half),
+                                        new Cut(0, 0)),
+                                Timer.B, Tunes.struck(Tunes.setting(Register.R10), square,
+                                        Prescaler.BY_4, 150))),
+                Tunes.row(Map.of(Register.R9, 12)),
+                new Row(Map.of(), Map.of(Timer.A, Tunes.STOP, Timer.B, Tunes.STOP)))));
+    }
+
+    /** Copy from frame is source 0 of a start, and a file of version 8 or
+     *  before has none (json.md 2.4, 6.1, 8.1). */
+    @Test
+    void copyFromFrameIsSource0() {
+        String text = Text.write(Tunes.multi(copies()));
+        assertTrue(text.contains("\"source\": [0,-1,-1],"), text);
+        assertTrue(text.contains("\"source\": [1,-1,-1],"), text);
+        assertEquals(Tunes.multi(copies()), Text.read(text), "the text reads back");
+        String eight = text.replace("\"version\": 9", "\"version\": 8");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Text.read(eight)).getMessage());
+        assertEquals("row 0 starts source 0, and the tune runs 1", said);
+    }
+
     /** A start's cut and a recut are the columns {@code first} and
      *  {@code last}, -1 where the shape selects neither (json.md 6.1, 6.2). */
     @Test
@@ -804,14 +837,14 @@ final class TextTest {
     @Test
     void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
         String seven = Files.readString(Path.of("doc/tunes/example.json"))
-                .replace("\"version\": 8", "\"version\": 7")
+                .replace("\"version\": 9", "\"version\": 7")
                 .replace(",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]",
                         "");
         assertFalse(seven.contains("first"), seven);
         Tune tune = Text.read(seven).tunes().get(0);
         assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
         assertEquals(Text.read(Files.readString(Path.of("doc/tunes/example.json"))),
-                Text.read(seven), "the tune of version 8 with the cut of its whole table");
+                Text.read(seven), "the tune of version 9 with the cut of its whole table");
         String four = seven.replace("\"shape\": [0,1,-1,2]", "\"shape\": [0,4,-1,2]");
         String said = String.valueOf(assertThrows(IllegalArgumentException.class,
                 () -> Text.read(four)).getMessage());

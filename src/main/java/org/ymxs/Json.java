@@ -15,6 +15,7 @@ import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
+import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
@@ -65,7 +66,12 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 8;
+    public static final int VERSION = 9;
+
+    /** The first version with copy from frame, a start of {@code source}
+     *  0: in a file of a version before it a source of 0 is an error of the
+     *  form (2.4). */
+    public static final int FRAME = 9;
 
     /** The first version with a start's cut and a recut: in a file of a
      *  version before it every start reads with the cut of the whole table
@@ -90,8 +96,8 @@ public final class Json {
      *  one to {@link #VERSION} (2.4). */
     public static final int OLDEST = 3;
 
-    /** The versions a reader reads, as its report lists them: 3, 4, 5, 6, 7
-     *  or 8. */
+    /** The versions a reader reads, as its report lists them: 3, 4, 5, 6,
+     *  7, 8 or 9. */
     static final String READS = reads();
 
     private static String reads() {
@@ -271,7 +277,7 @@ public final class Json {
                 case Start start -> {
                     shape.add(START);
                     target.add(Tunes.number(Tunes.target(start.connection())));
-                    source.add(sources.indexOf(Tunes.source(start.connection())) + 1);
+                    source.add(Tunes.number(sources, start.connection()));
                     prescaler.add(Chip.divides(start.timing().prescaler()));
                     count.add(start.timing().count());
                     timerReset.add(start.timing().timerReset() ? 1 : 0);
@@ -556,22 +562,29 @@ public final class Json {
         return switch (shape) {
             case START -> {
                 int source = column(columns, "source", at, timer, rows);
-                if (source < 1 || source > sources.size()) {
+                // source 0 is copy from frame, from version 9 (2.4, SPEC.md 3.8)
+                boolean copy = source == 0 && version >= FRAME;
+                if (!copy && (source < 1 || source > sources.size())) {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + source + ", and the tune runs " + sources.size());
                 }
-                yield Tunes.starting(target(column(columns, "target", at, timer, rows),
-                                version),
-                        sources.get(source - 1),
-                        Chip.prescaler(column(columns, "prescaler", at, timer, rows)),
-                        column(columns, "count", at, timer, rows),
-                        column(columns, "timerReset", at, timer, rows) == 1,
-                        column(columns, "placeReset", at, timer, rows) == 1,
-                        version >= DEFERRED
-                                && column(columns, "deferred", at, timer, rows) == 1,
-                        version >= MAPPED
-                                ? mapping(columns, at, timer, rows, transformations)
-                                : Tunes.NO_PARTS,
+                Target target = target(column(columns, "target", at, timer, rows), version);
+                Prescaler prescaler = Chip.prescaler(column(columns, "prescaler", at, timer,
+                        rows));
+                int count = column(columns, "count", at, timer, rows);
+                boolean timerReset = column(columns, "timerReset", at, timer, rows) == 1;
+                boolean placeReset = column(columns, "placeReset", at, timer, rows) == 1;
+                boolean deferred = version >= DEFERRED
+                        && column(columns, "deferred", at, timer, rows) == 1;
+                Mapping mapping = version >= MAPPED
+                        ? mapping(columns, at, timer, rows, transformations)
+                        : Tunes.NO_PARTS;
+                if (copy) {
+                    yield Tunes.copying(target, prescaler, count, timerReset, placeReset,
+                            deferred, mapping, cut(columns, at, timer, rows));
+                }
+                yield Tunes.starting(target, sources.get(source - 1), prescaler, count,
+                        timerReset, placeReset, deferred, mapping,
                         version >= CUT
                                 ? cut(columns, at, timer, rows)
                                 : Tunes.whole(sources.get(source - 1)));

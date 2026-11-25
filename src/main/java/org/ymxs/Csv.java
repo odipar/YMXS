@@ -13,6 +13,7 @@ import org.ymxs.YMXS.Mapping;
 import org.ymxs.YMXS.Multi;
 import org.ymxs.YMXS.Pair;
 import org.ymxs.YMXS.Part;
+import org.ymxs.YMXS.Prescaler;
 import org.ymxs.YMXS.Recut;
 import org.ymxs.YMXS.Register;
 import org.ymxs.YMXS.Remap;
@@ -23,6 +24,7 @@ import org.ymxs.YMXS.Source;
 import org.ymxs.YMXS.Start;
 import org.ymxs.YMXS.Stop;
 import org.ymxs.YMXS.Table;
+import org.ymxs.YMXS.Target;
 import org.ymxs.YMXS.Three;
 import org.ymxs.YMXS.Timer;
 import org.ymxs.YMXS.Timing;
@@ -174,7 +176,7 @@ public final class Csv {
             switch (effect) {
                 case Start start -> row(out, line, Json.START,
                         Tunes.number(Tunes.target(start.connection())),
-                        sources.indexOf(Tunes.source(start.connection())) + 1,
+                        Tunes.number(sources, start.connection()),
                         Chip.divides(start.timing().prescaler()), start.timing().count(),
                         start.timing().timerReset() ? 1 : 0, start.timing().placeReset() ? 1 : 0,
                         start.deferred() ? 1 : 0,
@@ -506,20 +508,28 @@ public final class Csv {
         return switch (shape) {
             case Json.START -> {
                 int number = number(acts.of(one, "source"), "source");
-                if (number < 1 || number > sources.size()) {
+                // source 0 is copy from frame, from version 9 (3.10, SPEC.md 3.8)
+                boolean copy = number == 0 && version >= Json.FRAME;
+                if (!copy && (number < 1 || number > sources.size())) {
                     throw new IllegalArgumentException("row " + at + " starts source "
                             + number + ", and the tune runs " + sources.size());
                 }
-                yield Tunes.starting(Json.target(number(acts.of(one, "target"), "target"),
-                                version),
-                        sources.get(number - 1),
-                        Chip.prescaler(number(acts.of(one, "prescaler"), "prescaler")),
-                        number(acts.of(one, "count"), "count"),
-                        flag(acts.of(one, "timerReset")), flag(acts.of(one, "placeReset")),
-                        version >= Json.DEFERRED && flag(acts.of(one, "deferred")),
-                        version >= Json.MAPPED
-                                ? mapping(acts.of(one, "mapping"), at, transformations)
-                                : Tunes.NO_PARTS,
+                Target target = Json.target(number(acts.of(one, "target"), "target"), version);
+                Prescaler prescaler = Chip.prescaler(number(acts.of(one, "prescaler"),
+                        "prescaler"));
+                int count = number(acts.of(one, "count"), "count");
+                boolean timerReset = flag(acts.of(one, "timerReset"));
+                boolean placeReset = flag(acts.of(one, "placeReset"));
+                boolean deferred = version >= Json.DEFERRED && flag(acts.of(one, "deferred"));
+                Mapping mapping = version >= Json.MAPPED
+                        ? mapping(acts.of(one, "mapping"), at, transformations)
+                        : Tunes.NO_PARTS;
+                if (copy) {
+                    yield Tunes.copying(target, prescaler, count, timerReset, placeReset,
+                            deferred, mapping, cut(acts, one));
+                }
+                yield Tunes.starting(target, sources.get(number - 1), prescaler, count,
+                        timerReset, placeReset, deferred, mapping,
                         version >= Json.CUT
                                 ? cut(acts, one)
                                 : Tunes.whole(sources.get(number - 1)));

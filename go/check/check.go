@@ -119,7 +119,7 @@ func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 		}
 	}
 	for _, one := range ymxs.Effects(row) {
-		wrong := Effect(one.Effect)
+		wrong := effectIn(one.Effect, starts.tune.Table.Rows)
 		if remap, ok := one.Effect.(ymxs.Remap); ok {
 			wrong = starts.on(one.Timer, w).remapped(remap.Mapping, w)
 		}
@@ -134,15 +134,22 @@ func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 }
 
 // Effect checks one operation without tune context. It cannot validate
-// a remap or a recut against starts on that timer; call Tune, Remapping or
-// Recutting for those checks.
+// a remap or a recut against starts on that timer, nor copy from frame
+// against the values the rows set; call Tune, Remapping or Recutting for
+// those checks.
 func Effect(effect ymxs.Effect) []string {
+	return effectIn(effect, nil)
+}
+
+// effectIn is Effect in a tune of the rows tune, whose rows copy from
+// frame reads (SPEC.md 3.8.4).
+func effectIn(effect ymxs.Effect, tune []ymxs.Row) []string {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		said := count(e.Timing.Count)
 		said = append(said, rate(e.Timing.Prescaler, e.Timing.Count)...)
-		said = append(said, runs(e)...)
-		return append(said, cutOf(e.Cut, ymxs.ConnectionSource(e.Connection))...)
+		said = append(said, runs(e, tune)...)
+		return append(said, cutOf(e.Cut, ymxs.ConnectionSize(e.Connection))...)
 	case ymxs.Retune:
 		return append(count(e.Timing.Count), rate(e.Timing.Prescaler, e.Timing.Count)...)
 	case ymxs.Stop, ymxs.Remap, ymxs.Recut:
@@ -151,12 +158,12 @@ func Effect(effect ymxs.Effect) []string {
 	panic(fmt.Sprintf("no effect %T", effect))
 }
 
-// cutOf lists what is wrong with the cut of a start against its source: the
-// first row outside the source, the last row outside it, and a last row
-// below the first. Each rests on the row count, so a source of no rows has
-// none of them (SPEC.md 1.12).
-func cutOf(cut ymxs.Cut, source ymxs.Source) []string {
-	rows := ymxs.SourceSize(source)
+// cutOf lists what is wrong with the cut of a start against its source of
+// rows rows: the first row outside the source, the last row outside it, and
+// a last row below the first. Each rests on the row count, so a source of
+// no rows has none of them (SPEC.md 1.12). Copy from frame is a source of
+// one row (SPEC.md 3.8.4).
+func cutOf(cut ymxs.Cut, rows int) []string {
 	if rows == 0 {
 		return nil
 	}
@@ -210,19 +217,22 @@ func Source(source ymxs.Source) []string {
 // and lookup keys against transformation lengths, then checks selected
 // entries against register limits. Invalid transformation lengths and
 // entries are reported separately (SPEC.md 1.12).
-func runs(start ymxs.Start) []string {
+func runs(start ymxs.Start, tune []ymxs.Row) []string {
 	target := ymxs.ConnectionTarget(start.Connection)
 	source := ymxs.ConnectionSource(start.Connection)
 	mapping := start.Mapping
 	named := ymxs.TargetName(target)
-	said := Source(source)
+	var said []string
+	if source != nil {
+		said = Source(source)
+	}
 	if reads := ymxs.TargetColumns(target); len(mapping.Parts) != 0 &&
 		len(mapping.Parts) != reads {
 		return append(said, fmt.Sprintf("a mapping of %d parts on %s, which reads %d",
 			len(mapping.Parts), named, reads))
 	}
 	mosts := ymxs.TargetMosts(target)
-	rows := ymxs.SourceRows(source).Rows
+	rows, numbers := rowsOf(start.Connection, tune)
 	for at, row := range rows {
 		for i, most := range mosts {
 			part := ymxs.PartAt(mapping, i)
@@ -232,7 +242,7 @@ func runs(start ymxs.Start) []string {
 						" and the target is 0 to %d", named, at, row[i], most))
 				}
 			} else if last, above := aboveKeys(part, row[i]); above {
-				said = append(said, keyed(at, row[i], named, last))
+				said = append(said, keyedOf(target, numbers, at, i, row[i], last))
 			}
 		}
 	}
@@ -243,11 +253,72 @@ func runs(start ymxs.Start) []string {
 				continue
 			}
 			if written, read := ymxs.Through(part, row[i]); read && written > most {
-				said = append(said, mapped(i, at, written, named, most))
+				said = append(said, mappedOf(target, numbers, at, i, row[i], written, most))
 			}
 		}
 	}
 	return said
+}
+
+// rowsOf is the rows a check reads of the source of the connection, and
+// nil numbers: each row of its table. Of copy from frame they are each row
+// of the tune that sets a register of the target to a value 0 to its most,
+// value i -1 where the row leaves register i unset or sets it outside that,
+// and numbers the number of each such row in the tune (SPEC.md 3.8.4). A
+// value of -1 is under every most and every last key, and Through reads
+// none.
+func rowsOf(connection ymxs.Connection, tune []ymxs.Row) ([][]int, []int) {
+	copies, ok := connection.(ymxs.CopyFromFrame)
+	if !ok {
+		return ymxs.SourceRows(ymxs.ConnectionSource(connection)).Rows, nil
+	}
+	registers := ymxs.TargetRegisters(copies.Target)
+	var rows [][]int
+	var numbers []int
+	for at, row := range tune {
+		values := make([]int, len(registers))
+		any := false
+		for i, register := range registers {
+			value, set := row.Registers[register]
+			if set && value >= 0 && value <= ymxs.Most(register) {
+				values[i] = value
+				any = true
+			} else {
+				values[i] = -1
+			}
+		}
+		if any {
+			rows = append(rows, values)
+			numbers = append(numbers, at)
+		}
+	}
+	return rows, numbers
+}
+
+// keyedOf is the line of value i of row at of the rows rowsOf reads, above
+// the last key of its transformation: keyed for a source, and for copy
+// from frame, where numbers is set, the row of the tune that sets register
+// i of the target to it (SPEC.md 3.8.4).
+func keyedOf(target ymxs.Target, numbers []int, at, i, value, last int) string {
+	if numbers == nil {
+		return keyed(at, value, ymxs.TargetName(target), last)
+	}
+	return fmt.Sprintf("row %d sets %s to %d, which copy from frame on %s reads, and a key"+
+		" is 0 to %d", numbers[at], ymxs.TargetRegisters(target)[i], value,
+		ymxs.TargetName(target), last)
+}
+
+// mappedOf is the line of value i of row at of the rows rowsOf reads,
+// written through a mapping above the most of register i of the target:
+// mapped for a source, and for copy from frame the row of the tune that
+// sets the register (SPEC.md 3.8.4).
+func mappedOf(target ymxs.Target, numbers []int, at, i, value, written, most int) string {
+	if numbers == nil {
+		return mapped(i, at, written, ymxs.TargetName(target), most)
+	}
+	return fmt.Sprintf("row %d sets %s to %d, which maps to %d on %s, and the target is 0"+
+		" to %d", numbers[at], ymxs.TargetRegisters(target)[i], value, written,
+		ymxs.TargetName(target), most)
 }
 
 // Remapping checks the mapping against every start on the timer,
@@ -272,7 +343,8 @@ func Recutting(tune ymxs.Tune, timer ymxs.Timer, recut ymxs.Recut) []string {
 
 // remapping is the starts of a tune that its remaps and recuts are read
 // against, the starts on a timer read at the first remap or recut on it. A
-// timer without either has its starts left unread.
+// timer without either has its starts left unread. Copy from frame reads
+// the rows of the tune.
 type remapping struct {
 	tune   ymxs.Tune
 	timers map[ymxs.Timer]*started
@@ -297,6 +369,7 @@ func (r *remapping) on(timer ymxs.Timer, w *work) *started {
 // remaps maps the key of each mapping read against them to its lines, and
 // recuts each cut; sources is each source once, read at the first recut.
 type started struct {
+	tune        []ymxs.Row
 	targets     []ymxs.Target
 	connections []connectedAt
 	seen        map[ymxs.Target]bool
@@ -307,7 +380,8 @@ type started struct {
 	recuts      map[ymxs.Cut][]string
 }
 
-// sourcedAt is a source and the row of its first start on a timer.
+// sourcedAt is a source and the row of its first start on a timer, the
+// source nil for copy from frame.
 type sourcedAt struct {
 	row    int
 	source ymxs.Source
@@ -341,8 +415,8 @@ type connectionKey struct {
 // startsOn reads the starts on the timer in one pass over the rows of the
 // tune.
 func startsOn(tune ymxs.Tune, timer ymxs.Timer, w *work) *started {
-	on := &started{seen: map[ymxs.Target]bool{}, connected: map[connectionKey][]int{},
-		remaps: map[string][]string{}}
+	on := &started{tune: ymxs.Rows(tune), seen: map[ymxs.Target]bool{},
+		connected: map[connectionKey][]int{}, remaps: map[string][]string{}}
 	for at, row := range ymxs.Rows(tune) {
 		w.rows++
 		if start, ok := row.Effects[timer].(ymxs.Start); ok {
@@ -360,6 +434,16 @@ func (s *started) add(at int, connection ymxs.Connection, w *work) {
 	if !s.seen[target] {
 		s.seen[target] = true
 		s.targets = append(s.targets, target)
+	}
+	if source == nil {
+		// copy from frame on a target is one connection
+		key := connectionKey{target: target, rows: -1}
+		if len(s.connected[key]) > 0 {
+			return
+		}
+		s.connected[key] = []int{len(s.connections)}
+		s.connections = append(s.connections, connectedAt{row: at, connection: connection})
+		return
 	}
 	rows, hash := hashed(source)
 	w.keyed += rows
@@ -398,7 +482,11 @@ func (s *started) recut(cut ymxs.Cut) []string {
 	}
 	said := ordered(cut)
 	for _, one := range s.sourcesOf() {
-		rows := ymxs.SourceSize(one.source)
+		// copy from frame is a source of one row (SPEC.md 3.8.4)
+		rows := 1
+		if one.source != nil {
+			rows = ymxs.SourceSize(one.source)
+		}
 		if rows == 0 {
 			continue
 		}
@@ -423,8 +511,16 @@ func (s *started) sourcesOf() []sourcedAt {
 	}
 	s.sources = []sourcedAt{}
 	seen := map[sourceKey][]int{}
+	copies := false
 	for _, one := range s.connections {
 		source := ymxs.ConnectionSource(one.connection)
+		if source == nil {
+			if !copies {
+				copies = true
+				s.sources = append(s.sources, sourcedAt{row: one.row})
+			}
+			continue
+		}
 		rows, hash := hashed(source)
 		key := sourceKey{name: ymxs.SourceName(source), rows: rows, hash: hash}
 		fresh := true
@@ -458,16 +554,18 @@ func (s *started) read(mapping ymxs.Mapping, w *work) []string {
 		if reads := ymxs.TargetColumns(target); parts != 0 && parts != reads {
 			continue
 		}
-		mosts, named := ymxs.TargetMosts(target), ymxs.TargetName(target)
+		mosts := ymxs.TargetMosts(target)
 		from := fmt.Sprintf("start of row %d: ", one.row)
-		for at, row := range ymxs.SourceRows(ymxs.ConnectionSource(one.connection)).Rows {
+		rows, numbers := rowsOf(one.connection, s.tune)
+		for at, row := range rows {
 			w.sources++
 			for i, most := range mosts {
 				part := ymxs.PartAt(mapping, i)
 				if last, above := aboveKeys(part, row[i]); above {
-					said = append(said, from+keyed(at, row[i], named, last))
+					said = append(said, from+keyedOf(target, numbers, at, i, row[i], last))
 				} else if written, read := ymxs.Through(part, row[i]); read && written > most {
-					said = append(said, from+mapped(i, at, written, named, most))
+					said = append(said, from+mappedOf(target, numbers, at, i, row[i], written,
+						most))
 				}
 			}
 		}
@@ -733,16 +831,21 @@ type writing struct {
 	running map[ymxs.Timer]*running
 	pending map[ymxs.Timer]ymxs.Start
 	started map[ymxs.Timer]bool
+	set     map[ymxs.Register]bool // the registers the rows before set, for rule 7
 }
 
 func (w *writing) run() []string {
+	w.set = map[ymxs.Register]bool{}
 	for at, row := range w.tune.Table.Rows {
 		w.begin(at)
 		// The effects come first, in the order a frame writes them.
 		for _, one := range ymxs.Effects(row) {
-			w.effect(at, one.Timer, one.Effect)
+			w.effect(at, one.Timer, one.Effect, row)
 		}
 		w.registers(at, row)
+		for register := range row.Registers {
+			w.set[register] = true
+		}
 	}
 	for _, timer := range ymxs.Timers {
 		if runs, on := w.running[timer]; on {
@@ -812,6 +915,10 @@ func (w *writing) wrap() {
 		if !running || last >= runs.until {
 			continue
 		}
+		// copy from frame reads the rows, which rule 1(e) excludes
+		if _, copies := runs.start.Connection.(ymxs.CopyFromFrame); copies {
+			continue
+		}
 		// a remap or a recut at the repeat row leaves the effect running from
 		// the pass before, as a row that leaves the timer alone does (rule
 		// 1(d))
@@ -858,10 +965,11 @@ func (w *writing) collided(timer ymxs.Timer, runs *running) {
 	runs.collisions = 0
 }
 
-func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect) {
+func (w *writing) effect(at int, timer ymxs.Timer, effect ymxs.Effect, row ymxs.Row) {
 	switch e := effect.(type) {
 	case ymxs.Start:
 		w.place(at, timer, e)
+		w.frame(at, timer, e, row)
 		if runs, on := w.runs(timer, at); e.Deferred && on {
 			// the effect plays its source once from here, and the start
 			// follows it
@@ -931,12 +1039,33 @@ func (w *writing) place(at int, timer ymxs.Timer, start ymxs.Start) {
 		" run none: the place is where the player left it", false)
 }
 
+// frame reads rule 7: a start of copy from frame follows a row that sets
+// each register its target writes, this row or one before it. Before the
+// first such row the frame value of a register is 0 (SPEC.md 3.8.1).
+func (w *writing) frame(at int, timer ymxs.Timer, start ymxs.Start, row ymxs.Row) {
+	copies, ok := start.Connection.(ymxs.CopyFromFrame)
+	if !ok {
+		return
+	}
+	for _, register := range written(copies.Target) {
+		if _, set := row.Registers[register]; set || w.set[register] {
+			continue
+		}
+		w.say(at, timer, fmt.Sprintf("starts copy from frame on %s before a row sets %s:"+
+			" its frame value is 0", ymxs.TargetName(copies.Target), register), false)
+	}
+}
+
 // registers reads rule 1: while an effect runs on a register, a row does
-// not set that register.
+// not set that register. The rows set the registers of copy from frame,
+// which rule 1(e) excludes.
 func (w *writing) registers(at int, row ymxs.Row) {
 	for _, timer := range ymxs.Timers {
 		runs, on := w.running[timer]
 		if !on || at >= runs.until {
+			continue
+		}
+		if _, copies := runs.start.Connection.(ymxs.CopyFromFrame); copies {
 			continue
 		}
 		hit := false
@@ -980,10 +1109,10 @@ func (w *writing) reckoned(timer ymxs.Timer, at int) bool {
 const reckoned = ", which rests on how long a source that plays once runs, reckoned" +
 	" from its rate"
 
-// until is the row a start's source ends on, or no row where it repeats.
+// until is the row a start's source ends on, or no row where it repeats,
+// as copy from frame does.
 func (w *writing) until(at int, start ymxs.Start) int {
-	rows := ymxs.SourceRows(ymxs.ConnectionSource(start.Connection))
-	if _, repeats := rows.Repeat(); repeats {
+	if ymxs.ConnectionRepeats(start.Connection) {
 		return math.MaxInt32
 	}
 	return at + w.frames(start)

@@ -128,6 +128,12 @@ kept within them. `Recut` sets the cut of a running effect, which moves a
 window over a wave table; [`cut.json`](doc/tunes/cut.json) moves one two
 rows a frame.
 
+For copy from frame, begin with [SPEC.md 3.8](doc/SPEC.md#38-copy-from-frame):
+a source of one row whose values are the registers' values as the rows
+set them, so a tick writes those values to its target at the timer's
+rate. On `setR13` that restarts the envelope at each tick with the shape
+the rows set.
+
 Start with [SPEC.md](doc/SPEC.md): data structure and chip values
 (1 to 3), playback (4 and 5), writer rules (6), recorder output (7),
 and later versions (8). Tests compare its Java declarations with

@@ -116,7 +116,8 @@ type Start struct {
 // Connection is the target a start runs its source on, and that source. A
 // connection is a shape a width: each pairs a target with a source of the
 // values a row that target reads, so a source that fits its target is a
-// shape here rather than a rule a check reads.
+// shape here rather than a rule a check reads. CopyFromFrame is a target of
+// any width, whose source is the frame values (SPEC.md 3.8).
 type Connection interface {
 	connection()
 }
@@ -137,6 +138,14 @@ type TwoConnection struct {
 type ThreeConnection struct {
 	Target ThreeTarget
 	Source Triple
+}
+
+// CopyFromFrame is a target of any width and copy from frame: a source of
+// one row that repeats to row 0, whose value i at a tick is the frame value
+// of register i of the target, the value the last row that set it set
+// (SPEC.md 3.8).
+type CopyFromFrame struct {
+	Target Target
 }
 
 // Retune changes timing and resets while preserving the source, target
@@ -191,6 +200,7 @@ func (Recut) effect()  {}
 func (OneConnection) connection()   {}
 func (TwoConnection) connection()   {}
 func (ThreeConnection) connection() {}
+func (CopyFromFrame) connection()   {}
 
 // Target writes mapped source values to YM2149 registers in target
 // order. The effect's mapping supplies either each source value

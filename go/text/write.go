@@ -26,7 +26,12 @@ const Format = "ymxs"
 
 // Version is the version of the structure this maps, and the version a
 // writer writes.
-const Version = 8
+const Version = 9
+
+// Frame is the first version with copy from frame, a start of source 0: in
+// a file of a version before it a source of 0 is an error of the form
+// (json.md 2.4).
+const Frame = 9
 
 // Cut is the first version with a start's cut and a recut: in a file of a
 // version before it every start reads with the cut of the whole table of
@@ -52,7 +57,7 @@ const Several = 4
 const Oldest = 3
 
 // Reads is the versions a reader reads, as its report lists them: Oldest
-// to Version, "3, 4, 5, 6, 7 or 8".
+// to Version, "3, 4, 5, 6, 7, 8 or 9".
 var Reads = func() string {
 	var said []string
 	for version := Oldest; version < Version; version++ {
@@ -211,7 +216,7 @@ func (w *writer) timer(rows []ymxs.Row, sources []ymxs.Source,
 		case ymxs.Start:
 			shape[at] = Start
 			target[at] = ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection))
-			source[at] = indexOf(sources, ymxs.ConnectionSource(e.Connection)) + 1
+			source[at] = ymxs.ConnectionNumber(sources, e.Connection)
 			prescaler[at] = ymxs.Divides(e.Timing.Prescaler)
 			count[at] = e.Timing.Count
 			timerReset[at] = flag(e.Timing.TimerReset)

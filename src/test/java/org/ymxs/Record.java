@@ -22,7 +22,7 @@ import org.ymxs.YMXS.Tune;
 /**
  * The record of SPEC.md 7: the figures of a tune once, then one line a
  * frame. A recorder here reads the structure rather than the chip, since
- * every write of a frame is in the row it reads (4.4).
+ * the registers of a frame's line are those the row sets (7.4).
  *
  * <p>{@link RecordTest} reads the example of 7.6 against it and the
  * conformance kit is written by it, so the clause, the example and the kit
@@ -85,7 +85,7 @@ final class Record {
         return switch (effect) {
             case Start start -> "{\"start\":{\"target\":\""
                     + Tunes.name(Tunes.target(start.connection()))
-                    + "\",\"source\":" + Tunes.number(tune, Tunes.source(start.connection()))
+                    + "\",\"source\":" + Tunes.number(Tunes.sources(tune), start.connection())
                     + ",\"prescaler\":" + Chip.divides(start.timing().prescaler())
                     + ",\"count\":" + start.timing().count()
                     + ",\"timerReset\":" + start.timing().timerReset()

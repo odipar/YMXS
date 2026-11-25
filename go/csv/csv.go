@@ -148,7 +148,7 @@ func acts(out *strings.Builder, timer ymxs.Timer, rows []ymxs.Row, sources []ymx
 		case ymxs.Start:
 			row(out, line, text.Start,
 				ymxs.TargetNumber(ymxs.ConnectionTarget(e.Connection)),
-				indexOf(sources, ymxs.ConnectionSource(e.Connection))+1,
+				ymxs.ConnectionNumber(sources, e.Connection),
 				ymxs.Divides(e.Timing.Prescaler),
 				e.Timing.Count, flagOf(e.Timing.TimerReset), flagOf(e.Timing.PlaceReset),
 				flagOf(e.Deferred), mappingCell(e.Mapping, transformations),
@@ -577,7 +577,9 @@ func effectOf(acts *block, one []string, sources []ymxs.Source,
 		if err != nil {
 			return nil, err
 		}
-		if number < 1 || number > len(sources) {
+		// source 0 is copy from frame, from version 9 (csv.md 3.10, SPEC.md 3.8)
+		copies := number == 0 && version >= text.Frame
+		if !copies && (number < 1 || number > len(sources)) {
 			return nil, fmt.Errorf("row %d starts source %d, and the tune runs %d",
 				at, number, len(sources))
 		}
@@ -615,12 +617,17 @@ func effectOf(acts *block, one []string, sources []ymxs.Source,
 				return nil, err
 			}
 		}
-		cut := ymxs.Whole(sources[number-1])
+		var cut ymxs.Cut
 		if version >= text.Cut {
 			cut, err = cutOf(acts, one)
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			cut = ymxs.Whole(sources[number-1])
+		}
+		if copies {
+			return ymxs.Copying(run, timing, deferred, mapping, cut), nil
 		}
 		return ymxs.Starting(run, sources[number-1], timing, deferred, mapping, cut)
 	case shape == text.Retune:

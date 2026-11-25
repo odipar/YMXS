@@ -1,6 +1,6 @@
 # The conformance kit
 
-**1.** The kit is twelve tunes under `tunes/`, each a structure in the
+**1.** The kit is thirteen tunes under `tunes/`, each a structure in the
 JSON form of [json.md](../json.md), and the record of one tune of each
 beside it in `records/`. The kit tests the two documents,
 [SPEC.md](../SPEC.md) and [json.md](../json.md): an implementer who has
@@ -8,8 +8,8 @@ read them alone writes a recorder, and a record equal to the reference
 line for line shows that the documents define it.
 
 **2. What the kit tests.** The recorder of SPEC.md 7 reads a tune and
-reports the figures of the tune once and one line a frame, each register
-write and each timer operation recorded in place of the chip; the ticks
+reports the figures of the tune once and one line a frame, each register a
+row sets and each timer operation recorded in place of the chip; the ticks
 are outside the record (7.1), so a recorder runs on any machine.
 
 **3. The files.**
@@ -22,13 +22,14 @@ are outside the record (7.1), so a recorder runs on any machine.
 | `SOURCES.md` | a row a tune: which tune of the file the record is of, the lines of it, and what the tune reaches |
 
 **4. What each tune reaches.** SOURCES.md has the table. Between them the
-twelve reach the four timers, the five operations of SPEC.md 4.3, a source
-that repeats to row 0, one that repeats to a row above it, one that plays
-once, every register column, R7's six bits, a row that sets a register an
-effect runs on, a tune that wraps, a tune that plays once, a multi whose
-second tune runs at another rate, the targets of two and three registers
-with the sources of two and three values a row they run, a deferred start,
-cuts and recuts (SPEC.md 3.7), and transformation cases:
+thirteen reach the four timers, the five operations of SPEC.md 4.3, a
+source that repeats to row 0, one that repeats to a row above it, one that
+plays once, every register column, R7's six bits, a row that sets a
+register an effect runs on, a tune that wraps, a tune that plays once, a
+multi whose second tune runs at another rate, the targets of two and three
+registers with the sources of two and three values a row they run, a
+deferred start, cuts and recuts (SPEC.md 3.7), copy from frame (SPEC.md
+3.8), and transformation cases:
 
 - Identity defaults and starts through lookup tables.
 - Fades by remapping, including a remap at the repeat row.

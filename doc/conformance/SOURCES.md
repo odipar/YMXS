@@ -35,3 +35,4 @@ its mapping (4.3, 7.3, 7.4).
 | `deferred` | 1 | 17 | a deferred start, recorded at the frame of its row (3.5, 7.4) |
 | `transformations` | 1 | 12 | a start through a transformation, a fade of remaps, a remap at the repeat row, a target of three registers through a mapping, transformations of 16 entries and of 256, keys above the most of a register, two transformations of one name, equal entries under two names (3.6.2), and a remap on a timer outside the tune (4.3); the file lists the transformations in another order than 1.9 numbers them (3.6, 7.4) |
 | `cuts` | 1 | 11 | a start under a cut, recuts of a running effect, a deferred start under a cut of another source, and one source under two cuts on two timers (3.7, 7.4) |
+| `copy-from-frame` | 1 | 11 | copy from frame on setR13, then on setBuzzer, and on setVoiceB through a mapping, remapped and recut, recorded as source 0 beside a source of the tune (3.8, 7.4) |

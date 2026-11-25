@@ -49,13 +49,10 @@ Two additions, both of version 10:
 - three targets, `syncToneA`, `syncToneB` and `syncToneC`, each of which
   syncs its voice at each tick before writing the period.
 
+`Row` gains a third field, `Set<Voice> syncs`, after `effects`, and
+`TwoTarget` permits a fourth record:
+
 ```java
-record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects,
-           Set<Voice> syncs) { }
-
-sealed interface TwoTarget extends Target permits SetTone, SyncTone, SetNoise,
-        SetEnvelope { }
-
 record SyncTone(Voice voice) implements TwoTarget { }
 ```
 

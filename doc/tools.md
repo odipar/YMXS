@@ -493,4 +493,4 @@ the JSON.
 
 **12.5** [RELEASES.md](RELEASES.md) lists the releases. The Go tree is
 the module `github.com/odipar/ymxs/go`, a version of it a tag of that
-directory, `go/v0.8.0` beside `v0.8.0`.
+directory, `go/v0.9.0` beside `v0.9.0`.

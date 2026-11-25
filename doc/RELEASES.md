@@ -18,13 +18,59 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.8.0` beside `v0.8.0`.
+version of it is a tag of that directory: `go/v0.9.0` beside `v0.9.0`.
 
-A player pins a version of this format: the structure's version is 8, a
-writer writes 8 and a reader reads 8, 7, 6, 5, 4 and 3, and a release's
+A player pins a version of this format: the structure's version is 9, a
+writer writes 9 and a reader reads 9, 8, 7, 6, 5, 4 and 3, and a release's
 number names the tools rather than the format.
 
 ## Published
+
+### 0.9.0, 2026-11-25
+
+<https://github.com/odipar/YMXS/releases/tag/v0.9.0>, built from the commit
+tagged `v0.9.0`.
+
+The structure's version is 9: copy from frame is a source of one row that
+repeats to row 0, whose value i at a tick is the frame value of register i
+of its target, the value the last row that set the register set (SPEC.md
+3.8), for issue 114. A fourth connection, `CopyFromFrame`, pairs it with a
+target of any width. While it runs on a register, the rows set the
+register's frame value and the frame leaves the register to the ticks,
+which write it through the mapping. A writer writes 9, and a reader reads
+9, 8, 7, 6, 5, 4 and 3.
+
+- **The structure.** `CopyFromFrame(Target target)` is a fourth
+  `Connection`, and copy from frame is outside the sources of a tune
+  (SPEC.md 1.1, 3.8).
+- **The rules.** Rule 1 excludes a register copy from frame runs on, at
+  the rows and at the wrap (1(e)), and rule 7 warns of a start before the
+  rows set a register its target writes, whose frame value is then 0.
+  Through a transformation a frame value is a key, and two errors of the
+  structure report the row that sets a key past the last of the
+  transformation and one whose entry is past the most of its register
+  (3.8.4).
+- **The forms.** JSON, CSV and the record select copy from frame as
+  source 0, and source 0 in a file of version 8 or before is an error of
+  the form (json.md 2.4); a version other than 3 to 9 reports `version N,
+  and this reads 3, 4, 5, 6, 7, 8 or 9`.
+- **The Go module.** `ymxs.CopyFromFrame` is a fourth connection and
+  `Copying` a start of it, and `ConnectionNumber`, `ConnectionSize`,
+  `ConnectionRepeats` and `ConnectionWhole` read a connection of any kind.
+  `text.Version` is 9, and `text.Frame` is 9, the first version with copy
+  from frame.
+- **The examples.** The kit has a thirteenth tune, `copy-from-frame`, and
+  every tune file of the documents is version 9.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release
+writes in 12 dumps of 12 the tune that `ym-to-ymxs` of 0.8.0 writes, read
+and written again by this release, and reports the same. `ymxs-check`
+exits, writes and reports the same on the twelve tunes of the kit and the
+ten example tunes of 0.8.0, each read as version 8, and
+`ymxs-csv-to-json` reads the two CSV examples of 0.8.0 into the tunes of
+version 9 under `doc/tunes`.
+
+Checks: `bin/suite` green, 235 tests and 0 skipped.
 
 ### 0.8.0, 2026-11-22
 

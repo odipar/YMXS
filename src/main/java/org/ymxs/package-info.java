@@ -13,7 +13,7 @@
  * Table          rows and an optional repeat row
  * Row            register writes and timer operations
  * Effect         Start, Retune, Stop, Remap or Recut
- * Connection     source and target of matching width
+ * Connection     source and target of matching width, or copy from frame
  * Source         Single, Pair or Triple: values or lookup keys
  * Mapping        identity or transformation for each value
  * Cut            the first and last row of the source an effect reads

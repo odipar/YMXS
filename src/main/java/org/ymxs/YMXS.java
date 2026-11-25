@@ -71,8 +71,10 @@ public interface YMXS {
      *  the values a row that target reads, so a source that fits its
      *  target is a shape here rather than a rule a check reads. A reader
      *  that reads a connection of any width reads this interface; one that
-     *  reads a width reads the record. */
-    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection { }
+     *  reads a width reads the record. {@link CopyFromFrame} is a target
+     *  of any width, whose source is the frame values (SPEC.md 3.8). */
+    sealed interface Connection permits OneConnection, TwoConnection, ThreeConnection,
+            CopyFromFrame { }
 
     /** A connection of one value a row. */
     record OneConnection(OneTarget target, Single source) implements Connection { }
@@ -82,6 +84,12 @@ public interface YMXS {
 
     /** A connection of three values a row. */
     record ThreeConnection(ThreeTarget target, Triple source) implements Connection { }
+
+    /** A target of any width and copy from frame: a source of one row that
+     *  repeats to row 0, whose value i at a tick is the frame value of
+     *  register i of the target, the value the last row that set it set
+     *  (SPEC.md 3.8). */
+    record CopyFromFrame(Target target) implements Connection { }
 
     /** The rate a row writes the timer, and the two resets it performs
      *  with it: the prescaler and the count are the rate (3.3), and a

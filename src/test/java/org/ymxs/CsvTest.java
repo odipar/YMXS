@@ -812,6 +812,23 @@ final class CsvTest {
         return start;
     }
 
+    /** Copy from frame is source 0 of a start, and a file of version 8 or
+     *  before has none (3.9, 3.10, 5.1). */
+    @Test
+    void copyFromFrameIsSource0() {
+        String csv = Csv.write(Tunes.multi(TextTest.copies()));
+        List<String> rows = csv.lines().dropWhile(one -> !one.startsWith("### timerA"))
+                .skip(2).takeWhile(one -> !one.isBlank()).toList();
+        assertEquals("0,0,18,0,4,100,1,1,0,0 0 1,0,0", rows.get(0), csv);
+        assertEquals(Tunes.multi(TextTest.copies()), Csv.read(csv), "the form reads back");
+        assertEquals(Tunes.multi(TextTest.copies()), Text.read(Text.write(Csv.read(csv))),
+                "and crosses to JSON");
+        String eight = csv.replace("ymxs,9,1", "ymxs,8,1");
+        String said = String.valueOf(assertThrows(IllegalArgumentException.class,
+                () -> Csv.read(eight)).getMessage());
+        assertEquals("row 0 starts source 0, and the tune runs 1", said);
+    }
+
     /** A start's cut and a recut are the cells {@code first} and
      *  {@code last}, empty where the shape selects neither (3.9). */
     @Test
@@ -832,7 +849,7 @@ final class CsvTest {
     @Test
     void aFileOfVersion7ReadsEveryStartUnderTheWholeTable() throws IOException {
         String seven = Files.readString(Path.of("doc/tunes/example.csv"))
-                .replace("ymxs,8,1", "ymxs,7,1");
+                .replace("ymxs,9,1", "ymxs,7,1");
         Tune tune = Csv.read(seven).tunes().get(0);
         assertEquals(new Cut(0, 1), start(tune, 0).cut(), "the whole table of square 13");
         String eight = seven.replace("ymxs,7,1", "ymxs,8,1").replace("0,0,8,1,50,60,1,1,0,0,0,1",

@@ -814,3 +814,114 @@ func TestTheReckoningReadsTheRowsOfTheCutOfTheStart(t *testing.T) {
 		[]string{"rows 1 to 3: Timer A runs on R8 from row 0, and 2 of them set it" +
 			reckoned})
 }
+
+// ------------------------------------------ copy from frame, SPEC.md 3.8
+
+// copies is a start on Timer A of copy from frame on the target through the
+// mapping under the cut, at 4 and 100, both resets set.
+func copies(target ymxs.Target, mapping ymxs.Mapping, under ymxs.Cut) ymxs.Row {
+	return on(ymxs.Copying(target, ymxs.Timing{Prescaler: ymxs.By4, Count: 100,
+		TimerReset: true, PlaceReset: true}, false, mapping, under))
+}
+
+// setting is a row that sets the register to the value and leaves every
+// timer alone.
+func setting(register ymxs.Register, value int) ymxs.Row {
+	return ymxs.Row{Registers: map[ymxs.Register]int{register: value}}
+}
+
+// Copy from frame is a source of one row that repeats to row 0, outside the
+// sources of the tune, and a form writes it as source 0 (SPEC.md 1.9,
+// 3.8.2, 7.4). The lines are those of the Java tree's CheckTest.
+func TestCopyFromFrameIsOutsideTheSourcesOfTheTune(t *testing.T) {
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	frame := ymxs.CopyFromFrame{Target: ymxs.Setting(ymxs.R8)}
+	struck := on(ymxs.Struck(ymxs.Setting(ymxs.R8), square, ymxs.By4, 100))
+	built := tune([]ymxs.Row{setting(ymxs.R8, 12), copies(frame.Target, ymxs.Mapping{},
+		ymxs.Cut{}), struck}, 50)
+	sources := ymxs.Sources(built)
+	if len(sources) != 1 || ymxs.ConnectionNumber(sources, frame) != 0 ||
+		ymxs.ConnectionNumber(sources, ymxs.OneConnection{Target: ymxs.Setting(ymxs.R8),
+			Source: square}) != 1 {
+		t.Errorf("the sources are %v", sources)
+	}
+	if ymxs.ConnectionWhole(frame) != (ymxs.Cut{}) || !ymxs.ConnectionRepeats(frame) {
+		t.Errorf("copy from frame is a source of one row that repeats")
+	}
+	lines(t, "a tune that copies from frame", check.Tune(built), nil)
+}
+
+// The rows set the registers copy from frame runs on, and rule 1 excludes
+// them, at every row and at the wrap (rule 1(e)).
+func TestTheRowsSetTheRegistersCopyFromFrameRunsOn(t *testing.T) {
+	frame := copies(ymxs.Setting(ymxs.R8), ymxs.Mapping{}, ymxs.Cut{})
+	twelve := setting(ymxs.R8, 12)
+	lines(t, "copy from frame", check.Writing(tune([]ymxs.Row{twelve, frame, twelve,
+		twelve}, 50)), nil)
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	struck := on(ymxs.Struck(ymxs.Setting(ymxs.R8), square, ymxs.By4, 100))
+	lines(t, "a source on R8", check.Writing(tune([]ymxs.Row{twelve, struck, twelve,
+		twelve}, 50)), []string{
+		"rows 2 to 3: Timer A runs on R8 from row 1, and 2 of them set it",
+		"the tune repeats to row 0, and Timer A runs on R8 when its last row has played:" +
+			" the wrap resumes with the timer running from the pass before"})
+}
+
+// Rule 7: a start of copy from frame follows a row that sets each register
+// its target writes, the start row or one before it; the lines come in the
+// order of the target, after the rule 3 line (SPEC.md 6.3 step 2(a)).
+func TestAStartOfCopyFromFrameBeforeARowSetsItsRegisterIsSaid(t *testing.T) {
+	voice := ymxs.SetVoice{Voice: ymxs.VoiceA}
+	both := copies(voice, ymxs.Mapping{}, ymxs.Cut{})
+	both.Registers = map[ymxs.Register]int{ymxs.R0: 200}
+	before := "row 0: Timer A starts copy from frame on setVoiceA before a row sets "
+	lines(t, "the start row sets R0", check.Writing(tune([]ymxs.Row{both}, 50)),
+		[]string{before + "R1: its frame value is 0", before + "R8: its frame value is 0"})
+	lines(t, "a row before sets R1 and R8", check.Writing(tune([]ymxs.Row{
+		{Registers: map[ymxs.Register]int{ymxs.R1: 1, ymxs.R8: 15}}, both}, 50)), nil)
+	unplaced := on(ymxs.Copying(ymxs.Setting(ymxs.R8), ymxs.Timing{Prescaler: ymxs.By4,
+		Count: 100, TimerReset: true}, false, ymxs.Mapping{}, ymxs.Cut{}))
+	lines(t, "a start without the place's reset", check.Writing(tune([]ymxs.Row{unplaced},
+		50)), []string{"row 0: Timer A starts a source without the place's reset, and this" +
+		" timer has run none: the place is where the player left it",
+		"row 0: Timer A starts copy from frame on setR8 before a row sets R8: its frame" +
+			" value is 0"})
+}
+
+// Through a transformation a frame value is a key: a key above the last key
+// and an entry above the most of the register are errors of the start and
+// of a remap, reported at the row that sets the value, and a value outside
+// its register is the error of its row alone (SPEC.md 1.11, 3.8.4).
+func TestAFrameValueThroughATransformationIsAKey(t *testing.T) {
+	half := ymxs.Transformation{Name: "half",
+		Entries: []int{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 40}}
+	frame := copies(ymxs.Setting(ymxs.R8), ymxs.Mapped(half), ymxs.Cut{})
+	lines(t, "a start through half", check.Tune(tune([]ymxs.Row{setting(ymxs.R8, 20), frame,
+		setting(ymxs.R8, 15), setting(ymxs.R8, 40)}, 50)), []string{
+		"row 1: Timer A: row 0 sets R8 to 20, which copy from frame on setR8 reads, and a" +
+			" key is 0 to 15",
+		"row 1: Timer A: row 2 sets R8 to 15, which maps to 40 on setR8, and the target" +
+			" is 0 to 31",
+		"row 3: R8 is 0 to 31, and this row sets it to 40"})
+	lines(t, "a remap through half", check.Tune(tune([]ymxs.Row{setting(ymxs.R8, 20),
+		copies(ymxs.Setting(ymxs.R8), ymxs.Mapping{}, ymxs.Cut{}),
+		on(ymxs.Remap{Mapping: ymxs.Mapped(half)})}, 50)), []string{
+		"row 2: Timer A: start of row 1: row 0 sets R8 to 20, which copy from frame on" +
+			" setR8 reads, and a key is 0 to 15"})
+}
+
+// Copy from frame is a source of one row: a cut of a start or a recut
+// outside row 0 is an error (SPEC.md 1.11, 3.8.4).
+func TestTheCutOfCopyFromFrameIsRow0(t *testing.T) {
+	twelve := setting(ymxs.R8, 12)
+	lines(t, "a cut of rows 0 to 1", check.Tune(tune([]ymxs.Row{twelve,
+		copies(ymxs.Setting(ymxs.R8), ymxs.Mapping{}, ymxs.Cut{First: 0, Last: 1})}, 50)),
+		[]string{"row 1: Timer A: the source has 1 rows and the cut ends at row 1"})
+	square := ymxs.RepeatingSource("square", []int{15, 0}, 0)
+	struck := on(ymxs.Struck(ymxs.Setting(ymxs.R8), square, ymxs.By4, 100))
+	lines(t, "a recut of rows 1 to 1", check.Tune(tune([]ymxs.Row{twelve,
+		copies(ymxs.Setting(ymxs.R8), ymxs.Mapping{}, ymxs.Cut{}), recuts(1, 1), struck},
+		50)), []string{
+		"row 2: Timer A: start of row 1: the source has 1 rows and the cut begins at row 1",
+		"row 2: Timer A: start of row 1: the source has 1 rows and the cut ends at row 1"})
+}

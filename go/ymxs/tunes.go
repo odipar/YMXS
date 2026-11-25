@@ -76,7 +76,8 @@ func Rows(tune Tune) []Row {
 
 // Sources is the sources this tune runs: the ones its rows start, in
 // first-start order. Only a source started by some row belongs to the
-// tune, so this is the complete list.
+// tune, so this is the complete list. Copy from frame is outside it
+// (SPEC.md 1.9).
 func Sources(tune Tune) []Source {
 	var out []Source
 	for _, row := range Rows(tune) {
@@ -86,12 +87,23 @@ func Sources(tune Tune) []Source {
 				continue
 			}
 			source := ConnectionSource(start.Connection)
-			if indexOf(out, source) < 0 {
+			if source != nil && indexOf(out, source) < 0 {
 				out = append(out, source)
 			}
 		}
 	}
 	return out
+}
+
+// ConnectionNumber is the number a form writes for the source of the
+// connection: 0 for copy from frame, and otherwise the index of its source
+// in sources, the sources of the tune, plus 1.
+func ConnectionNumber(sources []Source, connection Connection) int {
+	source := ConnectionSource(connection)
+	if source == nil {
+		return 0
+	}
+	return indexOf(sources, source) + 1
 }
 
 // SourceNumber is the number a form writes for the source, 1 upward. It
@@ -486,11 +498,14 @@ func ConnectionTarget(connection Connection) Target {
 		return c.Target
 	case ThreeConnection:
 		return c.Target
+	case CopyFromFrame:
+		return c.Target
 	}
 	panic(fmt.Sprintf("no connection %T", connection))
 }
 
-// ConnectionSource is the source a connection runs.
+// ConnectionSource is the source a connection runs, or nil for copy from
+// frame, whose row is the frame values (SPEC.md 3.8).
 func ConnectionSource(connection Connection) Source {
 	switch c := connection.(type) {
 	case OneConnection:
@@ -499,8 +514,37 @@ func ConnectionSource(connection Connection) Source {
 		return c.Source
 	case ThreeConnection:
 		return c.Source
+	case CopyFromFrame:
+		return nil
 	}
 	panic(fmt.Sprintf("no connection %T", connection))
+}
+
+// ConnectionSize is the rows of the source of the connection: 1 for copy
+// from frame, a source of one row (SPEC.md 3.8.2).
+func ConnectionSize(connection Connection) int {
+	source := ConnectionSource(connection)
+	if source == nil {
+		return 1
+	}
+	return SourceSize(source)
+}
+
+// ConnectionRepeats is whether the source of the connection repeats: copy
+// from frame repeats to row 0 (SPEC.md 3.8.2).
+func ConnectionRepeats(connection Connection) bool {
+	source := ConnectionSource(connection)
+	if source == nil {
+		return true
+	}
+	_, repeats := SourceRows(source).Repeat()
+	return repeats
+}
+
+// ConnectionWhole is the cut of the whole table of the source of the
+// connection (SPEC.md 3.7.1), rows 0 to 0 for copy from frame.
+func ConnectionWhole(connection Connection) Cut {
+	return Cut{First: 0, Last: ConnectionSize(connection) - 1}
 }
 
 // ----------------------------------------------------------- an effect
@@ -536,6 +580,15 @@ func Starting(target Target, source Source, timing Timing, deferred bool,
 		SourceColumns(source), TargetName(target), TargetColumns(target))
 }
 
+// Copying is the start of copy from frame on the target through the mapping
+// under the cut (SPEC.md 3.8). A reader of a form builds a start of source 0
+// this way.
+func Copying(target Target, timing Timing, deferred bool, mapping Mapping,
+	cut Cut) Start {
+	return Start{Connection: CopyFromFrame{Target: target}, Timing: timing,
+		Deferred: deferred, Mapping: mapping, Cut: cut}
+}
+
 // Struck is a struck note: the source from its first row, the timer from a
 // whole period, at the row, under the whole table.
 func Struck(target OneTarget, source Single, prescaler Prescaler, count int) Start {
@@ -565,7 +618,7 @@ func CutSize(cut Cut) int {
 // WholeTable is the start under the whole table of its source (SPEC.md
 // 3.7.1), the cut every start of a file of version 7 or before reads with.
 func WholeTable(start Start) Start {
-	start.Cut = Whole(ConnectionSource(start.Connection))
+	start.Cut = ConnectionWhole(start.Connection)
 	return start
 }
 

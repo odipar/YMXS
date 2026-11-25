@@ -8,9 +8,11 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Connection;
+import org.ymxs.YMXS.CopyFromFrame;
 import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
@@ -148,8 +150,8 @@ public final class Check {
             case Start start -> {
                 List<String> said = new ArrayList<>(count(start.timing().count()));
                 said.addAll(rate(start.timing().prescaler(), start.timing().count()));
-                said.addAll(runs(start));
-                said.addAll(cut(start.cut(), Tunes.source(start.connection())));
+                said.addAll(runs(start, starts.rows));
+                said.addAll(cut(start.cut(), start.connection()));
                 yield said;
             }
             case Retune retune -> {
@@ -166,9 +168,10 @@ public final class Check {
     /** What is wrong with the cut of a start against its source, or an
      *  empty list: the first row outside the source, the last row outside
      *  it, and a last row below the first. Each rests on the row count, so a
-     *  source of no rows has none of them (SPEC.md 1.12). */
-    private static List<String> cut(Cut cut, Source source) {
-        int rows = Tunes.size(source);
+     *  source of no rows has none of them (SPEC.md 1.12). Copy from frame is
+     *  a source of one row (SPEC.md 3.8.4). */
+    private static List<String> cut(Cut cut, Connection connection) {
+        int rows = Tunes.size(connection);
         if (rows == 0) {
             return List.of();
         }
@@ -244,11 +247,54 @@ public final class Check {
 
     /** The line of value {@code value} of row {@code at} of a source on
      *  {@code target}, above the last key of the transformation it is
-     *  read through. */
-    private static String key(Target target, int at, int value,
+     *  read through, or of copy from frame where {@code copy} is set: row
+     *  {@code at} of the tune sets register {@code i} of the target to it
+     *  (SPEC.md 3.8.4). */
+    private static String key(Target target, boolean copy, int at, int i, int value,
                               Transformation transformation) {
+        if (copy) {
+            return "row " + at + " sets " + Tunes.registers(target).get(i) + " to " + value
+                    + ", which copy from frame on " + Tunes.name(target) + " reads, and a"
+                    + " key is 0 to " + lastKey(transformation);
+        }
         return "a source on " + Tunes.name(target) + " whose row " + at + " is " + value
                 + ", and a key is 0 to " + lastKey(transformation);
+    }
+
+    /** One row a check reads of the source of a start: its number, and its
+     *  values, value i null where the row leaves it out. */
+    private record Read(int at, List<@Nullable Integer> values) {
+    }
+
+    /** The rows a check reads of the source of {@code connection}: each row
+     *  of its table, or of copy from frame each row of the tune that sets a
+     *  register of the target to a value 0 to its most, value i null where
+     *  that row leaves register i unset (SPEC.md 3.8.4). */
+    private static List<Read> reads(Connection connection, List<Row> tune) {
+        List<Read> out = new ArrayList<>();
+        Source source = Tunes.source(connection);
+        if (source != null) {
+            List<List<Integer>> rows = Tunes.rows(source).rows();
+            for (int at = 0; at < rows.size(); at++) {
+                out.add(new Read(at, new ArrayList<>(rows.get(at))));
+            }
+            return out;
+        }
+        List<Register> registers = Tunes.registers(Tunes.target(connection));
+        for (int at = 0; at < tune.size(); at++) {
+            List<@Nullable Integer> values = new ArrayList<>();
+            boolean any = false;
+            for (Register register : registers) {
+                Integer value = tune.get(at).registers().get(register);
+                boolean fits = value != null && value >= 0 && value <= Chip.most(register);
+                values.add(fits ? value : null);
+                any = any || fits;
+            }
+            if (any) {
+                out.add(new Read(at, values));
+            }
+        }
+        return out;
     }
 
     /**
@@ -277,33 +323,37 @@ public final class Check {
      * entries against register limits. Invalid transformation lengths
      * and entries are reported separately (SPEC.md 1.12).
      */
-    private static List<String> runs(Start start) {
+    private static List<String> runs(Start start, List<Row> tune) {
         Target target = Tunes.target(start.connection());
         Source source = Tunes.source(start.connection());
-        List<String> said = new ArrayList<>(of(source));
+        boolean copy = start.connection() instanceof CopyFromFrame;
+        List<String> said = new ArrayList<>(source == null ? List.of() : of(source));
         Mapping mapping = start.mapping();
         if (!parted(mapping, target)) {
             said.add(parts(mapping, target));
             return said;
         }
         List<Integer> mosts = Tunes.mosts(target);
-        List<List<Integer>> rows = Tunes.rows(source).rows();
+        List<Read> rows = reads(start.connection(), tune);
         List<Part> through = Tunes.parts(mapping, Tunes.columns(target));
-        for (int at = 0; at < rows.size(); at++) {
-            List<Integer> row = rows.get(at);
-            for (int value = 0; value < row.size(); value++) {
+        for (Read row : rows) {
+            for (int value = 0; value < row.values().size(); value++) {
+                Integer read = row.values().get(value);
+                if (read == null) {
+                    continue;
+                }
                 if (through.get(value) instanceof Transformation transformation) {
-                    if (sized(transformation) && row.get(value) > lastKey(transformation)) {
-                        said.add(key(target, at, row.get(value), transformation));
+                    if (sized(transformation) && read > lastKey(transformation)) {
+                        said.add(key(target, copy, row.at(), value, read, transformation));
                     }
-                } else if (row.get(value) > mosts.get(value)) {
-                    said.add("a source on " + Tunes.name(target) + " whose row " + at
-                            + " is " + row.get(value) + ", and the target is 0 to "
+                } else if (read > mosts.get(value)) {
+                    said.add("a source on " + Tunes.name(target) + " whose row " + row.at()
+                            + " is " + read + ", and the target is 0 to "
                             + mosts.get(value));
                 }
             }
         }
-        said.addAll(mapped(target, source, mapping, false));
+        said.addAll(mapped(target, copy, rows, mapping, false));
         return said;
     }
 
@@ -330,37 +380,47 @@ public final class Check {
      * outside the lookup table here. A start checks those before this
      * pass.
      */
-    private static List<String> mapped(Target target, Source source, Mapping mapping,
-                                       boolean remap) {
+    private static List<String> mapped(Target target, boolean copy, List<Read> rows,
+                                       Mapping mapping, boolean remap) {
         List<String> said = new ArrayList<>();
         List<Integer> mosts = Tunes.mosts(target);
         List<Part> through = Tunes.parts(mapping, Tunes.columns(target));
-        List<List<Integer>> rows = Tunes.rows(source).rows();
-        for (int at = 0; at < rows.size(); at++) {
-            List<Integer> row = rows.get(at);
-            for (int value = 0; value < row.size(); value++) {
+        for (Read row : rows) {
+            for (int value = 0; value < row.values().size(); value++) {
+                Integer read = row.values().get(value);
+                if (read == null) {
+                    continue;
+                }
                 int written;
                 if (through.get(value) instanceof Transformation transformation) {
-                    if (!sized(transformation) || row.get(value) < 0) {
+                    if (!sized(transformation) || read < 0) {
                         continue;
                     }
-                    if (row.get(value) > lastKey(transformation)) {
+                    if (read > lastKey(transformation)) {
                         if (remap) {
-                            said.add(key(target, at, row.get(value), transformation));
+                            said.add(key(target, copy, row.at(), value, read, transformation));
                         }
                         continue;
                     }
-                    written = Tunes.written(transformation, row.get(value));
+                    written = Tunes.written(transformation, read);
                     if (written < 0 || written > MOST_ENTRY) {
                         continue;
                     }
                 } else if (remap) {
-                    written = row.get(value);
+                    written = read;
                 } else {
                     continue;
                 }
-                if (written > mosts.get(value)) {
-                    said.add("value " + value + " of row " + at + " maps to " + written
+                if (written <= mosts.get(value)) {
+                    continue;
+                }
+                if (copy) {
+                    said.add("row " + row.at() + " sets " + Tunes.registers(target).get(value)
+                            + " to " + read + ", which maps to " + written + " on "
+                            + Tunes.name(target) + ", and the target is 0 to "
+                            + mosts.get(value));
+                } else {
+                    said.add("value " + value + " of row " + row.at() + " maps to " + written
                             + " on " + Tunes.name(target) + ", and the target is 0 to "
                             + mosts.get(value));
                 }
@@ -374,7 +434,7 @@ public final class Check {
      *  without either has its starts left unread. */
     private static final class Remapping {
 
-        private final List<Row> rows;
+        final List<Row> rows;
         private final Map<Timer, Starts> timers = new EnumMap<>(Timer.class);
 
         Remapping(List<Row> rows) {
@@ -386,7 +446,7 @@ public final class Check {
         Starts on(Timer timer, Work work) {
             Starts on = timers.get(timer);
             if (on == null) {
-                on = new Starts();
+                on = new Starts(rows);
                 for (int at = 0; at < rows.size(); at++) {
                     work.rows++;
                     if (rows.get(at).effects().get(timer) instanceof Start start) {
@@ -409,17 +469,25 @@ public final class Check {
      */
     private static final class Starts {
 
+        private final List<Row> tune;
         private final Set<Target> targets = new LinkedHashSet<>();
         private final Map<Connection, Integer> connected = new LinkedHashMap<>();
-        private final Map<Source, Integer> sources = new LinkedHashMap<>();
+        // each source once, copy from frame as the empty one
+        private final Map<Optional<Source>, Integer> sources = new LinkedHashMap<>();
         private final Map<Mapping, List<String>> remaps = new HashMap<>();
         private final Map<Cut, List<String>> recuts = new HashMap<>();
+
+        /** The starts of a tune of the rows {@code tune}, whose rows copy
+         *  from frame reads (SPEC.md 3.8.4). */
+        Starts(List<Row> tune) {
+            this.tune = tune;
+        }
 
         /** Reads the connection of a start at {@code row}. */
         void add(int row, Start start) {
             targets.add(Tunes.target(start.connection()));
             connected.putIfAbsent(start.connection(), row);
-            sources.putIfAbsent(Tunes.source(start.connection()), row);
+            sources.putIfAbsent(Optional.ofNullable(Tunes.source(start.connection())), row);
         }
 
         /**
@@ -434,8 +502,9 @@ public final class Check {
             List<String> said = recuts.get(cut);
             if (said == null) {
                 said = new ArrayList<>(ordered(cut));
-                for (Map.Entry<Source, Integer> one : sources.entrySet()) {
-                    int rows = Tunes.size(one.getKey());
+                for (Map.Entry<Optional<Source>, Integer> one : sources.entrySet()) {
+                    // copy from frame is a source of one row (SPEC.md 3.8.4)
+                    int rows = one.getKey().map(Tunes::size).orElse(1);
                     if (rows == 0) {
                         continue;
                     }
@@ -477,10 +546,11 @@ public final class Check {
             }
             for (Map.Entry<Connection, Integer> two : connected.entrySet()) {
                 Target target = Tunes.target(two.getKey());
-                Source source = Tunes.source(two.getKey());
                 if (parted(mapping, target)) {
-                    work.sources += Tunes.size(source);
-                    for (String one : mapped(target, source, mapping, true)) {
+                    List<Read> rows = reads(two.getKey(), tune);
+                    work.sources += rows.size();
+                    for (String one : mapped(target, two.getKey() instanceof CopyFromFrame, rows,
+                            mapping, true)) {
                         said.add("start of row " + two.getValue() + ": " + one);
                     }
                 }
@@ -650,6 +720,8 @@ public final class Check {
         private final Map<Timer, Running> running = new EnumMap<>(Timer.class);
         private final Map<Timer, Start> pending = new EnumMap<>(Timer.class);
         private final Set<Timer> started = EnumSet.noneOf(Timer.class);
+        // the registers the rows before this one set, which rule 7 reads
+        private final Set<Register> set = EnumSet.noneOf(Register.class);
 
         Writing(Tune tune) {
             this.tune = tune;
@@ -661,9 +733,10 @@ public final class Check {
                 begin(at);
                 Map<Timer, Effect> here = Tunes.effects(rows.get(at));
                 for (Map.Entry<Timer, Effect> one : here.entrySet()) {
-                    effect(at, one.getKey(), one.getValue());
+                    effect(at, one.getKey(), one.getValue(), rows.get(at));
                 }
                 registers(at, rows.get(at));
+                set.addAll(rows.get(at).registers().keySet());
             }
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
                 collided(one.getKey(), one.getValue());
@@ -686,10 +759,11 @@ public final class Check {
         }
 
         /** The effects come first, in the order a frame writes them. */
-        private void effect(int at, Timer timer, Effect effect) {
+        private void effect(int at, Timer timer, Effect effect, Row row) {
             switch (effect) {
                 case Start start -> {
                     place(at, timer, start);
+                    frame(at, timer, start, row);
                     Running runs = runs(timer, at);
                     if (start.deferred() && runs != null) {
                         // the effect plays its source once from here, and
@@ -792,7 +866,8 @@ public final class Check {
 
         /** Rule 1 at the wrap: an effect running when the last row has
          *  played runs on through the row the tune repeats to, which no
-         *  row of the next pass started. */
+         *  row of the next pass started. Copy from frame reads the rows,
+         *  which rule 1(e) excludes. */
         private void wrap(List<Row> rows) {
             if (tune.table().repeat().isEmpty()) {
                 return;
@@ -805,7 +880,8 @@ public final class Check {
                 // timer alone does
                 Effect there = rows.get(to).effects().get(one.getKey());
                 if (last >= one.getValue().until || there != null
-                        && !(there instanceof Remap || there instanceof Recut)) {
+                        && !(there instanceof Remap || there instanceof Recut)
+                        || one.getValue().start.connection() instanceof CopyFromFrame) {
                     continue;
                 }
                 said.add("the tune repeats to row " + to + ", and Timer " + one.getKey()
@@ -847,14 +923,32 @@ public final class Check {
                     + " has run none: the place is where the player left it", false);
         }
 
+        /** Rule 7: a start of copy from frame follows a row that sets each
+         *  register its target writes, this row or one before it. Before
+         *  the first such row the frame value of a register is 0 (SPEC.md
+         *  3.8.1). */
+        private void frame(int at, Timer timer, Start start, Row row) {
+            if (!(start.connection() instanceof CopyFromFrame copy)) {
+                return;
+            }
+            for (Register register : written(copy.target())) {
+                if (!set.contains(register) && !row.registers().containsKey(register)) {
+                    say(at, timer, "starts copy from frame on " + Tunes.name(copy.target())
+                            + " before a row sets " + register + ": its frame value is 0",
+                            false);
+                }
+            }
+        }
+
         /** Rule 1: while an effect runs on a register, a row does not set
          *  that register. The rows of one run are reported as one line
          *  ({@link #collided}), since a run of a hundred rows is one
-         *  fault and not a hundred. */
+         *  fault and not a hundred. The rows set the registers of copy
+         *  from frame, which rule 1(e) excludes. */
         private void registers(int at, Row row) {
             for (Map.Entry<Timer, Running> one : running.entrySet()) {
                 Running runs = one.getValue();
-                if (at >= runs.until) {
+                if (at >= runs.until || runs.start.connection() instanceof CopyFromFrame) {
                     continue;
                 }
                 if (written(runs.target()).stream().noneMatch(written ->
@@ -879,9 +973,9 @@ public final class Check {
         }
 
         /** The row a start's source ends on, or no row where it
-         *  repeats. */
+         *  repeats, as copy from frame does. */
         private int until(int at, Start start) {
-            if (Tunes.rows(Tunes.source(start.connection())).repeat().isPresent()) {
+            if (Tunes.repeats(start.connection())) {
                 return Integer.MAX_VALUE;
             }
             return at + frames(start);

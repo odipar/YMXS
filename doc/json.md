@@ -1,6 +1,6 @@
 # JSON
 
-JSON encodes version 8 of the structure in [SPEC.md](SPEC.md) 1.
+JSON encodes version 9 of the structure in [SPEC.md](SPEC.md) 1.
 [csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
 normative except sentences beginning `Note:` and section 10.
 
@@ -51,7 +51,7 @@ object has that member and *absent* otherwise.
 | key | value | meaning |
 |---|---|---|
 | `format` | the text `ymxs` | this form |
-| `version` | the whole number 8, or 7, 6, 5, 4 or 3 for a file of a version before it (2.4) | the version of the structure |
+| `version` | the whole number 9, or 8, 7, 6, 5, 4 or 3 for a file of a version before it (2.4) | the version of the structure |
 | `tunes` | an array of tune objects (section 3); an empty array is an error of the structure (2.3) | the tunes of the multi; tune n is the element at index n minus 1 |
 
 **2.2** A reader reads the listed keys of each object of this form and
@@ -61,12 +61,13 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A writer writes version 8. A reader reads version 8 and the five
-versions before it. In a file of version 7 or before a reader skips the
-`first` and `last` columns (6.1) and reads every start under the whole
-table of its source, rows 0 to R - 1 of a source of R rows (SPEC.md
-3.7.1); `shape` 4 there is an error of the form (8.1). In a file of
-version 6 or before a reader skips a `mapping` column (6.1) and a
+**2.4** A writer writes version 9. A reader reads version 9 and the six
+versions before it. In a file of version 8 or before a `source` of 0 is
+an error of the form (6.6, 8.1). In a file of version 7 or before a
+reader skips the `first` and `last` columns (6.1) and reads every start
+under the whole table of its source, rows 0 to R - 1 of a source of R
+rows (SPEC.md 3.7.1); `shape` 4 there is an error of the form (8.1). In a
+file of version 6 or before a reader skips a `mapping` column (6.1) and a
 `transformations` key (3.1), and reads every start with the mapping of no
 parts, the identity in every part (SPEC.md 3.6.3); `shape` 3 there is an
 error of the form (8.1). A file of version 5 reads as version 6: the two
@@ -100,7 +101,7 @@ version (SPEC.md 8).
 | `timerA`, `timerB`, `timerC`, `timerD` | an object each (section 6) | the operations the rows perform on the effect of that timer, a column a field |
 
 **3.2** Every tune requires `title`, `composer`, `writer`, `rate`, `rows`
-and `sources`, and in a file of version 7 or 8 `transformations`. An absent
+and `sources`, and in a file of version 7 to 9 `transformations`. An absent
 `repeat` reads as `null`; absent `registers` read as an empty object; an
 absent timer object leaves that timer unchanged on every row. `null` for
 `registers` or `timerT` is an error (8.1). An emitter emits `registers` and
@@ -207,15 +208,16 @@ as a value, so one below -1 or above the range is an error of the structure
 
 **6.1** `timerA` to `timerD` are each an object of the eleven keys below,
 each a column; T is the timer's letter, S the length of `sources`, M the
-length of `transformations`, R the rows of the source of a start, and of
-each start on Timer T for a recut. `shape` has a value at every row; each
-other column has a value where the shape selects it (6.2) and -1 elsewhere.
+length of `transformations`, R the rows of the source of a start, 1 for
+copy from frame (SPEC.md 3.8), and of each start on Timer T for a recut.
+`shape` has a value at every row; each other column has a value where the
+shape selects it (6.2) and -1 elsewhere.
 
 | key | value where the shape selects it | meaning |
 |---|---|---|
 | `shape` | -1, 0, 1, 2, 3 or 4 | the operation the row performs on the effect of Timer T (6.2) |
 | `target` | 0 to 24 | the target of that number (SPEC.md 3.1.2): 0 to 13 is `setRn`, and 14 to 24 the targets of two and three registers |
-| `source` | 1 to S | the number of the source (1.7) |
+| `source` | 0 to S | the number of the source (1.7), 0 for copy from frame (SPEC.md 3.8) |
 | `prescaler` | 4, 10, 16, 50, 64, 100 or 200 | the divisor of the prescaler |
 | `count` | 0 to 255 | the count, the value of the timer's data register |
 | `timerReset` | 1 or 0 | `timerReset` of the operation: 1 is true and 0 is false |
@@ -250,11 +252,12 @@ error (8.1). Note: a timer object whose every `shape` is -1 or 2 needs
 true and 0 for false; a reader reads 1 as true and every other whole
 number as false.
 
-**6.6** `target` outside 0 to 24, `source` outside 1 to S, and `prescaler`
-other than the seven divisors are errors (8.1). `count` outside 0 to 255, a
-prescaler and count whose rate (SPEC.md 3.3) exceeds 125,000 ticks a second,
-a `first` or a `last` outside 0 to R - 1, and a `last` below `first` are
-errors of the structure (SPEC.md 3.7.1, 8.3).
+**6.6** `target` outside 0 to 24, `source` outside 0 to S, or outside 1 to
+S in a file of version 8 or before, and `prescaler` other than the seven
+divisors are errors (8.1). `count` outside 0 to 255, a prescaler and count
+whose rate (SPEC.md 3.3) exceeds 125,000 ticks a second, a `first` or a
+`last` outside 0 to R - 1, and a `last` below `first` are errors of the
+structure (SPEC.md 3.7.1, 8.3).
 
 **6.7 Mappings.** At a start (`shape` 0) or remap (`shape` 3), read
 `mapping` as follows, with M transformations in file order:
@@ -285,7 +288,7 @@ where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
-3. Read `version`, a whole number equal to 3, 4, 5, 6, 7 or 8 (2.4).
+3. Read `version`, a whole number equal to 3, 4, 5, 6, 7, 8 or 9 (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
@@ -298,7 +301,7 @@ where every step passes.
    number; a row other than an array or a whole number. After the last
    row, a row whose count of values is other than row 0's is the shape
    line of 8.1, N the count of row 0 and K that of the first row that
-   differs. Then, in a file of version 7 or 8, read `transformations`, an
+   differs. Then, in a file of version 7 to 9, read `transformations`, an
    array; for each element read `entries` (an array), `name` (a text) and
    each entry in order (a whole number), in that order.
 7. Read `registers` where present, an object; for each key `r0` to
@@ -307,19 +310,20 @@ where every step passes.
    the row sets.
 8. Read `timerA` to `timerD` where present, in that order, an object each;
    for each row i from 0 to R - 1 read `shape` at index i, one of -1, 0,
-   1, 2, 3 in a file of version 7 or 8, and 4 in a file of version 8, then
-   for a start `source` (1 to S), `target` (0 to 24), `prescaler` (one of
-   the seven divisors), `count`, `timerReset`, `placeReset`, in a file of
-   version 5 to 8 `deferred`, in a file of version 7 or 8 `mapping`, and
-   in a file of version 8 `first` and `last`; for a retune `prescaler`,
-   `count`, `timerReset` and `placeReset`; for a remap `mapping`; and for
-   a recut `first` and `last`. A column is verified present, an array of
-   length R and a whole number at index i as it is read, before its value,
-   except `mapping` at index i (6.7), verified in this order, each a line
-   of 8.1: 0 or an array of whole numbers; of an array, an element other
-   than 0 among them; each element in order, 0 to M. After the columns of
-   a start, verify that its source has the values a row its target reads
-   (SPEC.md 3.1.1, 3.2.1), a line of 8.1.
+   1, 2, 3 in a file of version 7 to 9, and 4 in a file of version 8 or 9,
+   then for a start `source` (0 to S, 1 to S in a file of version 8 or
+   before), `target` (0 to 24), `prescaler` (one of the seven divisors),
+   `count`, `timerReset`, `placeReset`, in a file of version 5 to 9
+   `deferred`, in a file of version 7 to 9 `mapping`, and in a file of
+   version 8 or 9 `first` and `last`; for a retune `prescaler`, `count`,
+   `timerReset` and `placeReset`; for a remap `mapping`; and for a recut
+   `first` and `last`. A column is verified present, an array of length R
+   and a whole number at index i as it is read, before its value, except
+   `mapping` at index i (6.7), verified in this order, each a line of 8.1:
+   0 or an array of whole numbers; of an array, an element other than 0
+   among them; each element in order, 0 to M. After the columns of a start
+   whose `source` is 1 to S, verify that the source has the values a row
+   its target reads (SPEC.md 3.1.1, 3.2.1), a line of 8.1.
 9. Read `title`, `composer`, `writer` (a text each), `rate` (a whole
    number), `repeat` (a whole number, `null` or absent), in that order.
 10. Verify that every source is started by some row (4.4), and that every
@@ -357,16 +361,16 @@ marks removed in the `a tree of X` line.
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 3, 4, 5, 6, 7 and 8 | `version N, and this reads 3, 4, 5, 6, 7 or 8` |
+| `version` other than 3, 4, 5, 6, 7, 8 and 9 | `version N, and this reads 3, 4, 5, 6, 7, 8 or 9` |
 | a row of `values` that is an array, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
-| `transformations` or `entries` absent or not an array, in a file of version 7 or 8 | `KEY is X, and this form requires an array` |
+| `transformations` or `entries` absent or not an array, in a file of version 7 to 9 | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or a source's `name` absent or not a text | `KEY is X, and this form requires a text` |
-| a transformation's `name` absent or not a text, in a file of version 7 or 8 | `KEY is X, and this form requires a text` |
+| a transformation's `name` absent or not a text, in a file of version 7 to 9 | `KEY is X, and this form requires a text` |
 | `repeat` present, not `null` and not a whole number | `repeat is X, and this form requires a row number or null` |
 | an element of `values`, or an element of an array in it, not a whole number | `NAME at row J is X, and this form requires a whole number`, X that element |
-| an element of `entries` not a whole number, in a file of version 7 or 8 | `NAME at entry K is X, and this form requires a whole number`, X that element |
+| an element of `entries` not a whole number, in a file of version 7 to 9 | `NAME at entry K is X, and this form requires a whole number`, X that element |
 | a row of `values` an array of N elements, N other than 2 and 3 | `a row of N values in source NAME, and a row is a number or two or three values` |
 | rows of one source of N values and of K, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | `registers` present and not an object | `registers is X, and this form requires a column a register` |
@@ -381,16 +385,16 @@ marks removed in the `a tree of X` line.
 | `shape` other than -1, 0, 1 and 2 in a file of version 6 or before | `row I sets shape N on Timer T, and a shape is -1, 0, 1 or 2` |
 | `shape` other than -1, 0, 1, 2 and 3 in a file of version 7 | `row I sets shape N on Timer T, and a shape is -1, 0, 1, 2 or 3` |
 | any other `shape` outside -1 to 4 | `row I sets shape N on Timer T, and a shape is -1, 0, 1, 2, 3 or 4` |
-| `source` outside 1 to S | `row I starts source N, and the tune runs S` |
-| `mapping` at a row of shape 0 or 3 other than 0 and an array of whole numbers, in a file of version 7 or 8 | `Timer T's mapping at row I is X, and this form requires 0 or an array of whole numbers` |
-| `mapping` at a row of shape 0 or 3 an array whose every element is 0, the empty array included, in a file of version 7 or 8 | `Timer T's mapping at row I is X, and a mapping of the identity in every part is 0` |
-| an element of `mapping` outside 0 to M, in a file of version 7 or 8 | `row I maps through transformation N, and the tune has M` |
+| `source` outside 0 to S, or outside 1 to S in a file of version 8 or before | `row I starts source N, and the tune runs S` |
+| `mapping` at a row of shape 0 or 3 other than 0 and an array of whole numbers, in a file of version 7 to 9 | `Timer T's mapping at row I is X, and this form requires 0 or an array of whole numbers` |
+| `mapping` at a row of shape 0 or 3 an array whose every element is 0, the empty array included, in a file of version 7 to 9 | `Timer T's mapping at row I is X, and a mapping of the identity in every part is 0` |
+| an element of `mapping` outside 0 to M, in a file of version 7 to 9 | `row I maps through transformation N, and the tune has M` |
 | `target` above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
 | any other `target` outside 0 to 24 | `no target N: a tune reaches 0 to 24` |
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a start whose source has W values a row on a target that reads U, U other than W | `a source of W values a row on setRn, which reads U` |
 | a source of `sources` that no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
-| a transformation of `transformations` that no row uses, in a file of version 7 or 8 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
+| a transformation of `transformations` that no row uses, in a file of version 7 to 9 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
 
 **8.2** A value other than an object where one is required reads as an empty
 object, so the line is that of the first key read from it: `format is null,
@@ -484,7 +488,7 @@ retuned at row 1, stopped at row 3.
 ```json
 {
   "format": "ymxs",
-  "version": 8,
+  "version": 9,
   "tunes": [
     {
       "title": "Four rows, one square",

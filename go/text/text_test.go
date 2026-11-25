@@ -59,7 +59,7 @@ func example(t *testing.T) string {
 // cut of the whole table of its source after the mapping.
 func TestTheExampleOfTheDocumentIsTheTextThisWrites(t *testing.T) {
 	said := example(t)
-	for _, each := range []string{`"version": 8,`, `"transformations": [],`,
+	for _, each := range []string{`"version": 9,`, `"transformations": [],`,
 		`"mapping": [0,-1,-1,-1],`, `"first": [0,-1,-1,-1],`, `"last": [1,-1,-1,-1]`} {
 		if !strings.Contains(said, each) {
 			t.Fatalf("the example has no %s", each)
@@ -302,9 +302,9 @@ func TestAFileOfVersion6ReadsEveryStartWithTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	written := text.Write(multi)
-	if !strings.Contains(written, `"version": 8,`) || !strings.Contains(written,
+	if !strings.Contains(written, `"version": 9,`) || !strings.Contains(written,
 		`"mapping": [0,-1],`) {
-		t.Errorf("a file of version 6 is written as version 8:\n%s", written)
+		t.Errorf("a file of version 6 is written as version 9:\n%s", written)
 	}
 	line := "row 1 sets shape 3 on Timer A, and a shape is -1, 0, 1 or 2"
 	_, err = text.Read(strings.Replace(skipped, `"shape":[0,-1]`, `"shape":[0,3]`, 1))
@@ -530,7 +530,7 @@ func TestACutAndARecutCrossTheForm(t *testing.T) {
 // (json.md 2.4, 8.1).
 func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
 	said := example(t)
-	seven := strings.Replace(strings.Replace(said, `"version": 8`, `"version": 7`, 1),
+	seven := strings.Replace(strings.Replace(said, `"version": 9`, `"version": 7`, 1),
 		",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]", "", 1)
 	if strings.Contains(seven, "first") {
 		t.Fatalf("the example of version 7 has a cut:\n%s", seven)

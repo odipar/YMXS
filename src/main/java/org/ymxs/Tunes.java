@@ -9,6 +9,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.ymxs.YMXS.Connection;
+import org.ymxs.YMXS.CopyFromFrame;
 import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Identity;
@@ -145,19 +146,30 @@ public final class Tunes {
     /**
      * The sources this tune runs: the ones its rows start, in first-start
      * order. Only a source started by some row belongs to the tune, so
-     * this is the complete list.
+     * this is the complete list. Copy from frame is outside it (SPEC.md
+     * 1.9).
      */
     public static List<Source> sources(Tune tune) {
         List<Source> out = new ArrayList<>();
         for (Row row : rows(tune)) {
             for (Effect effect : effects(row).values()) {
-                if (effect instanceof Start start
-                        && !out.contains(source(start.connection()))) {
-                    out.add(source(start.connection()));
+                if (effect instanceof Start start) {
+                    Source source = source(start.connection());
+                    if (source != null && !out.contains(source)) {
+                        out.add(source);
+                    }
                 }
             }
         }
         return out;
+    }
+
+    /** The number a form writes for the source of {@code connection}: 0
+     *  for copy from frame, and otherwise the index of its source in
+     *  {@code sources}, the sources of the tune, plus 1. */
+    public static int number(List<Source> sources, Connection connection) {
+        Source source = source(connection);
+        return source == null ? 0 : sources.indexOf(source) + 1;
     }
 
     /** The number a form writes for {@code source}, 1 upward.
@@ -484,16 +496,39 @@ public final class Tunes {
             case OneConnection one -> one.target();
             case TwoConnection two -> two.target();
             case ThreeConnection three -> three.target();
+            case CopyFromFrame copy -> copy.target();
         };
     }
 
-    /** The source of a connection of any width. */
-    public static Source source(Connection connection) {
+    /** The source of a connection of any width, or null for copy from
+     *  frame, whose row is the frame values (SPEC.md 3.8). */
+    public static @Nullable Source source(Connection connection) {
         return switch (connection) {
             case OneConnection one -> one.source();
             case TwoConnection two -> two.source();
             case ThreeConnection three -> three.source();
+            case CopyFromFrame ignored -> null;
         };
+    }
+
+    /** The rows of the source of {@code connection}: 1 for copy from frame,
+     *  a source of one row (SPEC.md 3.8.2). */
+    public static int size(Connection connection) {
+        Source source = source(connection);
+        return source == null ? 1 : size(source);
+    }
+
+    /** Whether the source of {@code connection} repeats: copy from frame
+     *  repeats to row 0 (SPEC.md 3.8.2). */
+    public static boolean repeats(Connection connection) {
+        Source source = source(connection);
+        return source == null || rows(source).repeat().isPresent();
+    }
+
+    /** The cut of the whole table of the source of {@code connection}
+     *  (SPEC.md 3.7.1), rows 0 to 0 for copy from frame. */
+    public static Cut whole(Connection connection) {
+        return new Cut(0, size(connection) - 1);
     }
 
     /** The connection of {@code source} to {@code target}, the record of
@@ -583,11 +618,21 @@ public final class Tunes {
                 new Timing(prescaler, count, timerReset, placeReset), deferred, mapping, cut);
     }
 
+    /** The start of copy from frame on {@code target} through {@code
+     *  mapping} under {@code cut} (SPEC.md 3.8). A reader of a form builds
+     *  a start of source 0 this way. */
+    public static Start copying(Target target, Prescaler prescaler, int count,
+            boolean timerReset, boolean placeReset, boolean deferred, Mapping mapping,
+            Cut cut) {
+        return new Start(new CopyFromFrame(target),
+                new Timing(prescaler, count, timerReset, placeReset), deferred, mapping, cut);
+    }
+
     /** The start of a connection under the whole table of its source
      *  (SPEC.md 3.7.1). */
     public static Start start(Connection connection, Timing timing, boolean deferred,
             Mapping mapping) {
-        return new Start(connection, timing, deferred, mapping, whole(source(connection)));
+        return new Start(connection, timing, deferred, mapping, whole(connection));
     }
 
     /** A struck note: the source from its first row, the timer from a

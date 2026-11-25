@@ -413,7 +413,9 @@ func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effe
 		if err != nil {
 			return nil, false, err
 		}
-		if source < 1 || source > len(r.sources) {
+		// source 0 is copy from frame, from version 9 (json.md 2.4, SPEC.md 3.8)
+		copies := source == 0 && r.version >= Frame
+		if !copies && (source < 1 || source > len(r.sources)) {
 			return nil, false, fmt.Errorf("row %d starts source %d, and the tune runs %d",
 				at, source, len(r.sources))
 		}
@@ -443,12 +445,17 @@ func (r reading) effectOf(columns *members, at int, timer ymxs.Timer) (ymxs.Effe
 				return nil, false, err
 			}
 		}
-		cut := ymxs.Whole(r.sources[source-1])
+		var cut ymxs.Cut
 		if r.version >= Cut {
 			cut, err = cutOf(columns, at, timer, r.rows)
 			if err != nil {
 				return nil, false, err
 			}
+		} else {
+			cut = ymxs.Whole(r.sources[source-1])
+		}
+		if copies {
+			return ymxs.Copying(run, timing, deferred == 1, mapping, cut), true, nil
 		}
 		made, err := ymxs.Starting(run, r.sources[source-1], timing, deferred == 1,
 			mapping, cut)

@@ -843,6 +843,7 @@ func (w *writing) run() []string {
 			w.effect(at, one.Timer, one.Effect, row)
 		}
 		w.registers(at, row)
+		w.syncs(at, row)
 		for register := range row.Registers {
 			w.set[register] = true
 		}
@@ -1086,6 +1087,32 @@ func (w *writing) registers(at int, row ymxs.Row) {
 		}
 		runs.last = at
 		runs.collisions++
+	}
+}
+
+// syncs reads rule 1(f): a row that syncs a voice while an effect runs on
+// a register of the voice's period at step 4, copy from frame included,
+// leaves that sync to the effect (SPEC.md 3.9).
+func (w *writing) syncs(at int, row ymxs.Row) {
+	for _, voice := range ymxs.Voices {
+		if !row.Syncs[voice] {
+			continue
+		}
+		period := []ymxs.Register{ymxs.Fine(voice), ymxs.Coarse(voice)}
+		for _, timer := range ymxs.Timers {
+			runs, on := w.runs(timer, at)
+			if !on {
+				continue
+			}
+			for _, register := range written(runs.target()) {
+				if has(period, register) {
+					w.say(at, timer, fmt.Sprintf("runs on %s, and this row syncs voice %s:"+
+						" the frame leaves the sync to the effect", register, voice),
+						runs.reckoned())
+					break
+				}
+			}
+		}
 	}
 }
 

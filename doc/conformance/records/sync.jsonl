@@ -1,0 +1,17 @@
+{"rate":50,"timers":["A","B","C"],"sources":[{"rows":[150,0,140,0],"repeat":0}],"transformations":[[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15]]}
+{"result":0,"w":{"0":200,"1":1,"2":100,"3":0,"4":50,"5":2,"7":56,"8":15,"9":15,"10":15},"s":["A","B","C"],"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"syncToneA","source":0,"prescaler":4,"count":100,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":0}}}}
+{"result":0,"w":{"0":180},"s":["B"],"e":{}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"syncToneB","source":1,"prescaler":10,"count":80,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":1}}}}
+{"result":0,"w":{},"e":{"C":{"start":{"target":"syncToneC","source":0,"prescaler":4,"count":120,"timerReset":true,"placeReset":true,"deferred":false,"mapping":[0,1],"first":0,"last":0}}}}
+{"result":0,"w":{},"s":["A"],"e":{}}
+{"result":0,"w":{},"s":["A"],"e":{"A":{"stop":{}},"B":{"stop":{}}}}
+{"result":0,"w":{"4":60},"s":["C"],"e":{"C":{"stop":{}}}}
+{"result":0,"w":{"0":200,"1":1,"2":100,"3":0,"4":50,"5":2,"7":56,"8":15,"9":15,"10":15},"s":["A","B","C"],"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"syncToneA","source":0,"prescaler":4,"count":100,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":0}}}}
+{"result":0,"w":{"0":180},"s":["B"],"e":{}}
+{"result":0,"w":{},"e":{"B":{"start":{"target":"syncToneB","source":1,"prescaler":10,"count":80,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":1}}}}
+{"result":0,"w":{},"e":{"C":{"start":{"target":"syncToneC","source":0,"prescaler":4,"count":120,"timerReset":true,"placeReset":true,"deferred":false,"mapping":[0,1],"first":0,"last":0}}}}
+{"result":0,"w":{},"s":["A"],"e":{}}
+{"result":0,"w":{},"s":["A"],"e":{"A":{"stop":{}},"B":{"stop":{}}}}
+{"result":0,"w":{"4":60},"s":["C"],"e":{"C":{"stop":{}}}}

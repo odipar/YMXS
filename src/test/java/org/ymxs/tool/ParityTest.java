@@ -337,17 +337,24 @@ final class ParityTest {
         }
     }
 
-    /** A target outside 0 to 24 in a file of version 4 is one error of the
-     *  form, the same line in both trees and both forms (json.md 8.1,
-     *  csv.md 5.1). */
+    /** A target outside 0 to 24 in a file of version 4, and outside 0 to 27
+     *  in a file of version 10, is one error of the form, the same line in
+     *  both trees and both forms (json.md 8.1, csv.md 5.1). */
     @Test
     void aTargetOutside0To24IsOneLineInBothTrees() throws Exception {
-        String line = "no target 30: a tune reaches 0 to 27";
+        String four = "target 30, and version 4 reaches 0 to 24";
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", THREE_CSV
-                .replace("ymxs,3,1", "ymxs,4,1").replace("0,0,1,8,", "0,0,1,30,"), line));
+                .replace("ymxs,3,1", "ymxs,4,1").replace("0,0,1,8,", "0,0,1,30,"), four));
         wrongInBothTrees(new Wrong("ymxs-check", THREE_JSON
                 .replace("\"version\":3", "\"version\":4")
-                .replace("\"target\":[8,-1]", "\"target\":[30,-1]"), line));
+                .replace("\"target\":[8,-1]", "\"target\":[30,-1]"), four));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", THREE_CSV
+                .replace("ymxs,3,1", "ymxs,4,1").replace("0,0,1,8,", "0,0,1,25,"),
+                "target 25, and version 4 reaches 0 to 24"));
+        String ten = new String(both("ymxs-json-to-csv", file("doc/conformance/tunes/sync.json")),
+                StandardCharsets.UTF_8).replace("1,0,25,0,", "1,0,30,0,");
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", ten,
+                "no target 30: a tune reaches 0 to 27"));
     }
 
     /**
@@ -474,6 +481,33 @@ final class ParityTest {
                 "\"version\": 8"), "row 0 starts source 0, and the tune runs 1"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace("ymxs,10,1", "ymxs,8,1"),
                 "row 0 starts source 0, and the tune runs 1"));
+    }
+
+    /** A row's syncs and the targets of a sync, the kit's tune of them: the
+     *  two trees cross the forms and check it to the same bytes, and report
+     *  the same line for each error of the forms (json.md 2.4, 5.4, csv.md
+     *  3.8, SPEC.md 3.9). */
+    @Test
+    void aSyncReadsTheSameInBothTrees() throws Exception {
+        byte[] kit = file("doc/conformance/tunes/sync.json");
+        String csv = new String(both("ymxs-json-to-csv", kit), StandardCharsets.UTF_8);
+        String json = new String(both("ymxs-csv-to-json", csv.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8);
+        both("ymxs-check", kit);
+        String a = "\"a\": [1,0,0,0,0,1,1,0],";
+        String zero = "0,200,1,100,0,50,2,,56,15,15,15,,,,1,1,1\n";
+        assertTrue(json.contains(a) && json.contains("\"target\": [-1,25,-1,-1,-1,-1,-1,-1],"),
+                json);
+        assertTrue(csv.contains(",r13,syncA,syncB,syncC\n" + zero), csv);
+        wrongInBothTrees(new Wrong("ymxs-check", json.replace("\"version\": 10",
+                "\"version\": 9"), "syncs, and version 9 has no syncs"));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace("ymxs,10,1", "ymxs,9,1"),
+                "syncA, and version 9 has no syncs"));
+        wrongInBothTrees(new Wrong("ymxs-check", json.replace(a,
+                "\"a\": [1,0,0,0,0,1,1,2],"), "syncs a at row 7 is 2, and a sync is 0 or 1"));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(zero,
+                "0,200,1,100,0,50,2,,56,15,15,15,,,,1,1,3\n"),
+                "syncC at row 0 is 3, and a sync is 1 or empty"));
     }
 
     /** The first {@code entries} entries of {@code half}, entry k the key

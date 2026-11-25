@@ -179,6 +179,8 @@ func TargetRegisters(target Target) []Register {
 		return []Register{t.Register}
 	case SetTone:
 		return []Register{Fine(t.Voice), Coarse(t.Voice)}
+	case SyncTone:
+		return []Register{Fine(t.Voice), Coarse(t.Voice)}
 	case SetNoise:
 		return []Register{R6, Volume(t.Voice)}
 	case SetEnvelope:
@@ -192,7 +194,7 @@ func TargetRegisters(target Target) []Register {
 }
 
 // TargetAt is the target numbered, and an error for a number outside 0 to
-// 24.
+// 27.
 func TargetAt(number int) (Target, error) {
 	if number >= 0 && number <= 13 {
 		register, err := RegisterAt(number)
@@ -212,8 +214,10 @@ func TargetAt(number int) (Target, error) {
 		return SetBuzzer{}, nil
 	case 22, 23, 24:
 		return SetNoise{Voice: Voice(number - 22)}, nil
+	case 25, 26, 27:
+		return SyncTone{Voice: Voice(number - 25)}, nil
 	}
-	return nil, fmt.Errorf("no target %d: a tune reaches 0 to 24", number)
+	return nil, fmt.Errorf("no target %d: a tune reaches 0 to 27", number)
 }
 
 // TargetNumber is the number of this target, within the 0 to 127 the
@@ -232,12 +236,15 @@ func TargetNumber(target Target) int {
 		return 21
 	case SetNoise:
 		return 22 + int(t.Voice)
+	case SyncTone:
+		return 25 + int(t.Voice)
 	}
 	panic(fmt.Sprintf("no target %T", target))
 }
 
-// TargetName is the name of this target: setR0 to setR13, and setToneA to
-// setNoiseC for the targets of several registers.
+// TargetName is the name of this target: setR0 to setR13, setToneA to
+// setNoiseC for the targets of several registers, and syncToneA to
+// syncToneC for the targets of a sync.
 func TargetName(target Target) string {
 	switch t := target.(type) {
 	case SetRegister:
@@ -252,6 +259,8 @@ func TargetName(target Target) string {
 		return "setBuzzer"
 	case SetNoise:
 		return "setNoise" + t.Voice.String()
+	case SyncTone:
+		return "syncTone" + t.Voice.String()
 	}
 	panic(fmt.Sprintf("no target %T", target))
 }

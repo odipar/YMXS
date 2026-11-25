@@ -59,7 +59,7 @@ func example(t *testing.T) string {
 // cut of the whole table of its source after the mapping.
 func TestTheExampleOfTheDocumentIsTheTextThisWrites(t *testing.T) {
 	said := example(t)
-	for _, each := range []string{`"version": 9,`, `"transformations": [],`,
+	for _, each := range []string{`"version": 10,`, `"transformations": [],`,
 		`"mapping": [0,-1,-1,-1],`, `"first": [0,-1,-1,-1],`, `"last": [1,-1,-1,-1]`} {
 		if !strings.Contains(said, each) {
 			t.Fatalf("the example has no %s", each)
@@ -302,7 +302,7 @@ func TestAFileOfVersion6ReadsEveryStartWithTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	written := text.Write(multi)
-	if !strings.Contains(written, `"version": 9,`) || !strings.Contains(written,
+	if !strings.Contains(written, `"version": 10,`) || !strings.Contains(written,
 		`"mapping": [0,-1],`) {
 		t.Errorf("a file of version 6 is written as version 9:\n%s", written)
 	}
@@ -530,7 +530,7 @@ func TestACutAndARecutCrossTheForm(t *testing.T) {
 // (json.md 2.4, 8.1).
 func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
 	said := example(t)
-	seven := strings.Replace(strings.Replace(said, `"version": 9`, `"version": 7`, 1),
+	seven := strings.Replace(strings.Replace(said, `"version": 10`, `"version": 7`, 1),
 		",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]", "", 1)
 	if strings.Contains(seven, "first") {
 		t.Fatalf("the example of version 7 has a cut:\n%s", seven)
@@ -550,5 +550,34 @@ func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
 	four := strings.Replace(seven, `"shape": [0,1,-1,2]`, `"shape": [0,4,-1,2]`, 1)
 	if _, err := text.Read(four); err == nil || err.Error() != line {
 		t.Errorf("shape 4 in version 7 reports %v, and json.md 8.1 has %q", err, line)
+	}
+}
+
+// A row's syncs are syncs, a column of 0 and 1 for each voice some row
+// syncs, and the targets of a sync are 25 to 27; in a file of version 9 or
+// before syncs is an error of the form (json.md 2.4, 5.4). The kit's tune
+// of them writes back as it reads.
+func TestASyncCrossesTheForm(t *testing.T) {
+	said, err := os.ReadFile("../../doc/conformance/tunes/sync.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := text.Read(string(said))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written := text.Write(read); written != string(said) {
+		t.Errorf("the kit's sync tune writes back as\n%s", written)
+	}
+	rows := read.Tunes[0].Table.Rows
+	if rows[0].Syncs != [3]bool{true, true, true} || rows[5].Syncs != [3]bool{true, false,
+		false} || rows[1].Syncs != [3]bool{} {
+		t.Errorf("the syncs read as %v, %v and %v", rows[0].Syncs, rows[5].Syncs,
+			rows[1].Syncs)
+	}
+	nine := strings.Replace(string(said), `"version": 10`, `"version": 9`, 1)
+	if _, err := text.Read(nine); err == nil ||
+		err.Error() != "syncs, and version 9 has no syncs" {
+		t.Errorf("a file of version 9 with syncs reads as %v", err)
 	}
 }

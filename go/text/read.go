@@ -225,6 +225,39 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 			}
 		}
 	}
+	syncs := make([][3]bool, max(rows, 0))
+	if written, set := at.get("syncs"); set {
+		if version < Sync {
+			return ymxs.Tune{}, fmt.Errorf("syncs, and version %d has no syncs", version)
+		}
+		sets, ok := written.(*members)
+		if !ok {
+			return ymxs.Tune{}, fmt.Errorf("syncs is %s, and this form requires a"+
+				" column a voice", other(written))
+		}
+		for _, voice := range ymxs.Voices {
+			named := "syncs " + SyncName(voice)
+			column, set := sets.get(SyncName(voice))
+			if !set {
+				continue
+			}
+			values, err := sized(column, rows, named)
+			if err != nil {
+				return ymxs.Tune{}, err
+			}
+			for row := 0; row < rows; row++ {
+				value, err := whole(values[row], fmt.Sprintf("%s at row %d", named, row))
+				if err != nil {
+					return ymxs.Tune{}, err
+				}
+				if value != 0 && value != 1 {
+					return ymxs.Tune{}, fmt.Errorf("%s at row %d is %d, and a sync is 0"+
+						" or 1", named, row, value)
+				}
+				syncs[row][voice] = value == 1
+			}
+		}
+	}
 	read := reading{sources: sources, transformations: transformations, rows: rows,
 		version: version}
 	for _, timer := range ymxs.Timers {
@@ -249,7 +282,8 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 	}
 	built := make([]ymxs.Row, max(rows, 0))
 	for row := 0; row < rows; row++ {
-		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row]}
+		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row],
+			Syncs: syncs[row]}
 	}
 	title, err := text(at, "title")
 	if err != nil {
@@ -601,6 +635,10 @@ func timingOf(columns *members, at int, timer ymxs.Timer, rows int) (ymxs.Timing
 func TargetOf(number, version int) (ymxs.Target, error) {
 	if version < Several && number > 13 {
 		return nil, fmt.Errorf("target %d, and version %d reaches 0 to 13", number,
+			version)
+	}
+	if version < Sync && number > 24 {
+		return nil, fmt.Errorf("target %d, and version %d reaches 0 to 24", number,
 			version)
 	}
 	return ymxs.TargetAt(number)

@@ -69,12 +69,15 @@ func (t Table[T]) Repeat() (int, bool) {
 	return t.repeat, t.repeats
 }
 
-// Row is one row: the registers it sets, and its operation on the effect
-// of each timer. A register absent from the first map is one the row does
-// not write; a timer absent from the second is one the row leaves running.
+// Row is one row: the registers it sets, its operation on the effect of
+// each timer, and the voices whose square it syncs before it writes their
+// periods (SPEC.md 3.9). A register absent from the first map is one the
+// row does not write; a timer absent from the second is one the row leaves
+// running. Syncs is true at the index of each voice the row syncs.
 type Row struct {
 	Registers map[Register]int
 	Effects   map[Timer]Effect
+	Syncs     [3]bool
 }
 
 // Effect is one row's operation on the effect of one timer. An effect is a
@@ -241,6 +244,13 @@ type SetTone struct {
 	Voice Voice
 }
 
+// SyncTone is the tone period of one voice, fine then coarse, after a sync
+// of its square: 0 to both registers, a wait of at least 9 cycles of the
+// chip's clock, then the period (SPEC.md 3.9).
+type SyncTone struct {
+	Voice Voice
+}
+
 // SetNoise is the noise period and the volume of one voice. R6 is one
 // register for the three voices, so two of these running at once write one
 // period and the later tick's write remains.
@@ -265,12 +275,14 @@ type SetBuzzer struct{}
 
 func (SetRegister) target()    {}
 func (SetTone) target()        {}
+func (SyncTone) target()       {}
 func (SetNoise) target()       {}
 func (SetEnvelope) target()    {}
 func (SetVoice) target()       {}
 func (SetBuzzer) target()      {}
 func (SetRegister) oneTarget() {}
 func (SetTone) twoTarget()     {}
+func (SyncTone) twoTarget()    {}
 func (SetNoise) twoTarget()    {}
 func (SetEnvelope) twoTarget() {}
 func (SetVoice) threeTarget()  {}
@@ -370,6 +382,9 @@ const (
 	VoiceB
 	VoiceC
 )
+
+// Voices is every voice, in the order they are declared.
+var Voices = []Voice{VoiceA, VoiceB, VoiceC}
 
 // String is the voice's letter, A to C.
 func (v Voice) String() string {

@@ -225,8 +225,8 @@ the input text and D that of the output. For `doc/tunes/example.json`
 and `doc/tunes/example.csv`:
 
 ```
-ymxs-json-to-csv: 1 tune, 4 rows, 889 characters in and 513 out
-ymxs-csv-to-json: 1 tune, 4 rows, 513 characters in and 889 out
+ymxs-json-to-csv: 1 tune, 4 rows, 890 characters in and 514 out
+ymxs-csv-to-json: 1 tune, 4 rows, 514 characters in and 890 out
 ```
 
 **7.3** The multi `ymxs-json-to-csv` writes, read by `ymxs-csv-to-json`,
@@ -398,14 +398,14 @@ runner where a caller starts it, puts Go on the path:
 | that tune with a row of several values, and with a target above 13, in CSV and in JSON | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and the line of csv.md 5.1 or json.md 8.1 |
 | `doc/tunes/example.json` with a source value of `"x"`, of `1.5`, and of `"x"` inside a row of two | `ymxs-check`; exit 1 and the line of json.md 8.1 for an element of `values` |
 | `doc/tunes/example.csv` with a `value` cell of `x`, empty, and of 2147483648 | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
-| a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `no target 30: a tune reaches 0 to 24` |
+| a tune of version 4 in CSV and in JSON with a target of 30 | `ymxs-csv-to-json` on the CSV; `ymxs-check` on the JSON; exit 1 and `target 30, and version 4 reaches 0 to 24` |
 | the text `not a file of any of these` | each of the five: the Java tree exits with 1, the Go tree with the same code, and both write the same bytes; standard error is not compared |
 | `doc/tunes/example.json` and `doc/tunes/example.csv` with `rows` of -1 and of -2,147,483,648, and a tune of no columns with `rows` of -1 in each form | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; exit 1 and the line 8.1 or 5.1 reports for R as read, or `the tune has no rows: a clock reads one` |
 | `doc/tunes/example.json` with a `version`, `rows`, `rate`, tune `repeat` or source `repeat` outside 32 bits, and a tune or source `repeat` of -1 | `ymxs-check`; exit 1 and the line of json.md 8.1 or SPEC.md 1.11 |
 | `doc/tunes/example.csv` with a `timerReset` or `placeReset` cell of `x`, empty, or `yes` on a retune | `ymxs-csv-to-json`; exit 1 and the whole-number line of csv.md 5.1 |
 | `doc/tunes/example.json` with a line feed in its writer | `ymxs-json-to-csv`; exit 1 and the line of 7.4 |
 | `doc/tunes/deferred.json` with R8 set at rows 5 and 6 | `ymxs-check`; the two rule 1 lines that rest on the reckoning, of the square to row 6 and of the deferred start from there (SPEC.md 6.3) |
-| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 9 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
+| `doc/tunes/deferred.json` as version 4, and without its `deferred` column, in JSON and in CSV | `ymxs-check` on the JSON, `ymxs-csv-to-json` on the CSV; version 4 reads, and version 10 without the column exits with 1 and the line of json.md 8.1 or csv.md 5.1 |
 | `doc/tunes/example.json` followed by `xyz` | `ymxs-merge`; exit 1, standard output empty, and `this is not JSON: ` in both, the parser's message after it compared in neither |
 | a YM3! dump of one frame as a stored LHA member, its unpacked size that of the dump and 14 bytes above it | `ym-to-ymxs`; the second exits with 1 and `LHA member is truncated` (ym.md 3.1) |
 | `src/test/resources/packed.ym` | `ym-to-ymxs -r-1` and `-r-2147483648`: exit 2 and `-rROW is not a row number` (9.2) |

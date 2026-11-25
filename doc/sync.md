@@ -209,12 +209,12 @@ The player:
 ## The plan
 
 - [x] The plan, this document
-- [ ] YMXS: the structure, `syncs` and the three targets, in sections 1,
+- [x] YMXS: the structure, `syncs` and the three targets, in sections 1,
       3.1, 4.4, 5, 6, 7 and 8 of SPEC.md, with a section on the sync, 3.9,
       and the chip's steps in 2
-- [ ] YMXS: JSON, CSV and the record; the check and rule 1(f); both trees;
+- [x] YMXS: JSON, CSV and the record; the check and rule 1(f); both trees;
       version 10
-- [ ] YMXS: a tune of the conformance kit that syncs at frames and through
+- [x] YMXS: a tune of the conformance kit that syncs at frames and through
       each target, on copy from frame
 - [ ] YMXR: the encoding in both trees, version 13; the frame's sync and
       the sync handler; the rig against the model and the wait under Hatari

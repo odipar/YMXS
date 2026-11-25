@@ -608,7 +608,7 @@ final class ParityTest {
         String unused = "transformation 2, other, is used by no row, and a transformation a"
                 + " tune does not map through is dropped where this form is read";
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":10"),
+                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":11"),
                         "version 11, and this reads 3, 4, 5, 6, 7, 8, 9 or 10"),
                 new Wrong("ymxs-check", json.replace(transformations, ""),
                         "transformations is null" + array),

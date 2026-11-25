@@ -18,13 +18,57 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.9.0` beside `v0.9.0`.
+version of it is a tag of that directory: `go/v0.10.0` beside `v0.10.0`.
 
-A player pins a version of this format: the structure's version is 9, a
-writer writes 9 and a reader reads 9, 8, 7, 6, 5, 4 and 3, and a release's
-number names the tools rather than the format.
+A player pins a version of this format: the structure's version is 10, a
+writer writes 10 and a reader reads 10, 9, 8, 7, 6, 5, 4 and 3, and a
+release's number names the tools rather than the format.
 
 ## Published
+
+### 0.10.0, 2026-11-25
+
+<https://github.com/odipar/YMXS/releases/tag/v0.10.0>, built from the
+commit tagged `v0.10.0`.
+
+The structure's version is 10: a sync of a voice writes 0 to the two
+registers of its period, waits at least 9 cycles of the chip's clock, and
+then writes the period, so the square's next edge falls one period after
+the wait (SPEC.md 3.9). A row syncs voices at its frame, and three
+targets, `syncToneA`, `syncToneB` and `syncToneC`, sync their voice at
+each tick: with copy from frame as the source, the hard sync of the sync
+square. A writer writes 10, and a reader reads 10, 9, 8, 7, 6, 5, 4 and 3.
+
+- **The structure.** `Row` has a third field, `syncs`, the voices the row
+  syncs, and `SyncTone(Voice voice)` is a fourth `TwoTarget`, numbered 25
+  to 27 (SPEC.md 1.1, 3.1.2). At a frame the syncs come before step 1 of
+  4.4, for each voice on whose period no effect runs, and at a tick the
+  writes of a sync are one step of the tick (3.9.3, 3.9.4).
+- **The rules.** Rule 1(f) warns of a row that syncs a voice while an
+  effect runs on the voice's period at step 4: the frame leaves that sync
+  to the effect, through a sync target.
+- **The forms.** JSON has `syncs`, a column of 0 and 1 for each voice some
+  row syncs (json.md 5.4), CSV has `syncA`, `syncB` and `syncC` cells in
+  the `registers` block, and the record has `s` after `w`, the voices the
+  row syncs (SPEC.md 7.4). In a file of version 9 or before a sync and the
+  targets 25 to 27 are errors of the form, and a version other than 3 to
+  10 reports `version N, and this reads 3, 4, 5, 6, 7, 8, 9 or 10`.
+- **The Go module.** `ymxs.Row.Syncs` is a `[3]bool`, true at the index
+  of each voice the row syncs, `ymxs.SyncTone` is a fourth two-register
+  target, and `ymxs.Voices` lists the three voices. `text.Version` is 10,
+  and `text.Sync` is 10, the first version with syncs.
+- **The examples.** The kit has a fourteenth tune, `sync`, and every tune
+  file of the documents is version 10.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release
+writes in 12 dumps of 12 the tune that `ym-to-ymxs` of 0.9.0 writes, read
+and written again by this release, and reports the same. `ymxs-check`
+exits, writes and reports the same on the thirteen tunes of the kit and
+the ten example tunes of 0.9.0, each read as version 9, and
+`ymxs-csv-to-json` reads the two CSV examples of 0.9.0 into the tunes of
+version 10 under `doc/tunes`.
+
+Checks: `bin/suite` green, 242 tests and 0 skipped.
 
 ### 0.9.0, 2026-11-25
 

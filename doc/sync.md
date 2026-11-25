@@ -140,7 +140,7 @@ Rule 1 gains a clause and a warning:
 
 | rule | condition | reported as |
 |---|---|---|
-| 1(f) | row N syncs voice V, and the effect of Timer X runs on a register of that voice's period at step 4 | `row N: syncs voice V, whose period Timer X runs on: the frame leaves the sync to the effect` |
+| 1(f) | row N syncs voice V, and the effect of Timer X runs at step 4 on Rn, the first register of the voice's period its target writes | `row N: Timer X runs on Rn, and this row syncs voice V: the frame leaves the sync to the effect` |
 
 ### The forms
 

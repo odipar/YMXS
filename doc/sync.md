@@ -66,25 +66,34 @@ A sync is a value of the row beside its registers. R1, R3 and R5 keep the
 four bits of the period (SPEC.md 2.1), and each form and each encoding
 defines where it writes the sync (The forms; What it changes in YMXR).
 
+### The wait
+
+A sync waits at least 9 cycles of the chip's clock between the zeros and
+the period: one step of the tone generator and a cycle more, so the wait
+reaches a step where the clocks of the CPU and the chip drift apart, as on
+the STE. On an 8 MHz 68000 that is 36 cycles.
+
 ### A sync at a frame
 
 Step 4 of a frame (SPEC.md 4.4) writes R0 to R5 at its first step. Before
-that step, for each voice the row syncs: write 0 to both registers of its
-period, wait at least one step of the tone generator, then write the frame
-values of the two registers (SPEC.md 3.8.1), fine then coarse. The frame
-value is the row's value where the row sets the register and the value the
-register last had where it leaves it, so both registers are set again on
-every sync. A row that syncs two or three voices writes the zeros of each,
-waits once, and writes their periods.
+that step, for each voice the row syncs on whose period no effect runs at
+step 4 (SPEC.md 6.2 d): write 0 to both registers of its period, wait
+(The wait), then write the frame values of the two registers (SPEC.md
+3.8.1), fine then coarse. The frame value is the row's value where the row
+sets the register and the value the register last had where it leaves it,
+so both registers are set again on every sync. A row that syncs two or
+three voices writes the zeros of each, waits once, and writes their
+periods. A row that syncs a voice and leaves its period as it is restarts
+the square at the period it has.
 
-A row that syncs a voice and leaves its period as it is restarts the square
-at the period it has. Rule 1 reads a sync as a row that sets both
-registers of the period: where an effect runs on either, the row breaks
-rule 1 as a row that sets the register does.
+Where an effect runs on either register of the voice's period at step 4,
+copy from frame included, the frame leaves the sync out: the sync of that
+voice is the effect's, made at its ticks where its target is a sync target
+(A sync at a tick). Rule 1(f) reports such a row (What a check reports).
 
-Where a copy-from-frame effect runs on the period's registers (SPEC.md
-3.8.3), the frame syncs the voice and writes the frame values, the values
-the ticks write; open question 1 is the alternative.
+The wait at a frame keeps the frame's interrupt level: a tick inside it
+lengthens the wait and moves that one restart, where level 7 over it would
+delay the ticks of every running effect.
 
 ### A sync at a tick
 
@@ -94,6 +103,12 @@ row is the row of `setToneA`: two values, the fine byte 0 to 255 and the
 coarse 0 to 15, and every source that runs on a tone target runs on it.
 The targets are numbered 25 to 27 (SPEC.md 3.1.2): `syncToneA` 25,
 `syncToneB` 26 and `syncToneC` 27.
+
+A sync target makes its sync at level 7, from the zeros to the period's
+writes, so the restart falls at the handler's instructions, a fixed time
+after the tick's interrupt. A tick of another timer due inside that window
+runs after it, late by up to the window's length: the two zero writes, the
+wait and the period's two writes, about 130 cycles.
 
 With copy from frame as its source at the rate of a timer, `syncToneA`
 restarts voice A's square at each tick at the period the rows set: the
@@ -118,7 +133,17 @@ A sync target reads the row of a tone target, so the errors of a tone
 target read it: a source of other than two values a row (SPEC.md 3.2.1),
 and a value outside its register through the identity or a transformation
 (SPEC.md 3.2.2). A row may sync any voice, with its period set or unset.
-Rule 1 reads a sync as above.
+
+Rule 1 gains a clause and a warning:
+
+- 1(f) A row breaks the rule where it syncs a voice while an effect runs
+  on a register of the voice's period at step 4 of its frame: the frame
+  leaves that sync out (A sync at a frame). The effect may be copy from
+  frame, whose registers 1(e) excludes from 1(a) alone.
+
+| rule | condition | reported as |
+|---|---|---|
+| 1(f) | row N syncs voice V, and the effect of Timer X runs on a register of that voice's period at step 4 | `row N: syncs voice V, whose period Timer X runs on: the frame leaves the sync to the effect` |
 
 ### The forms
 
@@ -130,13 +155,16 @@ Rule 1 reads a sync as above.
 | CSV (csv.md 3) | the targets `syncToneA`, `syncToneB` and `syncToneC` |
 | the record (SPEC.md 7.4) | `"s":["A"]` after `w`, the voices the row syncs in order, where the row syncs one |
 
-A record of a tune of version 9 reads as before.
+A record of a tune of version 9 reads as before. `s` lists the voices of
+the row, a voice whose sync the frame leaves out among them, as `w` lists
+the registers of the row.
 
 ### The version
 
 The structure's version is 10: a writer writes 10, and a reader reads 10
 and 9 to 3. In a file of version 9 or before, `syncs` and the three targets
-are errors of the form.
+are errors of the form. A voice target with a sync, of a period and a
+volume, joins the targets a later version defines (SPEC.md 8.2).
 
 ## What it changes in YMXR
 
@@ -144,11 +172,12 @@ The encoding:
 
 - The sync at a frame is bit 5 of the voice's coarse column, 1, 3 or 5
   (YMXR's SPEC.md 1.2.2), where bits 5 and 4 are unassigned; bit 6 there
-  marks the fine column's 0 as a value (1.1.2). A writer sets bit 5 on a
-  row that sets both columns of the voice: where the YMXS row syncs a voice
-  and leaves either register unset, the converter writes the register's
-  frame value into its column, so a player writes the period from the row
-  alone. A player reads bit 5 where the row sets the coarse column.
+  marks the fine column's 0 as a value (1.1.2). A writer sets bit 5 where
+  the frame syncs the voice, and leaves it clear where an effect runs on
+  the voice's period (1(f)). On a row with bit 5 set it sets both columns
+  of the voice, a register's frame value where the YMXS row leaves the
+  register unset, so a player writes the period from the row alone. A
+  player reads bit 5 where the row sets the coarse column.
 - The targets are 25, 26 and 27 in a start's target column, whose bits 6
   to 0 reach 127 (YMXR's SPEC.md 1.8.2), and the map of targets gains
   their three rows (2.1).
@@ -163,20 +192,19 @@ The player:
 
 - The frame: the register steps of a tune that syncs read bit 5 of each
   coarse column the row sets, write the zeros of each voice it marks, wait
-  once, and run the steps of R0 to R5. The wait is the steps' instructions
-  where they reach 36 cycles, and a delay otherwise. The register steps of
-  the block `copy` gain the same test, for a tune that syncs and copies
-  from frame.
+  36 cycles, and run the steps of R0 to R5. The wait is the steps'
+  instructions where they reach 36 cycles, and a delay otherwise. The
+  register steps of the block `copy` gain the same test, for a tune that
+  syncs and copies from frame.
 - The ticks: a sync target runs the counted handler of two columns at every
   shape of source, as copy from frame runs the counted handlers, with the
   two zero writes at its head and its row's reads between them and the
-  writes; through a transformation, the counted lookup instance of two
-  columns with the same head. A zero write is a `move.l` of the select and
-  the data at once, 20 cycles, so a sync tick is about 40 cycles more than
-  the counted tick of `setToneA`, 218 at the end of a pass; the rig counts
-  it once the handler is built.
-- A tick of another timer inside the wait lengthens it, and the square
-  restarts after that tick; open question 2 is level 7 over the wait.
+  writes, at level 7 from the first zero to the period's writes; through a
+  transformation, the counted lookup instance of two columns with the same
+  head. A zero write is a `move.l` of the select and the data at once, 20
+  cycles, so a sync tick is about 40 cycles more than the counted tick of
+  `setToneA`, 218 at the end of a pass; the rig counts it once the handler
+  is built.
 - The rig: the model writes the zeros and the period, and the rig compares
   each write; under Hatari the rig reads the cycles from the zeros to the
   period's first write and fails a wait below 36.
@@ -185,29 +213,16 @@ The player:
 
 - [x] The plan, this document
 - [ ] YMXS: the structure, `syncs` and the three targets, in sections 1,
-      3.1, 4.4, 5, 6 and 7 of SPEC.md, with a section on the sync, 3.9,
+      3.1, 4.4, 5, 6, 7 and 8 of SPEC.md, with a section on the sync, 3.9,
       and the chip's steps in 2
-- [ ] YMXS: JSON, CSV and the record; the check; both trees; version 10
+- [ ] YMXS: JSON, CSV and the record; the check and rule 1(f); both trees;
+      version 10
 - [ ] YMXS: a tune of the conformance kit that syncs at frames and through
       each target, on copy from frame
 - [ ] YMXR: the encoding in both trees, version 13; the frame's sync and
       the sync handler; the rig against the model and the wait under Hatari
 - [ ] YMXR: the cycles of a sync at a frame and at a tick in performance.md
 - [ ] The specifications define what landed; this document goes
-
-## Open questions
-
-1. A frame's sync of a voice whose period copy from frame runs on: this
-   plan syncs at the frame and writes the frame values. The alternative
-   leaves the sync to the ticks, as the frame leaves the write (SPEC.md
-   3.8.3), so such a voice syncs through a sync target alone.
-2. Level 7 over the wait at a tick: the restart at the handler's
-   instructions, against a delay of about 40 cycles to every other timer's
-   tick.
-3. The wait: 36 cycles for the STE, or 32 for the ST and a missed step now
-   and then on the STE.
-4. A voice target with a sync, `syncVoiceA` of R0, R1 and R8, for a sync
-   square with a volume a row: in version 10, or a later version.
 
 ## Settled
 
@@ -219,3 +234,12 @@ The player:
 - A sync at a tick is a separate target, beside the tone targets, whose
   writes are as they were.
 - Copy from frame runs on a sync target as on any target of two registers.
+- The frame syncs a voice on whose period no effect runs; where one runs,
+  copy from frame included, the sync is the effect's, and the frame leaves
+  the row's sync out (1(f)).
+- A sync target's sync runs at level 7 from the zeros to the period's
+  writes.
+- The wait is 9 cycles of the chip's clock, 36 of an 8 MHz 68000, so it
+  reaches a step on the STE.
+- A voice target with a sync, `syncVoiceA` of R0, R1 and R8, is left to a
+  later version.

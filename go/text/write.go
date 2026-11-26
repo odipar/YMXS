@@ -26,7 +26,11 @@ const Format = "ymxs"
 
 // Version is the version of the structure this maps, and the version a
 // writer writes.
-const Version = 10
+const Version = 11
+
+// Even is the first version with a row's even syncs: in a file of a version
+// before it evenSyncs is an error of the form (json.md 2.4).
+const Even = 11
 
 // Sync is the first version with a row's syncs and the targets of a sync,
 // syncToneA to syncToneC: in a file of a version before it syncs and a
@@ -176,11 +180,15 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				}
 			})
 		})
-		if synced(rows) {
-			o.field("syncs", func() {
+		for _, key := range []string{"syncs", "evenSyncs"} {
+			of := voicesOf(key)
+			if !listed(rows, of) {
+				continue
+			}
+			o.field(key, func() {
 				w.object(depth+1, func(sets *entries) {
 					for _, voice := range ymxs.Voices {
-						column, any := syncColumn(rows, voice)
+						column, any := voiceColumn(rows, voice, of)
 						if any {
 							sets.field(SyncName(voice), func() {
 								w.values(depth+2, column)
@@ -334,23 +342,34 @@ func SyncName(voice ymxs.Voice) string {
 	return strings.ToLower(voice.String())
 }
 
-// synced is whether some row syncs a voice.
-func synced(rows []ymxs.Row) bool {
+// voicesOf is the voices of a row the object key writes: its syncs for
+// syncs, and its even syncs for evenSyncs (json.md 5.4, 5.5).
+func voicesOf(key string) func(ymxs.Row) [3]bool {
+	if key == "evenSyncs" {
+		return func(row ymxs.Row) [3]bool { return row.EvenSyncs }
+	}
+	return func(row ymxs.Row) [3]bool { return row.Syncs }
+}
+
+// listed is whether some row lists a voice among the voices of.
+func listed(rows []ymxs.Row, of func(ymxs.Row) [3]bool) bool {
 	for _, voice := range ymxs.Voices {
-		if _, any := syncColumn(rows, voice); any {
+		if _, any := voiceColumn(rows, voice, of); any {
 			return true
 		}
 	}
 	return false
 }
 
-// syncColumn is one voice's syncs: 1 on each row that syncs it and 0
-// elsewhere, with whether any row syncs it.
-func syncColumn(rows []ymxs.Row, voice ymxs.Voice) ([]int, bool) {
+// voiceColumn is one voice's column of syncs or of even syncs: 1 on each
+// row whose voices of list it and 0 elsewhere, with whether any row lists
+// it.
+func voiceColumn(rows []ymxs.Row, voice ymxs.Voice, of func(ymxs.Row) [3]bool) ([]int,
+	bool) {
 	column := make([]int, len(rows))
 	any := false
 	for at, row := range rows {
-		if row.Syncs[voice] {
+		if of(row)[voice] {
 			column[at] = 1
 			any = true
 		}

@@ -268,7 +268,7 @@ func example(t *testing.T, named, clause, fence string) string {
 func TestTheExampleOfTheDocumentIsTheTablesThisWrites(t *testing.T) {
 	json := example(t, "json.md", "10.1", "```json")
 	tables := example(t, "csv.md", "8.1", "```")
-	if !strings.Contains(tables, "ymxs,10,1") || !strings.Contains(tables,
+	if !strings.Contains(tables, "ymxs,11,1") || !strings.Contains(tables,
 		",deferred,mapping,first,last\n0,0,8,1,50,60,1,1,0,0,0,1\n1,1,,,50,61,0,0,,,,\n"+
 			"3,2,,,,,,,,,,\n") {
 		t.Fatalf("the example is of version 9 with a mapping cell and a cut:\n%s", tables)
@@ -413,7 +413,7 @@ func TestAFileOfVersion6SkipsTheMappingAndHasNoTransformationBlock(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	six := strings.Replace(written, "ymxs,10,1", "ymxs,6,1", 1)
+	six := strings.Replace(written, "ymxs,11,1", "ymxs,6,1", 1)
 	from := strings.Index(six, "### transformation\n")
 	to := strings.Index(six, "### registers\n")
 	if from < 0 || to < from {
@@ -655,7 +655,7 @@ func TestACutAndARecutCrossTheTables(t *testing.T) {
 		t.Errorf("the tune moved crossing to the tables and back:\n%s", text.Write(back))
 	}
 	tables := example(t, "csv.md", "8.1", "```")
-	seven := strings.Replace(tables, "ymxs,10,1", "ymxs,7,1", 1)
+	seven := strings.Replace(tables, "ymxs,11,1", "ymxs,7,1", 1)
 	multi, err := csv.Read(seven)
 	if err != nil {
 		t.Fatal(err)
@@ -668,5 +668,46 @@ func TestACutAndARecutCrossTheTables(t *testing.T) {
 	four := strings.Replace(seven, "1,1,,,50,61,0,0,,,,", "1,4,,,,,,,,,0,0", 1)
 	if _, err := csv.Read(four); err == nil || err.Error() != line {
 		t.Errorf("shape 4 in version 7 reports %v, and csv.md 5.1 has %q", err, line)
+	}
+}
+
+// A row's even syncs are the cells evenSyncA to evenSyncC of the registers
+// block, 1 or empty, after the sync cells; in a file of version 10 or before
+// such a column is an error of the form (csv.md 3.7, 5.1). The kit's tune of
+// them crosses to the tables and back.
+func TestAnEvenSyncCrossesTheTables(t *testing.T) {
+	said, err := os.ReadFile("../../doc/conformance/tunes/even-syncs.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	multi, err := text.Read(string(said))
+	if err != nil {
+		t.Fatal(err)
+	}
+	written, err := csv.Write(multi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	four := "4,,,,,,,,,,,,,,,1,,,1,\n"
+	if !strings.Contains(written, ",r13,syncB,syncC,evenSyncA,evenSyncB,evenSyncC\n") ||
+		!strings.Contains(written, four) {
+		t.Fatalf("the tables are\n%s", written)
+	}
+	back, err := csv.Read(written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text.Write(back) != string(said) {
+		t.Errorf("the tables read back as\n%s", text.Write(back))
+	}
+	ten := strings.Replace(written, "ymxs,11,1", "ymxs,10,1", 1)
+	if _, err := csv.Read(ten); err == nil ||
+		err.Error() != "evenSyncA, and version 10 has no even syncs" {
+		t.Errorf("a file of version 10 with even syncs reads as %v", err)
+	}
+	three := strings.Replace(written, four, "4,,,,,,,,,,,,,,,1,,,3,\n", 1)
+	if _, err := csv.Read(three); err == nil ||
+		err.Error() != "evenSyncB at row 4 is 3, and an even sync is 1 or empty" {
+		t.Errorf("an even sync cell of 3 reads as %v", err)
 	}
 }

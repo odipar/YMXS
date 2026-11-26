@@ -1,0 +1,17 @@
+{"rate":50,"timers":["A"],"sources":[],"transformations":[]}
+{"result":0,"w":{"0":200,"1":1,"2":100,"3":0,"4":50,"5":2,"7":56,"8":15,"9":15,"10":15},"s":["B"],"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"syncToneA","source":0,"prescaler":4,"count":100,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":0}}}}
+{"result":0,"w":{},"even":["A"],"e":{}}
+{"result":0,"w":{"0":190},"even":["A"],"e":{}}
+{"result":0,"w":{},"s":["B"],"even":["B"],"e":{}}
+{"result":0,"w":{},"s":["C"],"e":{}}
+{"result":0,"w":{},"even":["C"],"e":{"A":{"stop":{}}}}
+{"result":0,"w":{},"e":{}}
+{"result":0,"w":{"0":200,"1":1,"2":100,"3":0,"4":50,"5":2,"7":56,"8":15,"9":15,"10":15},"s":["B"],"e":{}}
+{"result":0,"w":{},"e":{"A":{"start":{"target":"syncToneA","source":0,"prescaler":4,"count":100,"timerReset":true,"placeReset":true,"deferred":false,"mapping":0,"first":0,"last":0}}}}
+{"result":0,"w":{},"even":["A"],"e":{}}
+{"result":0,"w":{"0":190},"even":["A"],"e":{}}
+{"result":0,"w":{},"s":["B"],"even":["B"],"e":{}}
+{"result":0,"w":{},"s":["C"],"e":{}}
+{"result":0,"w":{},"even":["C"],"e":{"A":{"stop":{}}}}
+{"result":0,"w":{},"e":{}}

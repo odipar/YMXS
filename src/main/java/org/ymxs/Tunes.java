@@ -74,7 +74,7 @@ public final class Tunes {
     /** An empty row. A player advancing over it leaves every register as it
      *  is and
      *  moves no timer. */
-    public static final Row EMPTY = new Row(Map.of(), Map.of(), Set.of());
+    public static final Row EMPTY = new Row(Map.of(), Map.of(), Set.of(), Set.of());
 
     private Tunes() {
     }
@@ -98,7 +98,7 @@ public final class Tunes {
 
     /** A row that sets these registers and leaves every effect alone. */
     public static Row row(Map<Register, Integer> registers) {
-        return new Row(registers, Map.of(), Set.of());
+        return new Row(registers, Map.of(), Set.of(), Set.of());
     }
 
     /**

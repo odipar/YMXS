@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.ymxs.YMXS.Tune;
 
@@ -110,7 +111,7 @@ final class RecordTest {
     void aRemapOnATimerOfNoStartIsRecorded() {
         Tune tune = new Tune("", "", "", 50, Tunes.once(List.of(
                 new YMXS.Row(java.util.Map.of(), java.util.Map.of(YMXS.Timer.C,
-                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5)))), java.util.Set.of()))));
+                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5)))), java.util.Set.of(), Set.of()))));
         List<String> record = Record.record(tune);
         assertTrue(record.get(0).startsWith("{\"rate\":50,\"timers\":[],\"sources\":[],"
                 + "\"transformations\":[[0,0,0,1,"), record.get(0));

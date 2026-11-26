@@ -767,11 +767,9 @@ through a mapping.
 generator: the voice's period is 0 for a number of steps of the generator
 (3.9.2), then the period follows. In order: write 0 to the two registers
 of the voice's period, R0 and R1 for voice A, R2 and R3 for voice B, R4
-and R5 for voice C, the coarse register first where its value is 0 and the
-fine register first otherwise; after the steps, write the period to the
-two registers, the coarse register first where the new fine value is 0 and
-the fine register first otherwise (3.1.1). The period is the frame's at a
-frame (3.9.3) and the row's of a source at a tick (3.9.4).
+and R5 for voice C, in either order; after the steps, write the period to
+the two registers, fine then coarse (3.1.1). The period is the frame's at
+a frame (3.9.3) and the row's of a source at a tick (3.9.4).
 
 Note: in Steven Tattersall's model of the chip, reached by experiment
 ([YM2149
@@ -781,10 +779,13 @@ chip's clock: it adds 1 to a count, and where the count is at or above the
 period it flips the square and sets the count to 0; a period of 0 steps as
 a period of 1. With the period at 0 the square flips at each step, and its
 count is 0 after the last of them, so its next edge falls one period after
-that step. The order of the writes makes the second zero the write that
-sets the period to 0, or the first where the period is 0 before the sync,
-and the first write of the period the write that sets it other than 0. A
-sync to a period of 0 leaves the period at 0.
+that step. The steps count from the write after which both registers are
+0: the second zero, or the first where the other register is 0 before the
+sync, so a player that zeroes the coarse register first unless the fine
+one is 0 starts them at the second. They end at the write of the period
+after which one of the two is other than 0: the fine write, or the coarse
+write where the new fine value is 0. A sync to a period of 0 leaves the
+period at 0.
 
 **3.9.2 The steps.** From the write that sets the period to 0 to the write
 that sets it other than 0, exactly n steps of the tone generator, 8n

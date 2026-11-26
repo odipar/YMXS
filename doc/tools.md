@@ -491,6 +491,6 @@ executables from a directory outside the repository,
 `ymxs-json-to-csv` and `ymxs-csv-to-json`, and reports the byte count of
 the JSON.
 
-**12.5** [RELEASES.md](RELEASES.md) lists the releases. The Go tree is
-the module `github.com/odipar/ymxs/go`, a version of it a tag of that
-directory, `go/v0.10.0` beside `v0.10.0`.
+**12.5** [RELEASES.md](RELEASES.md) lists the releases. The Go tree is the
+module `github.com/odipar/ymxs/go`, a version of it a tag of that
+directory, `go/v0.11.0` beside `v0.11.0`.

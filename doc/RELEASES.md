@@ -18,13 +18,62 @@ The version names every file. It is read out of `pom.xml`, or is
 the script's one argument.
 
 The Go tree is a separate module, `github.com/odipar/ymxs/go`, and a
-version of it is a tag of that directory: `go/v0.10.0` beside `v0.10.0`.
+version of it is a tag of that directory: `go/v0.11.0` beside `v0.11.0`.
 
-A player pins a version of this format: the structure's version is 10, a
-writer writes 10 and a reader reads 10, 9, 8, 7, 6, 5, 4 and 3, and a
+A player pins a version of this format: the structure's version is 11, a
+writer writes 11 and a reader reads 11, 10, 9, 8, 7, 6, 5, 4 and 3, and a
 release's number names the tools rather than the format.
 
 ## Published
+
+### 0.11.0, 2026-11-26
+
+<https://github.com/odipar/YMXS/releases/tag/v0.11.0>, built from the
+commit tagged `v0.11.0`.
+
+The structure's version is 11: a sync keeps a voice's period at 0 for an
+exact number of steps of the tone generator, odd or even as the row says
+(SPEC.md 3.9), so a writer sets the level of the square after each restart
+of a hard sync. A writer writes 11, and a reader reads 11, 10, 9, 8, 7, 6,
+5, 4 and 3.
+
+- **The sync.** From the write after which both registers of a voice's
+  period are 0 to the write of the period after which one is other than 0,
+  the tone generator steps exactly n times, 8n cycles of the chip's clock:
+  n odd for a voice outside the row's `evenSyncs`, and n even, at least 2,
+  for a voice among them (3.9.2). An odd sync turns the square to the
+  other level and an even sync leaves it at its level. The zeros come in
+  either order and the period fine then coarse (3.9.1). The wait of
+  0.10.0, at least 9 cycles of the chip's clock, left the count, and the
+  level with it, to the phase of the generator (odipar/YMXR#399).
+- **The structure.** `Row` has a fourth field, `evenSyncs`, the voices
+  whose syncs during the row are even: the sync of its frame and those of
+  the ticks until the next frame (SPEC.md 1.1, 1.6). Each voice a frame
+  syncs has its steps, and a tick due during the syncs occurs after them
+  (3.9.3).
+- **The forms.** JSON has `evenSyncs`, a column of 0 and 1 for each voice
+  some row lists (json.md 5.5), CSV has the cells `evenSyncA` to
+  `evenSyncC` in the `registers` block (csv.md 3.7), and the record has
+  `even` after `s` (SPEC.md 7.4). In a file of version 10 or before each
+  is an error of the form, and a version other than 3 to 11 reports
+  `version N, and this reads 3, 4, 5, 6, 7, 8, 9, 10 or 11`.
+- **The Go module.** `ymxs.Row.EvenSyncs` is a `[3]bool`, true at the
+  index of each voice whose syncs during the row are even. `text.Version`
+  is 11, and `text.Even` is 11, the first version with even syncs.
+- **The examples.** The kit has a fifteenth tune, `even-syncs`, every tune
+  file of the documents is version 11, and `doc/sync.md`, the plan of
+  version 10, goes; SPEC.md 3.9 credits Tattersall's model of the chip and
+  gwEm's sync square.
+
+Over YMXR's `ym/test` and the dump here, `ym-to-ymxs` of this release
+writes in 12 dumps of 12 the tune that `ym-to-ymxs` of 0.10.0 writes, read
+and written again by this release, and reports the same. `ymxs-check`
+exits, writes and reports the same on the fourteen tunes of the kit and
+the ten example tunes of 0.10.0, each read as version 10, and
+`ymxs-csv-to-json` reads the two CSV examples of 0.10.0 into the tunes of
+version 11 under `doc/tunes`.
+
+Checks: `bin/suite` green, 245 tests and 0 skipped.
 
 ### 0.10.0, 2026-11-25
 

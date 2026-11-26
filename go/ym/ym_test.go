@@ -89,7 +89,7 @@ func TestADumpIsWrittenAsVersion8ThroughTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start maps through %d parts", len(parts))
 	}
 	written := text.Write(ymxs.NewMulti(tune))
-	for _, each := range []string{`"version": 10,`, `"transformations": [],`,
+	for _, each := range []string{`"version": 11,`, `"transformations": [],`,
 		`"mapping": [0,-1]`} {
 		if !strings.Contains(written, each) {
 			t.Errorf("the tune has no %s:\n%s", each, written)

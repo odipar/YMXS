@@ -225,38 +225,14 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 			}
 		}
 	}
-	syncs := make([][3]bool, max(rows, 0))
-	if written, set := at.get("syncs"); set {
-		if version < Sync {
-			return ymxs.Tune{}, fmt.Errorf("syncs, and version %d has no syncs", version)
-		}
-		sets, ok := written.(*members)
-		if !ok {
-			return ymxs.Tune{}, fmt.Errorf("syncs is %s, and this form requires a"+
-				" column a voice", other(written))
-		}
-		for _, voice := range ymxs.Voices {
-			named := "syncs " + SyncName(voice)
-			column, set := sets.get(SyncName(voice))
-			if !set {
-				continue
-			}
-			values, err := sized(column, rows, named)
-			if err != nil {
-				return ymxs.Tune{}, err
-			}
-			for row := 0; row < rows; row++ {
-				value, err := whole(values[row], fmt.Sprintf("%s at row %d", named, row))
-				if err != nil {
-					return ymxs.Tune{}, err
-				}
-				if value != 0 && value != 1 {
-					return ymxs.Tune{}, fmt.Errorf("%s at row %d is %d, and a sync is 0"+
-						" or 1", named, row, value)
-				}
-				syncs[row][voice] = value == 1
-			}
-		}
+	syncs, err := voices(at, "syncs", rows, version, Sync, "syncs", "a sync")
+	if err != nil {
+		return ymxs.Tune{}, err
+	}
+	evens, err := voices(at, "evenSyncs", rows, version, Even, "even syncs",
+		"an even sync")
+	if err != nil {
+		return ymxs.Tune{}, err
 	}
 	read := reading{sources: sources, transformations: transformations, rows: rows,
 		version: version}
@@ -283,7 +259,7 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 	built := make([]ymxs.Row, max(rows, 0))
 	for row := 0; row < rows; row++ {
 		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row],
-			Syncs: syncs[row]}
+			Syncs: syncs[row], EvenSyncs: evens[row]}
 	}
 	title, err := text(at, "title")
 	if err != nil {
@@ -656,6 +632,51 @@ func column(columns *members, named string, at int, timer ymxs.Timer,
 		return 0, err
 	}
 	return whole(values[at], fmt.Sprintf("Timer %s's %s at row %d", timer, named, at))
+}
+
+// voices is the object key of a voice's column each, syncs or even syncs
+// (json.md 5.4, 5.5): for each row the voices whose column is 1 there, none
+// where the object is absent. first is the first version with the object,
+// noun the plural the error of an earlier one names and one the singular
+// of a value's error.
+func voices(at *members, key string, rows, version, first int, noun,
+	one string) ([][3]bool, error) {
+	out := make([][3]bool, max(rows, 0))
+	written, set := at.get(key)
+	if !set {
+		return out, nil
+	}
+	if version < first {
+		return nil, fmt.Errorf("%s, and version %d has no %s", key, version, noun)
+	}
+	sets, ok := written.(*members)
+	if !ok {
+		return nil, fmt.Errorf("%s is %s, and this form requires a column a voice",
+			key, other(written))
+	}
+	for _, voice := range ymxs.Voices {
+		named := key + " " + SyncName(voice)
+		column, set := sets.get(SyncName(voice))
+		if !set {
+			continue
+		}
+		values, err := sized(column, rows, named)
+		if err != nil {
+			return nil, err
+		}
+		for row := 0; row < rows; row++ {
+			value, err := whole(values[row], fmt.Sprintf("%s at row %d", named, row))
+			if err != nil {
+				return nil, err
+			}
+			if value != 0 && value != 1 {
+				return nil, fmt.Errorf("%s at row %d is %d, and %s is 0 or 1", named, row,
+					value, one)
+			}
+			out[row][voice] = value == 1
+		}
+	}
+	return out, nil
 }
 
 // sized reads a column, which is one value a row, so its length is the

@@ -51,6 +51,7 @@ the sync (7.4).
 | `cuts.json` | 1 | 11 |
 | `copy-from-frame.json` | 1 | 11 |
 | `sync.json` | 1 | 17 |
+| `even-syncs.json` | 1 | 17 |
 
 **4. The rules.**
 

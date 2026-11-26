@@ -1,6 +1,6 @@
 # JSON
 
-JSON encodes version 10 of the structure in [SPEC.md](SPEC.md) 1.
+JSON encodes version 11 of the structure in [SPEC.md](SPEC.md) 1.
 [csv.md](csv.md) 7 maps its values to CSV cells. Every clause is
 normative except sentences beginning `Note:` and section 10.
 
@@ -61,15 +61,16 @@ emits only the listed keys, each once, in the order of its section.
 **2.3** An empty `tunes` array is an empty multi, an error of the structure
 (8.3).
 
-**2.4** A writer writes version 10. A reader reads version 10 and the
-seven versions before it. In a file of version 9 or before a `syncs` key
-(3.1) and a `target` of 25 to 27 (6.6) are errors of the form (8.1). In a
-file of version 8 or before a `source` of 0 is an error of the form (6.6,
-8.1). In a file of version 7 or before a
-reader skips the `first` and `last` columns (6.1) and reads every start
-under the whole table of its source, rows 0 to R - 1 of a source of R
-rows (SPEC.md 3.7.1); `shape` 4 there is an error of the form (8.1). In a
-file of version 6 or before a reader skips a `mapping` column (6.1) and a
+**2.4** A writer writes version 11. A reader reads version 11 and the
+eight versions before it. In a file of version 10 or before an `evenSyncs`
+key (3.1) is an error of the form (8.1). In a file of version 9 or before
+a `syncs` key (3.1) and a `target` of 25 to 27 (6.6) are errors of the
+form (8.1). In a file of version 8 or before a `source` of 0 is an error
+of the form (6.6, 8.1). In a file of version 7 or before a reader skips
+the `first` and `last` columns (6.1) and reads every start under the whole
+table of its source, rows 0 to R - 1 of a source of R rows (SPEC.md
+3.7.1); `shape` 4 there is an error of the form (8.1). In a file of
+version 6 or before a reader skips a `mapping` column (6.1) and a
 `transformations` key (3.1), and reads every start with the mapping of no
 parts, the identity in every part (SPEC.md 3.6.3); `shape` 3 there is an
 error of the form (8.1). A file of version 5 reads as version 6: the two
@@ -101,16 +102,18 @@ version (SPEC.md 8).
 | `transformations` | an array of transformation objects (3.7) | the transformations the mappings of the tune's rows use; an emitter emits them in the number order of SPEC.md 1.9 (3.8) |
 | `registers` | an object (section 5) | the registers the rows set, a column a register |
 | `syncs` | an object (5.4) | the voices the rows sync, a column a voice (SPEC.md 3.9) |
+| `evenSyncs` | an object (5.5) | the voices whose syncs during the rows are even, a column a voice (SPEC.md 3.9.2) |
 | `timerA`, `timerB`, `timerC`, `timerD` | an object each (section 6) | the operations the rows perform on the effect of that timer, a column a field |
 
 **3.2** Every tune requires `title`, `composer`, `writer`, `rate`, `rows`
-and `sources`, and in a file of version 7 to 10 `transformations`. An
-absent `repeat` reads as `null`; absent `registers` and `syncs` read as an
-empty object; an absent timer object leaves that timer unchanged on every
-row. `null` for `registers`, `syncs` or `timerT` is an error (8.1). An
-emitter emits `registers` and `transformations` in every tune, `syncs` in
-a tune some row of which syncs a voice, and a timer object for each timer a
-row acts on.
+and `sources`, and in a file of version 7 to 11 `transformations`. An
+absent `repeat` reads as `null`; absent `registers`, `syncs` and
+`evenSyncs` read as an empty object; an absent timer object leaves that
+timer unchanged on every row. `null` for `registers`, `syncs`, `evenSyncs`
+or `timerT` is an error (8.1). An emitter emits `registers` and
+`transformations` in every tune, `syncs` in a tune some row of which syncs
+a voice, `evenSyncs` in a tune some row of which lists a voice among its
+even syncs, and a timer object for each timer a row acts on.
 
 **3.3** The empty text is a value of `title`, `composer` and `writer`.
 
@@ -213,6 +216,13 @@ the column of each voice some row syncs, those alone; a reader reads an
 absent column as 0 at every row. A value other than 0 and 1 is an error of
 the form (8.1).
 
+**5.5 The even syncs.** `evenSyncs` is an object whose keys are among
+`a`, `b` and `c`, each with a column for voice A, B and C: index i is 1
+where row i lists the voice among its even syncs (SPEC.md 1.6, 3.9.2) and
+0 where it leaves it out. An emitter emits the column of each voice some
+row lists, those alone; a reader reads an absent column as 0 at every
+row. A value other than 0 and 1 is an error of the form (8.1).
+
 ---
 
 ## 6. The effects
@@ -300,7 +310,8 @@ where every step passes.
 
 1. Parse the text as JSON; the first value is the file (1.3).
 2. Read `format`, a text equal to `ymxs`.
-3. Read `version`, a whole number equal to 3, 4, 5, 6, 7, 8, 9 or 10 (2.4).
+3. Read `version`, a whole number equal to 3, 4, 5, 6, 7, 8, 9, 10 or 11
+   (2.4).
 4. Read `tunes`, an array; for each element in order, tune n at index
    n - 1, steps 5 to 11.
 5. Read `rows`, a whole number R. An R below 1 is a tune of no rows, the
@@ -313,34 +324,36 @@ where every step passes.
    number; a row other than an array or a whole number. After the last
    row, a row whose count of values is other than row 0's is the shape
    line of 8.1, N the count of row 0 and K that of the first row that
-   differs. Then, in a file of version 7 to 10, read `transformations`, an
+   differs. Then, in a file of version 7 to 11, read `transformations`, an
    array; for each element read `entries` (an array), `name` (a text) and
    each entry in order (a whole number), in that order.
-7. Read `registers` where present, an object; for each key `r0` to
-   `r13` present, in that order, verify an array of length R and read
-   index 0 to R - 1, each a whole number, each other than -1 the value
-   the row sets. Then read `syncs` where present, an error of the form in
-   a file of version 9 or before, an object; for each key `a` to `c`
-   present, in that order, verify an array of length R and read index 0
-   to R - 1, each a whole number, 0 or 1, each 1 a sync of the voice at
-   that row.
+7. Read `registers` where present, an object; for each key `r0` to `r13`
+   present, in that order, verify an array of length R and read index 0 to
+   R - 1, each a whole number, each other than -1 the value the row sets.
+   Then read `syncs` where present, an error of the form in a file of
+   version 9 or before, an object; for each key `a` to `c` present, in
+   that order, verify an array of length R and read index 0 to R - 1, each
+   a whole number, 0 or 1, each 1 a sync of the voice at that row. Then
+   read `evenSyncs` where present, an error of the form in a file of
+   version 10 or before, as `syncs`, each 1 the voice among the even syncs
+   of that row.
 8. Read `timerA` to `timerD` where present, in that order, an object each;
    for each row i from 0 to R - 1 read `shape` at index i, one of -1, 0,
-   1, 2, 3 in a file of version 7 to 10, and 4 in a file of version 8 to
-   10, then for a start `source` (0 to S, 1 to S in a file of version 8
-   or before), `target` (0 to 27, 0 to 24 in a file of version 9 or
-   before), `prescaler` (one of the seven divisors), `count`,
-   `timerReset`, `placeReset`, in a file of version 5 to 10 `deferred`,
-   in a file of version 7 to 10 `mapping`, and in a file of version 8 to
-   10 `first` and `last`; for a retune `prescaler`, `count`,
-   `timerReset` and `placeReset`; for a remap `mapping`; and for a recut
-   `first` and `last`. A column is verified present, an array of length R
-   and a whole number at index i as it is read, before its value, except
-   `mapping` at index i (6.7), verified in this order, each a line of 8.1:
-   0 or an array of whole numbers; of an array, an element other than 0
-   among them; each element in order, 0 to M. After the columns of a start
-   whose `source` is 1 to S, verify that the source has the values a row
-   its target reads (SPEC.md 3.1.1, 3.2.1), a line of 8.1.
+   1, 2, 3 in a file of version 7 to 11, and 4 in a file of version 8 to
+   11, then for a start `source` (0 to S, 1 to S in a file of version 8 or
+   before), `target` (0 to 27, 0 to 24 in a file of version 9 or before),
+   `prescaler` (one of the seven divisors), `count`, `timerReset`,
+   `placeReset`, in a file of version 5 to 11 `deferred`, in a file of
+   version 7 to 11 `mapping`, and in a file of version 8 to 11 `first` and
+   `last`; for a retune `prescaler`, `count`, `timerReset` and
+   `placeReset`; for a remap `mapping`; and for a recut `first` and
+   `last`. A column is verified present, an array of length R and a whole
+   number at index i as it is read, before its value, except `mapping` at
+   index i (6.7), verified in this order, each a line of 8.1: 0 or an
+   array of whole numbers; of an array, an element other than 0 among
+   them; each element in order, 0 to M. After the columns of a start whose
+   `source` is 1 to S, verify that the source has the values a row its
+   target reads (SPEC.md 3.1.1, 3.2.1), a line of 8.1.
 9. Read `title`, `composer`, `writer` (a text each), `rate` (a whole
    number), `repeat` (a whole number, `null` or absent), in that order.
 10. Verify that every source is started by some row (4.4), and that every
@@ -379,16 +392,16 @@ quotation marks removed in the `a tree of X` line.
 | `format` absent or not a text | `format is X, and this form requires a text` |
 | `format` a text other than `ymxs` | `a tree of X, and this reads ymxs` |
 | `version` absent or not a whole number | `version is X, and this form requires a whole number` |
-| `version` other than 3, 4, 5, 6, 7, 8, 9 and 10 | `version N, and this reads 3, 4, 5, 6, 7, 8, 9 or 10` |
+| `version` other than 3, 4, 5, 6, 7, 8, 9, 10 and 11 | `version N, and this reads 3, 4, 5, 6, 7, 8, 9, 10 or 11` |
 | a row of `values` that is an array, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | `tunes`, `sources` or `values` absent or not an array | `KEY is X, and this form requires an array` |
-| `transformations` or `entries` absent or not an array, in a file of version 7 to 10 | `KEY is X, and this form requires an array` |
+| `transformations` or `entries` absent or not an array, in a file of version 7 to 11 | `KEY is X, and this form requires an array` |
 | `rows` or `rate` absent or not a whole number | `KEY is X, and this form requires a whole number` |
 | `title`, `composer`, `writer` or a source's `name` absent or not a text | `KEY is X, and this form requires a text` |
-| a transformation's `name` absent or not a text, in a file of version 7 to 10 | `KEY is X, and this form requires a text` |
+| a transformation's `name` absent or not a text, in a file of version 7 to 11 | `KEY is X, and this form requires a text` |
 | `repeat` present, not `null` and not a whole number | `repeat is X, and this form requires a row number or null` |
 | an element of `values`, or an element of an array in it, not a whole number | `NAME at row J is X, and this form requires a whole number`, X that element |
-| an element of `entries` not a whole number, in a file of version 7 to 10 | `NAME at entry K is X, and this form requires a whole number`, X that element |
+| an element of `entries` not a whole number, in a file of version 7 to 11 | `NAME at entry K is X, and this form requires a whole number`, X that element |
 | a row of `values` an array of N elements, N other than 2 and 3 | `a row of N values in source NAME, and a row is a number or two or three values` |
 | rows of one source of N values and of K, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | `registers` present and not an object | `registers is X, and this form requires a column a register` |
@@ -402,6 +415,12 @@ quotation marks removed in the `a tree of X` line.
 | sync column `V` of a length L other than R | `syncs V is L values long, and the tune has R rows` |
 | a value of sync column `V` not a whole number | `syncs V at row I is X, and this form requires a whole number` |
 | a value of sync column `V` other than 0 and 1 | `syncs V at row I is N, and a sync is 0 or 1` |
+| `evenSyncs` present in a file of version 10 or before | `evenSyncs, and version N has no even syncs` |
+| `evenSyncs` present and not an object | `evenSyncs is X, and this form requires a column a voice` |
+| even sync column `V` not an array | `evenSyncs V is X, and this form requires a column` |
+| even sync column `V` of a length L other than R | `evenSyncs V is L values long, and the tune has R rows` |
+| a value of even sync column `V` not a whole number | `evenSyncs V at row I is X, and this form requires a whole number` |
+| a value of even sync column `V` other than 0 and 1 | `evenSyncs V at row I is N, and an even sync is 0 or 1` |
 | `shape` absent, or a timer column absent where a shape selects it | `Timer T has no "COL" column` |
 | a timer column not an array | `Timer T's COL is X, and this form requires a column` |
 | a timer column of a length L other than R | `Timer T's COL is L values long, and the tune has R rows` |
@@ -410,16 +429,16 @@ quotation marks removed in the `a tree of X` line.
 | `shape` other than -1, 0, 1, 2 and 3 in a file of version 7 | `row I sets shape N on Timer T, and a shape is -1, 0, 1, 2 or 3` |
 | any other `shape` outside -1 to 4 | `row I sets shape N on Timer T, and a shape is -1, 0, 1, 2, 3 or 4` |
 | `source` outside 0 to S, or outside 1 to S in a file of version 8 or before | `row I starts source N, and the tune runs S` |
-| `mapping` at a row of shape 0 or 3 other than 0 and an array of whole numbers, in a file of version 7 to 10 | `Timer T's mapping at row I is X, and this form requires 0 or an array of whole numbers` |
-| `mapping` at a row of shape 0 or 3 an array whose every element is 0, the empty array included, in a file of version 7 to 10 | `Timer T's mapping at row I is X, and a mapping of the identity in every part is 0` |
-| an element of `mapping` outside 0 to M, in a file of version 7 to 10 | `row I maps through transformation N, and the tune has M` |
+| `mapping` at a row of shape 0 or 3 other than 0 and an array of whole numbers, in a file of version 7 to 11 | `Timer T's mapping at row I is X, and this form requires 0 or an array of whole numbers` |
+| `mapping` at a row of shape 0 or 3 an array whose every element is 0, the empty array included, in a file of version 7 to 11 | `Timer T's mapping at row I is X, and a mapping of the identity in every part is 0` |
+| an element of `mapping` outside 0 to M, in a file of version 7 to 11 | `row I maps through transformation N, and the tune has M` |
 | `target` above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
 | `target` above 24 in a file of version 4 to 9, L the version | `target N, and version L reaches 0 to 24` |
 | any other `target` outside 0 to 27 | `no target N: a tune reaches 0 to 27` |
 | `prescaler` other than the seven divisors | `no prescaler divides by N: a timer's are 4, 10, 16, 50, 64, 100 and 200` |
 | a start whose source has W values a row on a target that reads U, U other than W | `a source of W values a row on setRn, which reads U` |
 | a source of `sources` that no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
-| a transformation of `transformations` that no row uses, in a file of version 7 to 10 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
+| a transformation of `transformations` that no row uses, in a file of version 7 to 11 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
 
 **8.2** A value other than an object where one is required reads as an empty
 object, so the line is that of the first key read from it: `format is null,
@@ -462,7 +481,7 @@ the file's object and d + 1 inside an object or array at depth d; an
 | a tune | 3 | one key a line (9.3) |
 | `sources` | 4 | one source a line (9.5) |
 | `transformations` | 4 | one transformation a line (9.5) |
-| `registers`, `syncs`, `timerA` to `timerD` | 4 | one key a line (9.3) |
+| `registers`, `syncs`, `evenSyncs`, `timerA` to `timerD` | 4 | one key a line (9.3) |
 | a source | 5 | one line (9.4) |
 | a transformation | 5 | one line (9.4) |
 | a column | 5 | 20 values a line (9.6) |
@@ -513,7 +532,7 @@ retuned at row 1, stopped at row 3.
 ```json
 {
   "format": "ymxs",
-  "version": 10,
+  "version": 11,
   "tunes": [
     {
       "title": "Four rows, one square",

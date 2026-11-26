@@ -80,7 +80,11 @@ class ConformanceTest {
                     "a row that syncs the three voices, copy from frame on syncToneA and on"
                             + " syncToneC through a transformation, a source of two rows on"
                             + " syncToneB, and a row that syncs a voice an effect runs on, the"
-                            + " sync recorded as the frame leaves it to the effect (3.9, 7.4)"));
+                            + " sync recorded as the frame leaves it to the effect (3.9, 7.4)"),
+            new Source("even-syncs", 1, 17,
+                    "copy from frame on syncToneA whose syncs are even on two rows, an even"
+                            + " sync of voice B at a frame, and a row that lists voice C among"
+                            + " its even syncs without a sync, recorded as even (3.9, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

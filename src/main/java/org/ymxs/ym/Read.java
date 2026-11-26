@@ -105,7 +105,7 @@ public final class Read {
         read.run(registers, effects);
         List<Row> rows = new ArrayList<>();
         for (int f = 0; f < song.frames(); f++) {
-            rows.add(new Row(registers.get(f), effects.get(f), Set.of()));
+            rows.add(new Row(registers.get(f), effects.get(f), Set.of(), Set.of()));
         }
         Tune tune = new Tune(song.name(), song.author(), writer, song.playerHz(),
                 new Table<>(rows, repeat));

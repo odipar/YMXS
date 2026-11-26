@@ -70,14 +70,17 @@ func (t Table[T]) Repeat() (int, bool) {
 }
 
 // Row is one row: the registers it sets, its operation on the effect of
-// each timer, and the voices whose square it syncs before it writes their
-// periods (SPEC.md 3.9). A register absent from the first map is one the
-// row does not write; a timer absent from the second is one the row leaves
-// running. Syncs is true at the index of each voice the row syncs.
+// each timer, the voices whose square it syncs before it writes their
+// periods (SPEC.md 3.9), and the voices whose syncs during the row are even
+// (3.9.2). A register absent from the first map is one the row does not
+// write; a timer absent from the second is one the row leaves running.
+// Syncs is true at the index of each voice the row syncs, and EvenSyncs at
+// the index of each voice whose syncs are even.
 type Row struct {
 	Registers map[Register]int
 	Effects   map[Timer]Effect
 	Syncs     [3]bool
+	EvenSyncs [3]bool
 }
 
 // Effect is one row's operation on the effect of one timer. An effect is a

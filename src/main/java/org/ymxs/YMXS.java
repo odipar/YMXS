@@ -41,12 +41,13 @@ public interface YMXS {
     record Table<T>(List<T> rows, OptionalInt repeat) { }
 
     /** One row: the registers it sets, its operation on the effect of
-     *  each timer, and the voices whose square it syncs before it writes
-     *  their periods (SPEC.md 3.9). A register absent from the first map is
-     *  one the row does not write; a timer absent from the second is one
-     *  the row leaves running. */
+     *  each timer, the voices whose square it syncs before it writes
+     *  their periods (SPEC.md 3.9), and the voices whose syncs during the
+     *  row are even (3.9.2). A register absent from the first map is one
+     *  the row does not write; a timer absent from the second is one the
+     *  row leaves running. */
     record Row(Map<Register, Integer> registers, Map<Timer, Effect> effects,
-               Set<Voice> syncs) { }
+               Set<Voice> syncs, Set<Voice> evenSyncs) { }
 
     /** One row's operation on the effect of one timer. An effect is a
      *  source connected to a target on one timer through a mapping, under

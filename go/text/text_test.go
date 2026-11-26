@@ -59,7 +59,7 @@ func example(t *testing.T) string {
 // cut of the whole table of its source after the mapping.
 func TestTheExampleOfTheDocumentIsTheTextThisWrites(t *testing.T) {
 	said := example(t)
-	for _, each := range []string{`"version": 10,`, `"transformations": [],`,
+	for _, each := range []string{`"version": 11,`, `"transformations": [],`,
 		`"mapping": [0,-1,-1,-1],`, `"first": [0,-1,-1,-1],`, `"last": [1,-1,-1,-1]`} {
 		if !strings.Contains(said, each) {
 			t.Fatalf("the example has no %s", each)
@@ -302,7 +302,7 @@ func TestAFileOfVersion6ReadsEveryStartWithTheMappingOfNoParts(t *testing.T) {
 		t.Errorf("the start reads with %d parts", len(parts))
 	}
 	written := text.Write(multi)
-	if !strings.Contains(written, `"version": 10,`) || !strings.Contains(written,
+	if !strings.Contains(written, `"version": 11,`) || !strings.Contains(written,
 		`"mapping": [0,-1],`) {
 		t.Errorf("a file of version 6 is written as version 9:\n%s", written)
 	}
@@ -530,7 +530,7 @@ func TestACutAndARecutCrossTheForm(t *testing.T) {
 // (json.md 2.4, 8.1).
 func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
 	said := example(t)
-	seven := strings.Replace(strings.Replace(said, `"version": 10`, `"version": 7`, 1),
+	seven := strings.Replace(strings.Replace(said, `"version": 11`, `"version": 7`, 1),
 		",\n        \"first\": [0,-1,-1,-1],\n        \"last\": [1,-1,-1,-1]", "", 1)
 	if strings.Contains(seven, "first") {
 		t.Fatalf("the example of version 7 has a cut:\n%s", seven)
@@ -556,7 +556,7 @@ func TestAFileOfVersion7ReadsEveryStartUnderTheWholeTable(t *testing.T) {
 // A row's syncs are syncs, a column of 0 and 1 for each voice some row
 // syncs, and the targets of a sync are 25 to 27; in a file of version 9 or
 // before syncs is an error of the form (json.md 2.4, 5.4). The kit's tune
-// of them writes back as it reads.
+// of them, of version 10, writes back as it reads at this writer's version.
 func TestASyncCrossesTheForm(t *testing.T) {
 	said, err := os.ReadFile("../../doc/conformance/tunes/sync.json")
 	if err != nil {
@@ -566,7 +566,9 @@ func TestASyncCrossesTheForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if written := text.Write(read); written != string(said) {
+	same := strings.Replace(string(said), `"version": 10,`,
+		fmt.Sprintf(`"version": %d,`, text.Version), 1)
+	if written := text.Write(read); written != same {
 		t.Errorf("the kit's sync tune writes back as\n%s", written)
 	}
 	rows := read.Tunes[0].Table.Rows
@@ -579,5 +581,39 @@ func TestASyncCrossesTheForm(t *testing.T) {
 	if _, err := text.Read(nine); err == nil ||
 		err.Error() != "syncs, and version 9 has no syncs" {
 		t.Errorf("a file of version 9 with syncs reads as %v", err)
+	}
+}
+
+// A row's even syncs are evenSyncs, a column of 0 and 1 for each voice some
+// row lists; in a file of version 10 or before it is an error of the form
+// (json.md 2.4, 5.5). The kit's tune of them writes back as it reads.
+func TestAnEvenSyncCrossesTheForm(t *testing.T) {
+	said, err := os.ReadFile("../../doc/conformance/tunes/even-syncs.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := text.Read(string(said))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written := text.Write(read); written != string(said) {
+		t.Errorf("the kit's tune of even syncs writes back as\n%s", written)
+	}
+	rows := read.Tunes[0].Table.Rows
+	if rows[2].EvenSyncs != [3]bool{true, false, false} || rows[4].EvenSyncs != [3]bool{false,
+		true, false} || rows[4].Syncs != [3]bool{false, true, false} ||
+		rows[6].EvenSyncs != [3]bool{false, false, true} || rows[6].Syncs != [3]bool{} {
+		t.Errorf("the even syncs read as %v, %v and %v", rows[2].EvenSyncs, rows[4].EvenSyncs,
+			rows[6].EvenSyncs)
+	}
+	ten := strings.Replace(string(said), `"version": 11`, `"version": 10`, 1)
+	if _, err := text.Read(ten); err == nil ||
+		err.Error() != "evenSyncs, and version 10 has no even syncs" {
+		t.Errorf("a file of version 10 with even syncs reads as %v", err)
+	}
+	two := strings.Replace(string(said), `"a": [0,0,1,1,0,0,0,0],`, `"a": [0,0,2,1,0,0,0,0],`, 1)
+	if _, err := text.Read(two); err == nil ||
+		err.Error() != "evenSyncs a at row 2 is 2, and an even sync is 0 or 1" {
+		t.Errorf("an even sync of 2 reads as %v", err)
 	}
 }

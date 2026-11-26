@@ -74,11 +74,16 @@ final class Record {
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
             writes.add("\"" + Chip.number(one.getKey()) + "\":" + one.getValue());
         }
-        // the voices the row syncs in voice order, where it syncs one (7.4)
+        // the voices the row syncs in voice order, where it syncs one, and
+        // the voices of its even syncs, where it lists one (7.4)
         StringJoiner syncs = new StringJoiner(",", "[", "]");
+        StringJoiner evens = new StringJoiner(",", "[", "]");
         for (Voice voice : Voice.values()) {
             if (row.syncs().contains(voice)) {
                 syncs.add('"' + voice.name() + '"');
+            }
+            if (row.evenSyncs().contains(voice)) {
+                evens.add('"' + voice.name() + '"');
             }
         }
         StringJoiner effects = new StringJoiner(",", "{", "}");
@@ -87,6 +92,7 @@ final class Record {
         }
         return "{\"result\":0,\"w\":" + writes
                 + (row.syncs().isEmpty() ? "" : ",\"s\":" + syncs)
+                + (row.evenSyncs().isEmpty() ? "" : ",\"even\":" + evens)
                 + ",\"e\":" + effects + "}";
     }
 

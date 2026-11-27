@@ -184,12 +184,11 @@ and where absent the table has ended.
 **1.6 A row.** `registers` maps each register to the value the row sets;
 `effects` maps each timer to its operation; `syncs` is the voices whose
 square the row syncs at step 4 of its frame (3.9); `syncSteps` maps a
-voice to its sync length, 1 to 8 steps (3.9.1), for the syncs of the
-voice during the row: the sync of its frame and those of the ticks until
-the next frame. An absent register keeps its value; an absent timer
-continues unchanged; an absent voice has a sync length of 1. A row sets
-each register at most once and performs at most one operation on each
-timer.
+voice to its sync length, 1 to 8 steps (3.9.1), for the sync of its frame
+and the syncs of a sync target at the ticks 3.9.4 defines. An absent
+register keeps its value; an absent timer continues unchanged; an absent
+voice has a sync length of 1. A row sets each register at most once and
+performs at most one operation on each timer.
 
 **1.7 An effect and the five operations.** The effect of a timer is the
 source connected to a target on it through a mapping, under a cut, at the
@@ -820,10 +819,18 @@ breaks rule 1(f).
 
 **3.9.4 At a tick.** A sync target syncs its voice at each tick to the
 source row's two values through the mapping (3.1.1), at the sync length of
-the voice in the tune's row the latest frame read (1.6). The writes of a
-sync at a tick are step 2 of the tick (5.2): a tick of another timer due
-during them occurs after them. Every source of two values a row runs on a
-sync target, copy from frame among them (3.8.2).
+the voice in a row of the tune (1.6): at the first tick after step 4 of a
+frame, the row the frame before it read; at each later tick until the next
+frame, the row the latest frame read. Where the frame's row starts the
+effect (6.2 e), or a `Start` is pending on the timer at step 4 of the frame
+(3.5), the first tick after it syncs at the sync length of the frame's row.
+The writes of a sync at a tick are step 2 of the tick (5.2): a tick of
+another timer due during them occurs after them. Every source of two
+values a row runs on a sync target, copy from frame among them (3.8.2).
+
+Note: under copy from frame the voice has the period of the row before
+until the first tick after a frame, which writes the new one (3.8.3), so
+that tick ends a stretch at the period of the row before.
 
 Note: copy from frame on `syncToneA` at the rate of a timer restarts voice
 A's square at each tick at the period the rows set: a hard sync, whose
@@ -832,11 +839,13 @@ Between two syncs the square flips at each count that reaches the period:
 the rows' period after the sync before, the two fine values of 3.9.2 for
 a step each, and 0 for the n steps between them, a flip a step. Where the
 flips from one sync to the next are even in number, the square restarts
-at the level it had after the sync before. A writer sets on each row the
-sync length that restarts the square at that level at every tick, with a
-margin for the jitter of the timer: the steps between two ticks are a
-fraction, and the whole steps between two syncs are its floor or its
-ceiling.
+at the level it had after the sync before. The sync length of a row
+applies to the ticks after the first until the next frame and to the
+first tick after the next frame, each the end of a stretch at the row's
+period. A writer sets on each row the sync length that restarts the
+square at that level at those ticks, with a margin for the jitter of the
+timer: the steps between two ticks are a fraction, and the whole steps
+between two syncs are its floor or its ceiling.
 
 **3.9.5 Uses (informative).** In `doc/conformance/tunes/sync.json` a row
 syncs the three voices; copy from frame runs on `syncToneA`, and on

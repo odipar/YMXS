@@ -1,6 +1,6 @@
 # CSV
 
-CSV encodes version 11 of the structure in [SPEC.md](SPEC.md) 1 as
+CSV encodes version 12 of the structure in [SPEC.md](SPEC.md) 1 as
 blocks of comma-separated values for reading in a spreadsheet. Section
 7 maps [JSON](json.md) values to cells. Every clause is normative
 except sentences beginning `Note:` and section 8.
@@ -112,7 +112,7 @@ blocks (4.1 step 6).
 | column | cell | meaning |
 |---|---|---|
 | `format` | `ymxs` | this form |
-| `version` | the whole number 11, or 10, 9, 8, 7, 6, 5, 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
+| `version` | the whole number 12, or 11, 10, 9, 8, 7, 6, 5, 4 or 3 for a file of a version before it (json.md 2.4) | the version of the structure |
 | `tunes` | a whole number | the number of tunes; an emitter emits it, and a reader skips it |
 
 **3.4** A `tune` block has one row line; R is the value of `rows`:
@@ -153,24 +153,26 @@ registers the line `a source of 1 values a row on setRn, which reads U` of
 5.1, which ends the reading (4.1 step 6).
 
 **3.7** A `registers` block has a column a register, a column a voice some
-row syncs, a column a voice some row lists among its even syncs, and a row
-line a row of the tune; an emitter emits one row line for each row that
-sets a register, syncs a voice or lists one among its even syncs (6.2).
-The ranges are those of json.md 5.1:
+row syncs, a column a voice of a sync length other than 1 at some row, and
+a row line a row of the tune; an emitter emits one row line for each row
+that sets a register, syncs a voice or has a sync length other than 1
+(6.2). The ranges are those of json.md 5.1:
 
 | column | cell | meaning |
 |---|---|---|
 | `row` | a whole number from 0 to R minus 1 | the row of the tune |
 | `r0` to `r13` | empty, or a whole number in the range of the register | empty: the row leaves that register unchanged; a number: the value the row sets that register to |
 | `syncA`, `syncB`, `syncC` | empty, or 1 | empty: the row leaves the square of voice A, B or C as it is; 1: the row syncs that voice (SPEC.md 3.9) |
-| `evenSyncA`, `evenSyncB`, `evenSyncC` | empty, or 1 | empty: the syncs of voice A, B or C during the row are odd; 1: they are even (SPEC.md 1.6, 3.9.2) |
+| `syncStepsA`, `syncStepsB`, `syncStepsC` | empty, or a whole number from 1 to 8 | empty or 1: the sync length of voice A, B or C at the row is 1; another number: the sync length (SPEC.md 1.6, 3.9.1) |
 
 **3.8** A reader reads each row line of a `registers` block in file order;
 a row line sets, for the row its `row` cell names, each register whose
-cell is filled, syncs each voice whose sync cell is 1, and lists among its
-even syncs each voice whose even sync cell is 1. Where two row lines of
-the `registers` blocks of one tune name one row, the later in file order
-sets a register both fill.
+cell is filled, syncs each voice whose sync cell is 1, and sets the sync
+length of each voice whose sync length cell is filled: a cell of 1 leaves
+the voice out of the row's `syncSteps`, and every other whole number is
+its sync length, so one outside 1 to 8 is an error of the structure (5.3).
+Where two row lines of the `registers` blocks of one tune name one row,
+the later in file order sets a register or a sync length both fill.
 
 **3.9** A `timerA`, `timerB`, `timerC` or `timerD` block has a row line a
 row of the tune that acts on that timer, T the timer's letter, S the
@@ -215,18 +217,21 @@ the numbers as the array of json.md 6.7. Thus `0 0 6` maps only the
 third value through transformation 6. Several zeros without a
 transformation number are an error (5.1).
 
-In version 10 or before, an `evenSyncA`, `evenSyncB` or `evenSyncC` column
-of a `registers` block is an error (5.1). In version 9 or before, a
-`syncA`, `syncB` or `syncC` column of a `registers` block and a `target`
-of 25 to 27 are errors (5.1). In version 8 or before, a `source` of 0 is
-an error (5.1). In version 7 or before, skip `first` and `last` columns
-and read each start under the whole table of its source (json.md 2.4); a
-`shape` of 4 is an error (5.1). In version 6 or before, also skip
-`mapping` columns and read each start with no mapping parts; reject
-`transformation` and `entry` as unknown blocks (4.1 step 5). In version 4
-or 3, also skip `deferred` and read it as clear (json.md 2.4). For
-repeated row numbers in one timer's blocks, the later row line replaces
-the earlier.
+In version 11 or before, a `syncStepsA`, `syncStepsB` or `syncStepsC`
+column of a `registers` block is an error (5.1). In version 11 an
+`evenSyncA`, `evenSyncB` or `evenSyncC` column of a `registers` block is a
+column of 1 or empty cells, each 1 a sync length of 2 of voice A, B or C
+at the row (json.md 2.4), and in another version such a column is an error
+(5.1). In version 9 or before, a `syncA`, `syncB` or `syncC` column of a
+`registers` block and a `target` of 25 to 27 are errors (5.1). In version
+8 or before, a `source` of 0 is an error (5.1). In version 7 or before,
+skip `first` and `last` columns and read each start under the whole table
+of its source (json.md 2.4); a `shape` of 4 is an error (5.1). In version
+6 or before, also skip `mapping` columns and read each start with no
+mapping parts; reject `transformation` and `entry` as unknown blocks (4.1
+step 5). In version 4 or 3, also skip `deferred` and read it as clear
+(json.md 2.4). For repeated row numbers in one timer's blocks, the later
+row line replaces the earlier.
 
 **3.11** A `transformation` block has one row line and opens a
 transformation, the n-th `transformation` block of a tune opening
@@ -262,7 +267,7 @@ where every step passes.
    line before the first heading line.
 2. Verify that the first block is named `multi` and has one row line; read
    its `format` cell, equal to `ymxs`, and its `version` cell, a whole
-   number equal to 3, 4, 5, 6, 7, 8 or 9 (json.md 2.4).
+   number equal to 3, 4, 5, 6, 7, 8, 9, 10, 11 or 12 (json.md 2.4).
 3. Verify that the block after `multi` is named `tune`. Each `tune` block
    opens a tune, numbered from 1 in file order, with the blocks after it up
    to the next `tune` block; for each tune, steps 4 to 8.
@@ -274,16 +279,18 @@ where every step passes.
    block follows a `source` block of the tune, each of its row lines the
    next row of the last source opened: the `value` cell where filled and
    the `value1` cell otherwise, then each filled `value2` and `value3`
-   cell, each a whole number (3.6); in a file of version 7 to 11 a
+   cell, each a whole number (3.6); in a file of version 7 to 12 a
    `transformation` block has one row line and opens a transformation with
    its `name` cell, and an `entry` block follows a `transformation` block
    of the tune, each of its row lines the next entry of the last
    transformation opened, its `entry` cell a whole number (3.12); a
    `registers` block is read as 3.7 and 3.8 define, a sync column an error
-   in a file of version 9 or before and an even sync column one in a file
-   of version 10 or before, its `row` cell a whole number 0 to R - 1, each
-   filled `r0` to `r13` cell a whole number and each filled `syncA` to
-   `syncC` and `evenSyncA` to `evenSyncC` cell 1; a block whose name
+   in a file of version 9 or before, a sync length column one in a file of
+   version 11 or before and an even sync column one in a file of a version
+   other than 11, its `row` cell a whole number 0 to R - 1, each filled
+   `r0` to `r13` cell a whole number, each filled `syncA` to `syncC` cell
+   1, each filled `syncStepsA` to `syncStepsC` cell a whole number and
+   each filled `evenSyncA` to `evenSyncC` cell 1; a block whose name
    begins `timer` is set aside for step 6; a block of any other name is an
    error. After the last block of the tune, for each source in order and
    each of its rows from row 0: a row whose count of values is other than
@@ -293,13 +300,13 @@ where every step passes.
 6. Read the blocks set aside in file order, named `timerA`, `timerB`,
    `timerC` or `timerD`, each row line as 3.9 and 3.10 define: `row` a
    whole number 0 to R - 1, `shape` 0, 1, 2, 3 in a file of version 7 to
-   11, and 4 in a file of version 8 to 11, then the cells the shape
+   12, and 4 in a file of version 8 to 12, then the cells the shape
    selects, each but `mapping` a whole number as read: for a start
    `source` (0 to S, 1 to S in a file of version 8 or before), `target` (0
    to 27, 0 to 24 in a file of version 9 or before), `prescaler` (one of
    the seven divisors), `count`, `timerReset`, `placeReset`, in a file of
-   version 5 to 11 `deferred`, in a file of version 7 to 11 `mapping`, and
-   in a file of version 8 to 11 `first` and `last`; for a retune
+   version 5 to 12 `deferred`, in a file of version 7 to 12 `mapping`, and
+   in a file of version 8 to 12 `first` and `last`; for a retune
    `prescaler`, `count`, `timerReset` and `placeReset`; for a remap
    `mapping`; for a recut `first` and `last`. A `mapping` cell is split
    (3.10) and verified in this order, each a line of 5.1: whole numbers,
@@ -345,30 +352,31 @@ transformations; W the values a row of a source, 1 for a source of no rows
 | no block, or a first block not named `multi` | `the first table is not "### multi"` |
 | a `multi` block of K row lines other than 1 | `the multi table has K rows, and one row opens it` |
 | a `format` cell other than `ymxs` | `a text of CELL, and this reads ymxs` |
-| a `version` cell other than 3, 4, 5, 6, 7, 8, 9, 10 and 11 | `version N, and this reads 3, 4, 5, 6, 7, 8, 9, 10 or 11` |
+| a `version` cell other than 3, 4, 5, 6, 7, 8, 9, 10, 11 and 12 | `version N, and this reads 3, 4, 5, 6, 7, 8, 9, 10, 11 or 12` |
 | a row line of a `value` block with its `value2` or `value3` cell filled, in a file of version 3 | `source NAME has a row of several values, and version 3 has one value a row` |
 | a block after `multi` and before the first `tune` block | `a "### NAME" table before any tune opens` |
 | a `tune` block of K row lines other than 1 | `tune N is opened by K rows, and one row opens it` |
 | a `source` block of K row lines other than 1 | `tune N opens a source with K rows, and one row opens it` |
 | a `value` block before any `source` block of its tune | `tune N opens values before any source` |
-| a `transformation` block of K row lines other than 1, in a file of version 7 to 11 | `tune N opens a transformation with K rows, and one row opens it` |
-| an `entry` block before any `transformation` block of its tune, in a file of version 7 to 11 | `tune N opens entries before any transformation` |
+| a `transformation` block of K row lines other than 1, in a file of version 7 to 12 | `tune N opens a transformation with K rows, and one row opens it` |
+| an `entry` block before any `transformation` block of its tune, in a file of version 7 to 12 | `tune N opens entries before any transformation` |
 | a source whose rows have N values and K values, N other than K | `source NAME has rows of N and of K values, and a source has one shape` |
 | a `row` cell of a `registers` block outside 0 to R minus 1 | `tune N sets a row at row X, and the tune runs R rows` |
 | a `syncA`, `syncB` or `syncC` column of a `registers` block, WHAT that column, in a file of version 9 or before | `WHAT, and version N has no syncs` |
 | a filled `syncA`, `syncB` or `syncC` cell other than `1`, WHAT that column | `WHAT at row X is CELL, and a sync is 1 or empty` |
-| an `evenSyncA`, `evenSyncB` or `evenSyncC` column of a `registers` block, WHAT that column, in a file of version 10 or before | `WHAT, and version N has no even syncs` |
+| a `syncStepsA`, `syncStepsB` or `syncStepsC` column of a `registers` block, WHAT that column, in a file of version 11 or before | `WHAT, and version N has no sync lengths` |
+| an `evenSyncA`, `evenSyncB` or `evenSyncC` column of a `registers` block, WHAT that column, in a file of a version other than 11 | `WHAT, and version N has no even syncs` |
 | a filled `evenSyncA`, `evenSyncB` or `evenSyncC` cell other than `1`, WHAT that column | `WHAT at row X is CELL, and an even sync is 1 or empty` |
-| a block of a tune whose name is none of `source`, `value`, `registers`, a name beginning `timer`, and in a file of version 7 to 11 `transformation` and `entry` | `tune N opens a "### NAME" table, which this form does not have` |
+| a block of a tune whose name is none of `source`, `value`, `registers`, a name beginning `timer`, and in a file of version 7 to 12 `transformation` and `entry` | `tune N opens a "### NAME" table, which this form does not have` |
 | a block whose name begins `timer` and is not `timerA` to `timerD` | `tune N opens a "### NAME" table, and a timer is timerA to timerD` |
 | a `row` cell of a timer block outside 0 to R minus 1 | `tune N sets an effect at row X, and the tune runs R rows` |
 | a `shape` cell other than 0, 1 and 2, in a file of version 6 or before | `row I sets shape N of an effect, and a shape is 0, 1 or 2` |
 | a `shape` cell other than 0, 1, 2 and 3, in a file of version 7 | `row I sets shape N of an effect, and a shape is 0, 1, 2 or 3` |
 | any other `shape` cell outside 0 to 4 | `row I sets shape N of an effect, and a shape is 0, 1, 2, 3 or 4` |
 | a `source` cell outside 0 to S, or outside 1 to S in a file of version 8 or before | `row I starts source N, and the tune runs S` |
-| a `mapping` cell without a number, or with a part other than a whole number, in a file of version 7 to 11 | `mapping is "CELL", and this form requires a whole number a part` |
-| a `mapping` cell of several numbers, each 0, in a file of version 7 to 11 | `mapping is "CELL", and a mapping of the identity in every part is 0` |
-| a part of a `mapping` cell outside 0 to M, in a file of version 7 to 11 | `row I maps through transformation N, and the tune has M` |
+| a `mapping` cell without a number, or with a part other than a whole number, in a file of version 7 to 12 | `mapping is "CELL", and this form requires a whole number a part` |
+| a `mapping` cell of several numbers, each 0, in a file of version 7 to 12 | `mapping is "CELL", and a mapping of the identity in every part is 0` |
+| a part of a `mapping` cell outside 0 to M, in a file of version 7 to 12 | `row I maps through transformation N, and the tune has M` |
 | a `target` cell above 13 in a file of version 3 | `target N, and version 3 reaches 0 to 13` |
 | a `target` cell above 24 in a file of version 4 to 9, K the version | `target N, and version K reaches 0 to 24` |
 | any other `target` cell outside 0 to 27 | `no target N: a tune reaches 0 to 27` |
@@ -376,29 +384,31 @@ transformations; W the values a row of a source, 1 for a source of no rows
 | a start whose source has W values a row on a target that reads U, U other than W | `a source of W values a row on setRn, which reads U` |
 | a cell read as a whole number that is not one | `WHAT is "CELL", and this form requires a whole number` |
 | a source no row starts | `source N, NAME, is started by no row, and a source a tune does not run is dropped where this form is read` |
-| a transformation no row uses, in a file of version 7 to 11 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
+| a transformation no row uses, in a file of version 7 to 12 | `transformation N, NAME, is used by no row, and a transformation a tune does not map through is dropped where this form is read` |
 
-**5.2** WHAT in the whole-number line is the column name, `version`, `rows`,
-`rate`, `repeat`, `value`, `value1` to `value3`, `entry`, `row`, `r0` to
-`r13`, `shape`, `source`, `target`, `prescaler` or `count`, and `true or
-false` for `timerReset`, `placeReset` and `deferred`. A reader reads as a
-whole number: `version`; `rows` and `rate` of the `tune` block; `repeat` of
-the `tune` block and of a `source` block where filled; `value`, or `value1`
-where `value` is empty, and each filled `value2` and `value3` cell
-(4.1 step 5); `entry`; `row` of every block that has it; each filled `r0`
-to `r13` cell; `shape`; and the cells `shape` selects (3.9) but `mapping`,
-which 3.10 reads. An empty cell read as a whole number is such an error, so
-an empty `value` and an empty `value1` report WHAT `value1`; an empty
-`repeat` is a table that plays once, an empty `r0` to `r13` a register the
-row leaves unchanged. A `version`, `rows` or `rate` column absent from its
-block (2.4) is such an error at the block's one row line; a `row`, `shape`
-or `entry` column absent, or a `value` block with neither a `value` nor a
-`value1` column, at the first row line; a `source`, `target`, `prescaler`,
-`count`, `timerReset`, `placeReset` or `deferred` column absent from a
-timer block, at the first row line whose shape selects it. A `mapping`
-column absent from a timer block reads as an empty cell, the line
-`mapping is "", and this form requires a whole number a part` at the first
-row line whose shape selects it.
+**5.2** WHAT in the whole-number line is the column name, `version`,
+`rows`, `rate`, `repeat`, `value`, `value1` to `value3`, `entry`, `row`,
+`r0` to `r13`, `syncStepsA` to `syncStepsC`, `shape`, `source`, `target`,
+`prescaler` or `count`, and `true or false` for `timerReset`, `placeReset`
+and `deferred`. A reader reads as a whole number: `version`; `rows` and
+`rate` of the `tune` block; `repeat` of the `tune` block and of a `source`
+block where filled; `value`, or `value1` where `value` is empty, and each
+filled `value2` and `value3` cell (4.1 step 5); `entry`; `row` of every
+block that has it; each filled `r0` to `r13` cell; each filled
+`syncStepsA` to `syncStepsC` cell; `shape`; and the cells `shape` selects
+(3.9) but `mapping`, which 3.10 reads. An empty cell read as a whole
+number is such an error, so an empty `value` and an empty `value1` report
+WHAT `value1`; an empty `repeat` is a table that plays once, an empty `r0`
+to `r13` a register the row leaves unchanged, and an empty `syncStepsA` to
+`syncStepsC` a sync length of 1. A `version`, `rows` or `rate` column
+absent from its block (2.4) is such an error at the block's one row line;
+a `row`, `shape` or `entry` column absent, or a `value` block with neither
+a `value` nor a `value1` column, at the first row line; a `source`,
+`target`, `prescaler`, `count`, `timerReset`, `placeReset` or `deferred`
+column absent from a timer block, at the first row line whose shape
+selects it. A `mapping` column absent from a timer block reads as an empty
+cell, the line `mapping is "", and this form requires a whole number a
+part` at the first row line whose shape selects it.
 
 **5.3** An error of the structure is a condition of SPEC.md 1.11. A reader
 reports every one present after step 9 of 4.1, one line each, the lines of
@@ -429,21 +439,22 @@ the first. Every line ends with a line feed, U+000A, the last of the file
 included, and the last row line is the last line of the file.
 
 **6.2** An emitter emits a `registers` block in every tune, with a row
-line for each row that sets a register, syncs a voice or lists one among
-its even syncs, a sync column for each voice some row syncs and an even
-sync column for each voice some row lists, a tune whose rows leave every
-register alone, sync no voice and list none having a `registers` block of
-its column line alone, and a timer block, with a row line for each row
-that acts on the timer, where some row acts on it.
+line for each row that sets a register, syncs a voice or has a sync
+length other than 1, a sync column for each voice some row syncs and a
+sync length column for each voice of a sync length other than 1 at some
+row, a tune whose rows leave every register alone, sync no voice and have
+a sync length of 1 alone having a `registers` block of its column line
+alone, and a timer block, with a row line for each row that acts on the
+timer, where some row acts on it.
 
-**6.3** An emitter emits a number in decimal, `-` before one below 0 and the
-one sign; an empty cell for the `repeat` of a table that plays once, for a
-register the row leaves unchanged, and for a cell outside the shape's
-selection (3.9); 1 or 0 in `timerReset`, `placeReset` and `deferred`; and
-in `mapping` the cell `0` for a mapping whose every part is the identity,
-the mapping of no parts included (json.md 6.7), and otherwise the number of
-each part in order, separated by one space. A cell is quoted as 2.5
-defines.
+**6.3** An emitter emits a number in decimal, `-` before one below 0 and
+the one sign; an empty cell for the `repeat` of a table that plays once,
+for a register the row leaves unchanged, for a sync length of 1, and for a
+cell outside the shape's selection (3.9); 1 or 0 in `timerReset`,
+`placeReset` and `deferred`; and in `mapping` the cell `0` for a mapping
+whose every part is the identity, the mapping of no parts included
+(json.md 6.7), and otherwise the number of each part in order, separated
+by one space. A cell is quoted as 2.5 defines.
 
 **6.4** A file an emitter emits from a structure free of the conditions of
 SPEC.md 1.11 reads into a structure that is emitted again as identical
@@ -474,11 +485,11 @@ is the same number or text in both:
 | -1 at index i of register column `rn` | an empty cell `rn` of the row line with `row` i, or no row line with `row` i where every register column is -1 at i |
 | a register column absent from `registers` | an empty cell `rn` in every row line |
 | 1 at index i of sync column `v` of `syncs` | the cell `syncV` of the row line of `registers` with `row` i, `1`, V the voice of `v` |
-| 0 at index i of sync column `v` of `syncs` | an empty cell `syncV` of the row line with `row` i, or no row line with `row` i where the row sets no register, syncs no voice and lists none among its even syncs |
+| 0 at index i of sync column `v` of `syncs` | an empty cell `syncV` of the row line with `row` i, or no row line with `row` i where the row sets no register, syncs no voice and has a sync length of 1 alone |
 | a sync column absent from `syncs` | no `syncV` column in the `registers` block |
-| 1 at index i of even sync column `v` of `evenSyncs` | the cell `evenSyncV` of the row line of `registers` with `row` i, `1`, V the voice of `v` |
-| 0 at index i of even sync column `v` of `evenSyncs` | an empty cell `evenSyncV` of the row line with `row` i, or no row line with `row` i where the row sets no register, syncs no voice and lists none among its even syncs |
-| an even sync column absent from `evenSyncs` | no `evenSyncV` column in the `registers` block |
+| the value n at index i of sync length column `v` of `syncSteps`, n other than 1 | the cell `syncStepsV` of the row line of `registers` with `row` i, n, V the voice of `v` |
+| 1 at index i of sync length column `v` of `syncSteps` | an empty cell `syncStepsV` of the row line with `row` i, or no row line with `row` i where the row sets no register, syncs no voice and has a sync length of 1 alone |
+| a sync length column absent from `syncSteps` | no `syncStepsV` column in the `registers` block |
 | the value v at index i of a column of `timerT`, v other than -1 | the cell of that column of the row line of the `timerT` block with `row` i |
 | -1 at index i of a column of `timerT`, `shape` other than -1 at i | an empty cell of that column of the row line with `row` i |
 | an array at index i of `mapping` of `timerT` | the `mapping` cell of the row line with `row` i, its elements in order separated by one space |
@@ -500,7 +511,7 @@ this form.
 ```
 ### multi
 format,version,tunes
-ymxs,11,1
+ymxs,12,1
 
 ### tune
 title,composer,writer,rate,rows,repeat

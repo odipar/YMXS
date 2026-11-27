@@ -131,16 +131,16 @@ public final class Csv {
         }
 
         List<Row> rows = Tunes.rows(tune);
-        // a voice's sync cell where some row syncs that voice, and its even
-        // sync cell where some row lists it among the even syncs (3.8)
+        // a voice's sync cell where some row syncs that voice, and its sync
+        // length cell where its sync length at some row is other than 1 (3.8)
         List<Voice> synced = new ArrayList<>();
-        List<Voice> evened = new ArrayList<>();
+        List<Voice> stepped = new ArrayList<>();
         for (Voice voice : Voice.values()) {
             if (rows.stream().anyMatch(row -> row.syncs().contains(voice))) {
                 synced.add(voice);
             }
-            if (rows.stream().anyMatch(row -> row.evenSyncs().contains(voice))) {
-                evened.add(voice);
+            if (rows.stream().anyMatch(row -> Tunes.steps(row, voice) != 1)) {
+                stepped.add(voice);
             }
         }
         List<Object> named = new ArrayList<>(List.of("registers", "row"));
@@ -150,14 +150,15 @@ public final class Csv {
         for (Voice voice : synced) {
             named.add(name(voice));
         }
-        for (Voice voice : evened) {
-            named.add(even(voice));
+        for (Voice voice : stepped) {
+            named.add(steps(voice));
         }
         table(out, named.toArray());
         for (int line = 0; line < rows.size(); line++) {
-            Map<Register, Integer> sets = rows.get(line).registers();
-            if (sets.isEmpty() && rows.get(line).syncs().isEmpty()
-                    && rows.get(line).evenSyncs().isEmpty()) {
+            Row row = rows.get(line);
+            Map<Register, Integer> sets = row.registers();
+            if (sets.isEmpty() && row.syncs().isEmpty()
+                    && stepped.stream().allMatch(voice -> Tunes.steps(row, voice) == 1)) {
                 continue;
             }
             List<Object> said = new ArrayList<>(List.of((Object) line));
@@ -165,10 +166,11 @@ public final class Csv {
                 said.add(sets.containsKey(register) ? sets.get(register) : "");
             }
             for (Voice voice : synced) {
-                said.add(rows.get(line).syncs().contains(voice) ? 1 : "");
+                said.add(row.syncs().contains(voice) ? 1 : "");
             }
-            for (Voice voice : evened) {
-                said.add(rows.get(line).evenSyncs().contains(voice) ? 1 : "");
+            for (Voice voice : stepped) {
+                int steps = Tunes.steps(row, voice);
+                said.add(steps == 1 ? "" : steps);
             }
             row(out, said.toArray());
         }
@@ -386,10 +388,9 @@ public final class Csv {
         List<Map<Register, Integer>> registers = empty(count, Register.class);
         List<Map<Timer, Effect>> effects = empty(count, Timer.class);
         List<Set<Voice>> syncs = new ArrayList<>();
-        List<Set<Voice>> evens = new ArrayList<>();
+        List<Map<Voice, Integer>> lengths = empty(count, Voice.class);
         for (int at = 0; at < count; at++) {
             syncs.add(EnumSet.noneOf(Voice.class));
-            evens.add(EnumSet.noneOf(Voice.class));
         }
         List<Block> acts = new ArrayList<>();
         for (Block block : mine) {
@@ -464,7 +465,11 @@ public final class Csv {
                             throw new IllegalArgumentException(name(voice) + ", and version "
                                     + version + " has no syncs");
                         }
-                        if (version < Json.EVEN && block.columns().contains(even(voice))) {
+                        if (version < Json.STEPS && block.columns().contains(steps(voice))) {
+                            throw new IllegalArgumentException(steps(voice) + ", and version "
+                                    + version + " has no sync lengths");
+                        }
+                        if (version != Json.EVEN && block.columns().contains(even(voice))) {
                             throw new IllegalArgumentException(even(voice) + ", and version "
                                     + version + " has no even syncs");
                         }
@@ -487,9 +492,22 @@ public final class Csv {
                                 throw new IllegalArgumentException(name(voice) + " at row "
                                         + at + " is " + cell + ", and a sync is 1 or empty");
                             }
+                            // 3.8: 1 is the voice left out, and every other
+                            // whole number its sync length
+                            String stepsCell = block.of(line, steps(voice));
+                            if (!stepsCell.isEmpty()) {
+                                int length = number(stepsCell, steps(voice));
+                                if (length == 1) {
+                                    lengths.get(at).remove(voice);
+                                } else {
+                                    lengths.get(at).put(voice, length);
+                                }
+                            }
+                            // 3.10: an even sync of version 11 is a sync
+                            // length of 2
                             String evenCell = block.of(line, even(voice));
                             if (evenCell.equals("1")) {
-                                evens.get(at).add(voice);
+                                lengths.get(at).put(voice, 2);
                             } else if (!evenCell.isEmpty()) {
                                 throw new IllegalArgumentException(even(voice) + " at row "
                                         + at + " is " + evenCell
@@ -527,7 +545,7 @@ public final class Csv {
         List<Row> rows = new ArrayList<>();
         for (int at = 0; at < count; at++) {
             rows.add(new Row(registers.get(at), effects.get(at), syncs.get(at),
-                    evens.get(at)));
+                    lengths.get(at)));
         }
         Tune tune = new Tune(told.of(one, "title"), told.of(one, "composer"),
                 told.of(one, "writer"), number(told.of(one, "rate"), "rate"),
@@ -631,8 +649,14 @@ public final class Csv {
         return "sync" + voice.name();
     }
 
-    /** The cell of a voice's even sync in the registers block, {@code
-     *  evenSyncA} to {@code evenSyncC} (3.8). */
+    /** The cell of a voice's sync length in the registers block, {@code
+     *  syncStepsA} to {@code syncStepsC} (3.8). */
+    static String steps(Voice voice) {
+        return "syncSteps" + voice.name();
+    }
+
+    /** The cell of a voice's even sync in the registers block of a file of
+     *  version 11, {@code evenSyncA} to {@code evenSyncC} (3.10). */
     static String even(Voice voice) {
         return "evenSync" + voice.name();
     }

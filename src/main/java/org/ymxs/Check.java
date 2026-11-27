@@ -122,9 +122,9 @@ public final class Check {
         return said;
     }
 
-    /** What is wrong with one row, or an empty list: its registers, then
-     *  its operation on each timer, {@code starts} the starts of the tune
-     *  on each timer. */
+    /** What is wrong with one row, or an empty list: its registers, its
+     *  operation on each timer, {@code starts} the starts of the tune on
+     *  each timer, then its sync lengths. */
     private static List<String> of(Remapping starts, Row row, Work work) {
         List<String> said = new ArrayList<>();
         for (Map.Entry<Register, Integer> one : Tunes.registers(row).entrySet()) {
@@ -137,6 +137,13 @@ public final class Check {
         for (Map.Entry<Timer, Effect> one : Tunes.effects(row).entrySet()) {
             for (String wrong : of(starts, one.getKey(), one.getValue(), work)) {
                 said.add("Timer " + one.getKey() + ": " + wrong);
+            }
+        }
+        for (Voice voice : Voice.values()) {
+            int steps = Tunes.steps(row, voice);
+            if (steps < 1 || steps > Tunes.MOST_STEPS) {
+                said.add("a sync length of " + steps + " for voice " + voice + ": a sync is 1"
+                        + " to " + Tunes.MOST_STEPS + " steps");
             }
         }
         return said;

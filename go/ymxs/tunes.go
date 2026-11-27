@@ -21,6 +21,19 @@ func NewRow(registers map[Register]int) Row {
 	return Row{Registers: registers, Effects: map[Timer]Effect{}}
 }
 
+// MostSteps is the most steps of a sync length, which is 1 to this (SPEC.md
+// 1.6, 1.11).
+const MostSteps = 8
+
+// Steps is the sync length of a voice at this row: its entry in SyncSteps,
+// and 1 where the row leaves the voice out (SPEC.md 1.6).
+func Steps(row Row, voice Voice) int {
+	if steps, ok := row.SyncSteps[voice]; ok {
+		return steps
+	}
+	return 1
+}
+
 // Effects is the effects this row sets, in the order the timers are
 // declared, as pairs.
 //

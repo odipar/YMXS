@@ -75,15 +75,16 @@ final class Record {
             writes.add("\"" + Chip.number(one.getKey()) + "\":" + one.getValue());
         }
         // the voices the row syncs in voice order, where it syncs one, and
-        // the voices of its even syncs, where it lists one (7.4)
+        // the voices of a sync length other than 1 with the length, where
+        // the row has one (7.4)
         StringJoiner syncs = new StringJoiner(",", "[", "]");
-        StringJoiner evens = new StringJoiner(",", "[", "]");
+        StringJoiner steps = new StringJoiner(",", "{", "}");
         for (Voice voice : Voice.values()) {
             if (row.syncs().contains(voice)) {
                 syncs.add('"' + voice.name() + '"');
             }
-            if (row.evenSyncs().contains(voice)) {
-                evens.add('"' + voice.name() + '"');
+            if (Tunes.steps(row, voice) != 1) {
+                steps.add('"' + voice.name() + "\":" + Tunes.steps(row, voice));
             }
         }
         StringJoiner effects = new StringJoiner(",", "{", "}");
@@ -92,7 +93,7 @@ final class Record {
         }
         return "{\"result\":0,\"w\":" + writes
                 + (row.syncs().isEmpty() ? "" : ",\"s\":" + syncs)
-                + (row.evenSyncs().isEmpty() ? "" : ",\"even\":" + evens)
+                + (steps.length() == 2 ? "" : ",\"lengths\":" + steps)
                 + ",\"e\":" + effects + "}";
     }
 

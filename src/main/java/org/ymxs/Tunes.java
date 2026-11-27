@@ -74,7 +74,7 @@ public final class Tunes {
     /** An empty row. A player advancing over it leaves every register as it
      *  is and
      *  moves no timer. */
-    public static final Row EMPTY = new Row(Map.of(), Map.of(), Set.of(), Set.of());
+    public static final Row EMPTY = new Row(Map.of(), Map.of(), Set.of(), Map.of());
 
     private Tunes() {
     }
@@ -98,7 +98,7 @@ public final class Tunes {
 
     /** A row that sets these registers and leaves every effect alone. */
     public static Row row(Map<Register, Integer> registers) {
-        return new Row(registers, Map.of(), Set.of(), Set.of());
+        return new Row(registers, Map.of(), Set.of(), Map.of());
     }
 
     /**
@@ -130,6 +130,18 @@ public final class Tunes {
             }
         }
         return out;
+    }
+
+    /** The most steps of a sync length, which is 1 to this (SPEC.md 1.6,
+     *  1.11). */
+    public static final int MOST_STEPS = 8;
+
+    /** The sync length of a voice at this row: its entry in {@code
+     *  syncSteps}, and 1 where the row leaves the voice out (SPEC.md
+     *  1.6). */
+    public static int steps(Row row, Voice voice) {
+        Integer steps = row.syncSteps().get(voice);
+        return steps == null ? 1 : steps;
     }
 
     /** Whether the row sets no register and leaves every effect alone. */

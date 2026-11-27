@@ -26,10 +26,15 @@ const Format = "ymxs"
 
 // Version is the version of the structure this maps, and the version a
 // writer writes.
-const Version = 11
+const Version = 12
 
-// Even is the first version with a row's even syncs: in a file of a version
-// before it evenSyncs is an error of the form (json.md 2.4).
+// Steps is the first version with a row's sync lengths: in a file of a
+// version before it syncSteps is an error of the form (json.md 2.4).
+const Steps = 12
+
+// Even is the one version with a row's even syncs, each a sync length of 2:
+// in a file of another version evenSyncs is an error of the form (json.md
+// 2.4).
 const Even = 11
 
 // Sync is the first version with a row's syncs and the targets of a sync,
@@ -66,7 +71,7 @@ const Several = 4
 const Oldest = 3
 
 // Reads is the versions a reader reads, as its report lists them: Oldest
-// to Version, "3, 4, 5, 6, 7, 8, 9 or 10".
+// to Version, "3, 4, 5, 6, 7, 8, 9, 10, 11 or 12".
 var Reads = func() string {
 	var said []string
 	for version := Oldest; version < Version; version++ {
@@ -180,15 +185,15 @@ func (w *writer) tune(tune ymxs.Tune, depth int) {
 				}
 			})
 		})
-		for _, key := range []string{"syncs", "evenSyncs"} {
-			of := voicesOf(key)
-			if !listed(rows, of) {
+		for _, key := range []string{"syncs", "syncSteps"} {
+			of, otherwise := voicesOf(key)
+			if !listed(rows, of, otherwise) {
 				continue
 			}
 			o.field(key, func() {
 				w.object(depth+1, func(sets *entries) {
 					for _, voice := range ymxs.Voices {
-						column, any := voiceColumn(rows, voice, of)
+						column, any := voiceColumn(rows, voice, of, otherwise)
 						if any {
 							sets.field(SyncName(voice), func() {
 								w.values(depth+2, column)
@@ -342,37 +347,37 @@ func SyncName(voice ymxs.Voice) string {
 	return strings.ToLower(voice.String())
 }
 
-// voicesOf is the voices of a row the object key writes: its syncs for
-// syncs, and its even syncs for evenSyncs (json.md 5.4, 5.5).
-func voicesOf(key string) func(ymxs.Row) [3]bool {
-	if key == "evenSyncs" {
-		return func(row ymxs.Row) [3]bool { return row.EvenSyncs }
+// voicesOf is the value of a voice at a row the object key writes, and the
+// value a voice without a column has at every row: a sync, 1 or 0, for
+// syncs, and the sync length, 1 where absent, for syncSteps (json.md 5.4,
+// 5.5).
+func voicesOf(key string) (func(ymxs.Row, ymxs.Voice) int, int) {
+	if key == "syncSteps" {
+		return ymxs.Steps, 1
 	}
-	return func(row ymxs.Row) [3]bool { return row.Syncs }
+	return func(row ymxs.Row, voice ymxs.Voice) int { return flag(row.Syncs[voice]) }, 0
 }
 
-// listed is whether some row lists a voice among the voices of.
-func listed(rows []ymxs.Row, of func(ymxs.Row) [3]bool) bool {
+// listed is whether some voice has a value of other than otherwise at some
+// row.
+func listed(rows []ymxs.Row, of func(ymxs.Row, ymxs.Voice) int, otherwise int) bool {
 	for _, voice := range ymxs.Voices {
-		if _, any := voiceColumn(rows, voice, of); any {
+		if _, any := voiceColumn(rows, voice, of, otherwise); any {
 			return true
 		}
 	}
 	return false
 }
 
-// voiceColumn is one voice's column of syncs or of even syncs: 1 on each
-// row whose voices of list it and 0 elsewhere, with whether any row lists
-// it.
-func voiceColumn(rows []ymxs.Row, voice ymxs.Voice, of func(ymxs.Row) [3]bool) ([]int,
-	bool) {
+// voiceColumn is one voice's column of syncs or of sync lengths: its value
+// of at each row, with whether some row has a value other than otherwise.
+func voiceColumn(rows []ymxs.Row, voice ymxs.Voice, of func(ymxs.Row, ymxs.Voice) int,
+	otherwise int) ([]int, bool) {
 	column := make([]int, len(rows))
 	any := false
 	for at, row := range rows {
-		if of(row)[voice] {
-			column[at] = 1
-			any = true
-		}
+		column[at] = of(row, voice)
+		any = any || column[at] != otherwise
 	}
 	return column, any
 }

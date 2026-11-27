@@ -21,10 +21,11 @@ replaces this document.
 | the place at row 0 before the first frame | rule 3 and SPEC.md 8.4 | a write of 0 a timer before the first frame |
 | rule 4 dropped | rule 4, which a check skips | none |
 | `Operation` in place of `Effect` | two meanings of *effect* | a rename in both trees |
+| a sync at a tick as a field `sync` of `SetTone` and `SetVoice` | `SyncTone` | targets 28 to 30 in the forms, for `SetVoice` with `sync` set |
+| the parity of a sync kept a voice, and at a tick the parity of the tick before | a voice listed on each row of a held note, and the parity of the next interval read by the first tick after a frame | at the repeat row the parity of the pass before |
 
-Four questions are open: which proposals version 12 defines, the layout
-of a timer in JSON, where the parity of a sync belongs, and which versions
-a reader of version 12 reads.
+Three questions are open: which proposals version 12 defines, the layout
+of a timer in JSON, and which versions a reader of version 12 reads.
 
 ## How it grew
 
@@ -40,7 +41,7 @@ a reader of version 12 reads.
 | 11 | `evenSyncs` on a row | 3.9.2 |
 
 The block of SPEC.md 1.1 has 42 declarations at version 11, and the
-sketch of version 12 below has 23.
+sketch of version 12 below has 22.
 
 ## What was measured
 
@@ -315,37 +316,92 @@ row that acts on it (csv.md 3.9); columns read as the rest of JSON, row i
 at index i of every column (json.md 3.6). The proposal uses columns, one
 layout for a tune; the list is open.
 
-## The parity of a sync
+## Syncs
 
-`evenSyncs` is a value of a row: the syncs of a voice during the row, at
-its frame and at the ticks of a sync target until the next frame, are even
-(SPEC.md 1.6, 3.9.4). By the note of SPEC.md 3.9.4 a sync target restarts
-the square at one level at every tick where the parity of each sync is
-that of k, the flips of the square between that sync and the one before,
-at the period on the chip between them.
+A sync of a voice is a write of its period: 0 to both registers, n steps
+of the tone generator, then the period (SPEC.md 3.9.1). Version 10 added
+it in two places, and version 11 its parity in a third:
 
-With copy from frame on `syncToneA`, a row that sets a new period leaves
-R0 and R1 to the ticks (SPEC.md 3.8.3): the chip keeps the period of the
-row before until the next tick. That tick ends an interval at the old
-period and reads the parity of the new row, and the ticks after it end
-intervals at the new period. A row has one bit for both, so where k at
-the two periods differ in parity, one tick of the row restarts the square
-at the other level. A source of two rows or more on a sync target has one
-bit a row of the tune for intervals at each of its periods.
+| part | version 11 | SPEC.md |
+|---|---|---|
+| a sync at a frame | `syncs` on a row, a set of voices | 3.9.3 |
+| a sync at a tick | `SyncTone`, targets 25 to 27 | 3.9.4 |
+| the parity of both | `evenSyncs` on a row, a set of voices | 3.9.2 |
 
-This follows from the text of SPEC.md 3.8.3 and 3.9.4, and is measured
-neither on the chip nor under Hatari. Two ways to settle it:
+A sync at a frame is an event of its row, as a write of R13 restarts the
+envelope, and rule 1(f) reports a row that syncs a voice while an effect
+runs on its period. The other two were each added beside a part before
+them: `SyncTone` beside `SetTone`, `evenSyncs` beside `syncs`.
 
-- the parity of the sync of a tick is the bit set with the period of the
-  interval before it: for copy from frame, the bit of the row whose frame
-  value the tick before wrote; for a source on a sync target, a bit a row
-  of the source;
-- the bit stays with the row, and SPEC.md 3.9.4 notes the first tick after
-  a change of period as the writer's to place.
+`SyncTone` is `SetTone` with a sync before each write. Each target that
+writes a period can have a counterpart with a sync, and SPEC.md 8.2 lists
+one for a later version: a voice's period and its volume after a sync.
 
-Under the first, a writer sets the bit where the period changes, as a
-register is set; today a note of one period over many rows lists the
-voice in `evenSyncs` on each of them.
+`evenSyncs` sets the parity of the sync of its row's frame and of the
+ticks of a sync target until the next frame (SPEC.md 1.6, 3.9.4). By the
+note of SPEC.md 3.9.4 a sync target restarts the square at one level at
+every tick where the parity of each sync is that of k, the flips of the
+square between that sync and the one before, at the period on the chip
+between them. `evenSyncs` has two faults:
+
+- The first tick after a frame ends an interval begun in the row before:
+  at the old period where the row sets a new one, since copy from frame
+  leaves R0 and R1 to the ticks (SPEC.md 3.8.3), and at the old count
+  where the row writes one to a running timer with `timerReset` clear
+  (SPEC.md 3.3.5). That tick reads the bit of the new row, so where k of
+  the two intervals differ in parity, it restarts the square at the other
+  level.
+- The bit lasts one row, so a note of one period held over many rows lists
+  the voice in `evenSyncs` on each of them.
+
+**Proposal.** A sync at a tick is a field of a target, and the parity a
+value of a voice kept until a row sets it, as a register is.
+
+- `SetTone(Voice voice, boolean sync)` and `SetVoice(Voice voice, boolean
+  sync)`: with `sync` set, a tick syncs the voice before it writes the
+  period (SPEC.md 3.9.4). `SyncTone` goes, and the target of SPEC.md 8.2
+  is `SetVoice` with `sync` set.
+- `evenSyncs` maps a voice to `true` for even and `false` for odd; a voice
+  absent keeps its parity, and each voice is odd before the first row that
+  sets it. In JSON its columns `a` to `c` are -1, 0 or 1, -1 where the row
+  leaves the parity.
+- A sync at a frame reads the parity of the voice after its row. A sync at
+  a tick reads the *tick parity* of its voice, and the tick then sets the
+  tick parity to the parity of the voice; a start on a target with `sync`
+  set sets it to the parity after the start's row. The first tick after a
+  frame then reads the parity of the interval it ends.
+
+In the forms a target number selects one routine of a player, as today:
+25 to 27 are `SetTone` with `sync` set, and 28 to 30, of the numbers
+SPEC.md 3.1.2 leaves to later targets, `SetVoice` with `sync` set.
+
+What goes: `SyncTone`, the voice of a held note listed on each row, and
+the parity of the next interval read by the first tick after a frame.
+
+What it costs:
+
+- At the repeat row the parity is that of the pass before, as a field a
+  start leaves (The five operations, above): a writer sets the parity of
+  a voice at the repeat row where the loop differs from the first pass.
+- A sync at a tick of a file of version 11 reads differently at the first
+  tick after a frame whose bit differs from the row before (The versions a
+  reader reads, below).
+
+Two limits remain under this shape and under version 11:
+
+- A source of two rows or more on a target with `sync` set has one parity
+  a voice for intervals at each of its periods.
+- A prescaler written to a running timer, or a rate with `timerReset` set,
+  splits or cuts the interval in progress at the frame (SPEC.md 3.3.5,
+  3.4.1), so the parity of the first sync after it depends on where the
+  frame falls between two ticks.
+
+Two tunes of the examples have syncs, `sync.json` and `even-syncs.json` of
+the conformance kit, and the dumps have none. As a parity set where it
+changes, the `evenSyncs` of the examples are 6 cells, against 4 today:
+each even sync there lasts one or two rows, and neither tune has a held
+note. This section follows from the text of SPEC.md 3.3.5, 3.8.3 and 3.9,
+and is measured neither on the chip nor under Hatari.
 
 ## The versions a reader reads
 
@@ -361,9 +417,16 @@ of the mapping, part i for register i of each target a `Start` on its
 timer connects; a `Recut` a change of the cut. A part for a register the
 target leaves alone is skipped, so a `Remap` on a timer of two targets
 reads as it did. Each timer of the examples with a `Remap` runs one
-target. The one reading that differs is a `Retune` on an idle timer, which
-breaks rule 5: version 11 starts the timer and leaves its ticks to a later
-version (SPEC.md 5.4), and a change leaves it idle.
+target. `SyncTone` reads as `SetTone` with `sync` set, and `evenSyncs` as
+a parity set on every row, even for a voice listed and odd for the
+others.
+
+Two readings differ. A `Retune` on an idle timer breaks rule 5: version 11
+starts the timer and leaves its ticks to a later version (SPEC.md 5.4),
+and a change leaves it idle. The first sync at a tick after a frame whose
+bit differs from the row before reads the bit of the row before (Syncs,
+above): in `even-syncs.json` the first tick of Timer A after the frames of
+rows 2 and 4.
 
 The other way is a reader of version 12 alone, and a tool that converts a
 file of version 3 to 11; json.md 2.4 and its counterparts then go.
@@ -380,8 +443,10 @@ file of version 3 to 11; json.md 2.4 and its counterparts then go.
   (SPEC.md 3.3.5).
 - The registers of a row as a map, an absent register keeping its value
   (SPEC.md 1.6).
-- The 28 targets as a closed list, one routine a target in a player, with
-  28 to 127 for later ones (SPEC.md 3.1.2); the width interfaces go.
+- The target numbers 0 to 27 of the forms as a closed list, one routine a
+  number in a player, with the numbers above them for later ones (SPEC.md
+  3.1.2); the width interfaces go.
+- `syncs` on a row, a set of voices, and rule 1(f) (SPEC.md 3.9.3).
 - Copy from frame as a source, source 0 in the structure as in the forms.
 
 ## A sketch of version 12
@@ -405,23 +470,30 @@ record Change(Optional<Prescaler> prescaler, OptionalInt count,
 
 record Source(String name, Table<List<Integer>> table) { }
 
-sealed interface Target permits SetRegister, SetTone, SyncTone, SetNoise,
+sealed interface Target permits SetRegister, SetTone, SetNoise,
         SetEnvelope, SetVoice, SetBuzzer { }
+
+record SetTone(Voice voice, boolean sync) implements Target { }
+
+record SetVoice(Voice voice, boolean sync) implements Target { }
 ```
 
 `Row` maps each timer to an `Operation`, in a field `operations` in place
-of `effects`. `Multi`, `Table`, `Stop`, `Cut`, `Transformation`, the seven
-targets, each implementing `Target`, and the four enums are as at version
-11: 23 declarations. The 21 that go are `Effect`, `Retune`, `Remap`,
-`Recut`, `Timing`, `Connection` and its four records, the three width
-interfaces of `Target`, `Single`, `Pair`, `Triple`, `Two`, `Three`,
-`Mapping`, `Part` and `Identity`.
+of `effects`, and `evenSyncs` is a `Map<Voice, Boolean>`. `Multi`,
+`Table`, `Stop`, `Cut`, `Transformation`, the other four targets, each
+implementing `Target`, and the four enums are as at version 11: 22
+declarations. The 22 that go are `Effect`, `Retune`, `Remap`, `Recut`,
+`Timing`, `Connection` and its four records, the three width interfaces
+of `Target`, `Single`, `Pair`, `Triple`, `Two`, `Three`, `Mapping`,
+`Part`, `Identity` and `SyncTone`.
 
 The conventions of SPEC.md 1.1 gain `Optional<T>`, a value present or
 absent. `source` is 0 for copy from frame and n for source n of the tune;
 a value of `mapping` is 0 for the identity and n for transformation n.
 The `change` of a start has its prescaler, count, mapping, cut and resets;
-an absent cut there is the whole table of the source.
+an absent cut there is the whole table of the source. `sync` set syncs the
+voice before each write of a tick, and `evenSyncs` maps a voice to `true`
+for even (Syncs, above).
 
 - A player performs a start at its frame where `deferred` is clear or the
   timer is idle; otherwise the start is pending with the values the timer
@@ -450,6 +522,11 @@ an absent cut there is the whole table of the source.
   timer have one last register, as above.
 - The sources: the converter numbers the source index in first-start
   order, as today, or in the order of the tune's list.
+- The syncs: bit 5 and bit 4 of coarse column 1, 3 or 5 are the sync of a
+  frame and the parity, read on every row (YMXR's SPEC.md, 1.12), so the
+  converter writes bit 4 from the parity each voice keeps. The player
+  keeps the tick parity, one bit a voice, and targets 28 to 30 are three
+  routines more.
 
 ## The plan
 
@@ -457,8 +534,8 @@ an absent cut there is the whole table of the source.
 - [ ] The open questions settled
 - [ ] YMXS: version 12, the three operations, sources and transformations
       by number, a source of rows of one to three values, the mapping by
-      register, rules 3 and 4, and the names; SPEC.md, JSON, CSV, the
-      record, the check, both trees
+      register, rules 3 and 4, the names and the syncs; SPEC.md, JSON,
+      CSV, the record, the check, both trees
 - [ ] YMXS: `ym-to-ymxs` writes the volume of a SID voice through
       transformations, one source a waveform
 - [ ] YMXR: the converter reads version 12
@@ -470,6 +547,5 @@ an absent cut there is the whole table of the source.
    the names and rules 3 and 4 first, with sources by number and the
    mapping by register in a version after it.
 2. A timer in JSON: a column a field, or a list of operations.
-3. The parity of a sync: a bit with the period, or a bit with the row.
-4. The versions a reader of version 12 reads: 3 to 12, or 12 alone with a
+3. The versions a reader of version 12 reads: 3 to 12, or 12 alone with a
    tool that converts the files of 3 to 11.

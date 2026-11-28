@@ -836,16 +836,22 @@ Note: copy from frame on `syncToneA` at the rate of a timer restarts voice
 A's square at each tick at the period the rows set: a hard sync, whose
 restarts the timer sets and whose pitch between restarts the rows set.
 Between two syncs the square flips at each count that reaches the period:
-the rows' period after the sync before, the two fine values of 3.9.2 for
-a step each, and 0 for the n steps between them, a flip a step. Where the
-flips from one sync to the next are even in number, the square restarts
-at the level it had after the sync before. The sync length of a row
-applies to the ticks after the first until the next frame and to the
-first tick after the next frame, each the end of a stretch at the row's
-period. A writer sets on each row the sync length that restarts the
-square at that level at those ticks, with a margin for the jitter of the
-timer: the steps between two ticks are a fraction, and the whole steps
-between two syncs are its floor or its ceiling.
+the rows' period after the sync before, the two fine values of 3.9.2 for a
+step each, and 0 for the n steps between them, a flip a step. Where the
+flips from one sync to the next are even in number, the square restarts at
+the level it had after the sync before. The sync length of a row applies
+to the ticks after the first until the next frame and to the first tick
+after the next frame, each the end of a stretch at the row's period. The
+flips of a stretch are counted from the sync before it, whose length is
+the row before's at the second tick after a frame. A writer sets on each
+row the sync length that restarts the square at that level at those ticks,
+after a sync at the row's length and after one at the row before's, but
+where the timer starts on the row. A row's length is then part of the next
+row's condition, and a writer chooses the lengths of all rows together.
+The steps between two ticks are a fraction, and the whole steps between
+two syncs are its floor or its ceiling; a writer allows 2 steps either way
+of that fraction for the latency of the timer's interrupt, which varies
+from tick to tick.
 
 **3.9.5 Uses (informative).** In `doc/conformance/tunes/sync.json` a row
 syncs the three voices; copy from frame runs on `syncToneA`, and on

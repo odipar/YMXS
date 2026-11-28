@@ -106,9 +106,10 @@ func Row(row ymxs.Row) []string {
 	return rowOf(&remapping{}, row, &work{})
 }
 
-// rowOf lists what is wrong with a row of the tune: the registers, then each
-// timer with a start, a retune, a remap or a recut, A to D. A remap and a
-// recut are read against the starts on its timer in the tune of starts.
+// rowOf lists what is wrong with a row of the tune: the registers, each
+// timer with a start, a retune, a remap or a recut, A to D, then the sync
+// lengths, A to C. A remap and a recut are read against the starts on its
+// timer in the tune of starts.
 func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 	var said []string
 	for _, one := range ymxs.Registered(row) {
@@ -128,6 +129,12 @@ func rowOf(starts *remapping, row ymxs.Row, w *work) []string {
 		}
 		for _, line := range wrong {
 			said = append(said, fmt.Sprintf("Timer %s: %s", one.Timer, line))
+		}
+	}
+	for _, voice := range ymxs.Voices {
+		if steps := ymxs.Steps(row, voice); steps < 1 || steps > ymxs.MostSteps {
+			said = append(said, fmt.Sprintf("a sync length of %d for voice %s: a sync is 1"+
+				" to %d steps", steps, voice, ymxs.MostSteps))
 		}
 	}
 	return said

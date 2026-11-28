@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 import org.ymxs.YMXS.Cut;
 import org.ymxs.YMXS.Effect;
 import org.ymxs.YMXS.Mapping;
@@ -71,10 +71,15 @@ public final class Json {
 
     /** The version of the structure this maps, and the version a writer
      *  writes. */
-    public static final int VERSION = 11;
+    public static final int VERSION = 12;
 
-    /** The first version with a row's even syncs: in a file of a version
-     *  before it {@code evenSyncs} is an error of the form (2.4). */
+    /** The first version with a row's sync lengths: in a file of a version
+     *  before it {@code syncSteps} is an error of the form (2.4). */
+    public static final int STEPS = 12;
+
+    /** The one version with a row's even syncs, each a sync length of 2:
+     *  in a file of another version {@code evenSyncs} is an error of the
+     *  form (2.4). */
     public static final int EVEN = 11;
 
     /** The first version with a row's syncs and the targets of a sync,
@@ -112,7 +117,7 @@ public final class Json {
     public static final int OLDEST = 3;
 
     /** The versions a reader reads, as its report lists them: 3, 4, 5, 6,
-     *  7, 8 or 9. */
+     *  7, 8, 9, 10, 11 or 12. */
     static final String READS = reads();
 
     private static String reads() {
@@ -202,16 +207,16 @@ public final class Json {
             column(sets, name(register), rows, register);
         }
         ObjectNode syncs = MAKE.objectNode();
-        ObjectNode evens = MAKE.objectNode();
+        ObjectNode steps = MAKE.objectNode();
         for (Voice voice : Voice.values()) {
-            voices(syncs, voice, rows, Row::syncs);
-            voices(evens, voice, rows, Row::evenSyncs);
+            voices(syncs, voice, rows, row -> row.syncs().contains(voice) ? 1 : 0, 0);
+            voices(steps, voice, rows, row -> Tunes.steps(row, voice), 1);
         }
         if (!syncs.isEmpty()) {
             out.set("syncs", syncs);
         }
-        if (!evens.isEmpty()) {
-            out.set("evenSyncs", evens);
+        if (!steps.isEmpty()) {
+            out.set("syncSteps", steps);
         }
         for (Timer timer : Timer.values()) {
             timer(out, timer, rows, sources, transformations);
@@ -219,17 +224,18 @@ public final class Json {
         return out;
     }
 
-    /** One voice's column of syncs or of even syncs: 1 on each row whose
-     *  set {@code of} lists the voice and 0 elsewhere. A voice has a column
-     *  where some row lists it (5.4, 5.5). */
+    /** One voice's column of syncs or of sync lengths: the value {@code of}
+     *  each row. A voice has a column where some row has a value other than
+     *  {@code otherwise}, 0 for a sync and 1 for a sync length (5.4,
+     *  5.5). */
     private static void voices(ObjectNode out, Voice voice, List<Row> rows,
-            Function<Row, Set<Voice>> of) {
+            ToIntFunction<Row> of, int otherwise) {
         ArrayNode values = MAKE.arrayNode();
         boolean any = false;
         for (Row row : rows) {
-            boolean has = of.apply(row).contains(voice);
-            values.add(has ? 1 : 0);
-            any = any || has;
+            int value = of.applyAsInt(row);
+            values.add(value);
+            any = any || value != otherwise;
         }
         if (any) {
             out.set(name(voice), values);
@@ -242,22 +248,23 @@ public final class Json {
         return voice.name().toLowerCase(Locale.ROOT);
     }
 
-    /** The object {@code key} of a voice's column each, syncs or even
-     *  syncs (5.4, 5.5): for each row the voices whose column is 1 there,
-     *  none where the object is absent. {@code first} is the first version
-     *  with the object, {@code noun} the plural the error of an earlier one
-     *  names and {@code one} the singular of a value's error. */
-    private static List<Set<Voice>> voices(JsonNode tree, String key, int count,
-            int version, int first, String noun, String one) {
-        List<Set<Voice>> out = new ArrayList<>();
-        for (int at = 0; at < count; at++) {
-            out.add(EnumSet.noneOf(Voice.class));
-        }
+    /** What a reader does with one value of a voice's column. */
+    private interface Cell {
+        void read(Voice voice, int at, int value);
+    }
+
+    /** The object {@code key} of a voice's column each, syncs, sync lengths
+     *  or even syncs (2.4, 5.4, 5.5): each value of each column present, in
+     *  voice order and row order, to {@code cell}, which verifies it as it
+     *  is read. {@code has} is whether the file's version has the object,
+     *  and {@code noun} the plural in the line of another version. */
+    private static void voices(JsonNode tree, String key, int count, int version,
+            boolean has, String noun, Cell cell) {
         JsonNode object = tree.get(key);
         if (object == null) {
-            return out;
+            return;
         }
-        if (version < first) {
+        if (!has) {
             throw new IllegalArgumentException(key + ", and version " + version + " has no "
                     + noun);
         }
@@ -272,18 +279,21 @@ public final class Json {
             }
             sized(column, count, key + " " + name(voice));
             for (int at = 0; at < count; at++) {
-                int value = whole(column.get(at), key + " " + name(voice) + " at row " + at
-                        + " is " + column.get(at));
-                if (value != 0 && value != 1) {
-                    throw new IllegalArgumentException(key + " " + name(voice) + " at row "
-                            + at + " is " + value + ", and " + one + " is 0 or 1");
-                }
-                if (value == 1) {
-                    out.get(at).add(voice);
-                }
+                cell.read(voice, at, whole(column.get(at), key + " " + name(voice)
+                        + " at row " + at + " is " + column.get(at)));
             }
         }
-        return out;
+    }
+
+    /** A value of a column of syncs or of even syncs, 0 or 1 (5.4): whether
+     *  it is 1. {@code one} is the singular of the error of another
+     *  value. */
+    private static boolean binary(String key, Voice voice, int at, int value, String one) {
+        if (value != 0 && value != 1) {
+            throw new IllegalArgumentException(key + " " + name(voice) + " at row " + at
+                    + " is " + value + ", and " + one + " is 0 or 1");
+        }
+        return value == 1;
     }
 
     /**
@@ -537,7 +547,8 @@ public final class Json {
      *  start with the mapping of no parts, and its {@code transformations}
      *  and {@code mapping} are skipped; a file of version 7 or before has
      *  every start under the whole table of its source, and its
-     *  {@code first} and {@code last} are skipped (2.4). */
+     *  {@code first} and {@code last} are skipped; a file of version 11
+     *  has each voice of a row's even syncs at a sync length of 2 (2.4). */
     public static Tune tune(JsonNode tree, int version) {
         int count = number(tree, "rows");
         List<Source> sources = new ArrayList<>();
@@ -577,10 +588,34 @@ public final class Json {
                 }
             }
         }
-        List<Set<Voice>> syncs = voices(tree, "syncs", count, version, SYNC, "syncs",
-                "a sync");
-        List<Set<Voice>> evens = voices(tree, "evenSyncs", count, version, EVEN,
-                "even syncs", "an even sync");
+        List<Set<Voice>> syncs = new ArrayList<>();
+        List<Map<Voice, Integer>> steps = new ArrayList<>();
+        for (int at = 0; at < count; at++) {
+            syncs.add(EnumSet.noneOf(Voice.class));
+            steps.add(new EnumMap<>(Voice.class));
+        }
+        voices(tree, "syncs", count, version, version >= SYNC, "syncs",
+                (voice, at, value) -> {
+                    if (binary("syncs", voice, at, value, "a sync")) {
+                        syncs.get(at).add(voice);
+                    }
+                });
+        // 5.5: 1 is the voice left out, and every other whole number its
+        // sync length, so one outside 1 to 16 is an error of the structure
+        voices(tree, "syncSteps", count, version, version >= STEPS, "sync lengths",
+                (voice, at, value) -> {
+                    if (value != 1) {
+                        steps.get(at).put(voice, value);
+                    }
+                });
+        // 2.4: a voice among the even syncs of a row of version 11 has a
+        // sync length of 2
+        voices(tree, "evenSyncs", count, version, version == EVEN, "even syncs",
+                (voice, at, value) -> {
+                    if (binary("evenSyncs", voice, at, value, "an even sync")) {
+                        steps.get(at).put(voice, 2);
+                    }
+                });
         for (Timer timer : Timer.values()) {
             JsonNode columns = tree.get("timer" + timer.name());
             if (columns == null) {
@@ -602,7 +637,7 @@ public final class Json {
         List<Row> built = new ArrayList<>();
         for (int at = 0; at < count; at++) {
             built.add(new Row(registers.get(at), effects.get(at), syncs.get(at),
-                    evens.get(at)));
+                    steps.get(at)));
         }
         Tune tune = new Tune(text(tree, "title"), text(tree, "composer"),
                 text(tree, "writer"), number(tree, "rate"),

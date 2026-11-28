@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
  * it out of there, and three documents list it: what a reader runs
  * {@code go get} with, and the tag a version of the Go module has. They
  * were once a release apart: README.md fetched 0.3.3 of a module the pom
- * had at 0.3.4.
+ * had at 0.3.4. A pom of X-SNAPSHOT builds a branch toward release X, and
+ * the documents list the newest release published, below X.
  *
  * <p>RELEASES.md also lists the version of the structure a writer writes
  * and the versions a reader reads, those of the newest release published,
@@ -44,13 +45,38 @@ final class ReleaseTest {
         return said.group(1);
     }
 
-    @Test
-    void theNewestReleaseListedIsTheVersionOfTheBuild() throws IOException {
+    /** The suffix of a pom's version that builds toward a release. */
+    private static final String SNAPSHOT = "-SNAPSHOT";
+
+    /** The newest release RELEASES.md lists. */
+    private static String newest() throws IOException {
         Matcher listed = Pattern.compile("^### (\\d+\\.\\d+\\.\\d+), ",
                 Pattern.MULTILINE).matcher(read(RELEASES));
         assertTrue(listed.find(), "RELEASES.md lists no release");
-        assertEquals(version(), listed.group(1),
-                "the newest release listed is the version the pom names");
+        return listed.group(1);
+    }
+
+    /** The release the documents list: the pom's version, and the newest
+     *  release listed where the pom builds toward the next one. */
+    private static String released() throws IOException {
+        return version().endsWith(SNAPSHOT) ? newest() : version();
+    }
+
+    @Test
+    void theNewestReleaseListedIsTheVersionOfTheBuild() throws IOException {
+        if (!version().endsWith(SNAPSHOT)) {
+            assertEquals(version(), newest(),
+                    "the newest release listed is the version the pom names");
+            return;
+        }
+        List<Integer> toward = figures(version().replace(SNAPSHOT, ""));
+        List<Integer> listed = figures(newest());
+        int at = 0;
+        while (at < 2 && toward.get(at).equals(listed.get(at))) {
+            at++;
+        }
+        assertTrue(toward.get(at) > listed.get(at), "the pom builds " + version()
+                + ", which is no release after the newest listed, " + newest());
     }
 
     /** The figures of a list such as {@code 7, 6, 5, 4 and 3}, in order. */
@@ -180,7 +206,7 @@ final class ReleaseTest {
         Matcher said = Pattern.compile("go get github\\.com/odipar/ymxs/go@v(\\S+)")
                 .matcher(read(Path.of("README.md")));
         assertTrue(said.find(), "README.md fetches no module");
-        assertEquals(version(), said.group(1),
+        assertEquals(released(), said.group(1),
                 "README.md fetches another version than the pom names");
     }
 
@@ -192,8 +218,8 @@ final class ReleaseTest {
                     .matcher(read(at));
             while (tag.find()) {
                 shown++;
-                assertEquals(version(), tag.group(1), at + " shows another module tag");
-                assertEquals(version(), tag.group(2), at + " shows another release tag");
+                assertEquals(released(), tag.group(1), at + " shows another module tag");
+                assertEquals(released(), tag.group(2), at + " shows another release tag");
             }
         }
         final int found = shown;

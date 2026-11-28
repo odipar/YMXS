@@ -52,6 +52,7 @@ the sync (7.4).
 | `copy-from-frame.json` | 1 | 11 |
 | `sync.json` | 1 | 17 |
 | `even-syncs.json` | 1 | 17 |
+| `sync-steps.json` | 1 | 17 |
 
 **4. The rules.**
 

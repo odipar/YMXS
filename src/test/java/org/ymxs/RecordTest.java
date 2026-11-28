@@ -111,7 +111,7 @@ final class RecordTest {
     void aRemapOnATimerOfNoStartIsRecorded() {
         Tune tune = new Tune("", "", "", 50, Tunes.once(List.of(
                 new YMXS.Row(java.util.Map.of(), java.util.Map.of(YMXS.Timer.C,
-                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5)))), java.util.Set.of(), Set.of()))));
+                        new YMXS.Remap(Tunes.mapping(Fade.volumes(5)))), java.util.Set.of(), java.util.Map.of()))));
         List<String> record = Record.record(tune);
         assertTrue(record.get(0).startsWith("{\"rate\":50,\"timers\":[],\"sources\":[],"
                 + "\"transformations\":[[0,0,0,1,"), record.get(0));
@@ -145,6 +145,19 @@ final class RecordTest {
         assertEquals("{\"result\":0,\"w\":{\"2\":50},\"s\":[\"B\",\"C\"],\"e\":{}}",
                 lines.get(3));
         assertTrue(!lines.get(2).contains("\"s\""), lines.get(2));
+    }
+
+    /** A frame's line lists each voice of a sync length other than 1 at
+     *  the row as {@code lengths}, after {@code w} and {@code s}, keyed by its
+     *  letter with the length (SPEC.md 7.4). */
+    @Test
+    void aFrameListsTheSyncLengthsOfItsRow() {
+        List<String> lines = Record.record(TextTest.syncSteps());
+        assertTrue(lines.get(2).startsWith("{\"result\":0,\"w\":{},\"lengths\":{\"A\":2},"
+                + "\"e\":{\"A\":{\"start\":"), lines.get(2));
+        assertEquals("{\"result\":0,\"w\":{\"2\":50},\"s\":[\"B\",\"C\"],"
+                + "\"lengths\":{\"B\":3,\"C\":8},\"e\":{}}", lines.get(3));
+        assertTrue(!lines.get(1).contains("\"lengths\""), lines.get(1));
     }
 
 }

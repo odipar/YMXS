@@ -225,12 +225,42 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 			}
 		}
 	}
-	syncs, err := voices(at, "syncs", rows, version, Sync, "syncs", "a sync")
+	syncs := make([][3]bool, max(rows, 0))
+	steps := make([]map[ymxs.Voice]int, max(rows, 0))
+	for row := range steps {
+		steps[row] = map[ymxs.Voice]int{}
+	}
+	err = voices(at, "syncs", rows, version, version >= Sync, "syncs",
+		func(voice ymxs.Voice, row, value int) error {
+			one, err := binary("syncs", voice, row, value, "a sync")
+			syncs[row][voice] = one
+			return err
+		})
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
-	evens, err := voices(at, "evenSyncs", rows, version, Even, "even syncs",
-		"an even sync")
+	// json.md 5.5: 1 is the voice left out, and every other whole number its
+	// sync length, so one outside 1 to 16 is an error of the structure
+	err = voices(at, "syncSteps", rows, version, version >= Steps, "sync lengths",
+		func(voice ymxs.Voice, row, value int) error {
+			if value != 1 {
+				steps[row][voice] = value
+			}
+			return nil
+		})
+	if err != nil {
+		return ymxs.Tune{}, err
+	}
+	// json.md 2.4: a voice among the even syncs of a row of version 11 has a
+	// sync length of 2
+	err = voices(at, "evenSyncs", rows, version, version == Even, "even syncs",
+		func(voice ymxs.Voice, row, value int) error {
+			one, err := binary("evenSyncs", voice, row, value, "an even sync")
+			if one {
+				steps[row][voice] = 2
+			}
+			return err
+		})
 	if err != nil {
 		return ymxs.Tune{}, err
 	}
@@ -259,7 +289,7 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 	built := make([]ymxs.Row, max(rows, 0))
 	for row := 0; row < rows; row++ {
 		built[row] = ymxs.Row{Registers: registers[row], Effects: effects[row],
-			Syncs: syncs[row], EvenSyncs: evens[row]}
+			Syncs: syncs[row], SyncSteps: steps[row]}
 	}
 	title, err := text(at, "title")
 	if err != nil {
@@ -634,24 +664,23 @@ func column(columns *members, named string, at int, timer ymxs.Timer,
 	return whole(values[at], fmt.Sprintf("Timer %s's %s at row %d", timer, named, at))
 }
 
-// voices is the object key of a voice's column each, syncs or even syncs
-// (json.md 5.4, 5.5): for each row the voices whose column is 1 there, none
-// where the object is absent. first is the first version with the object,
-// noun the plural the error of an earlier one names and one the singular
-// of a value's error.
-func voices(at *members, key string, rows, version, first int, noun,
-	one string) ([][3]bool, error) {
-	out := make([][3]bool, max(rows, 0))
+// voices reads the object key of a voice's column each, syncs, sync lengths
+// or even syncs (json.md 2.4, 5.4, 5.5): each value of each column present,
+// in voice order and row order, to cell, which verifies it as it is read.
+// has is whether the file's version has the object, and noun the plural in
+// the line of another version.
+func voices(at *members, key string, rows, version int, has bool, noun string,
+	cell func(voice ymxs.Voice, row, value int) error) error {
 	written, set := at.get(key)
 	if !set {
-		return out, nil
+		return nil
 	}
-	if version < first {
-		return nil, fmt.Errorf("%s, and version %d has no %s", key, version, noun)
+	if !has {
+		return fmt.Errorf("%s, and version %d has no %s", key, version, noun)
 	}
 	sets, ok := written.(*members)
 	if !ok {
-		return nil, fmt.Errorf("%s is %s, and this form requires a column a voice",
+		return fmt.Errorf("%s is %s, and this form requires a column a voice",
 			key, other(written))
 	}
 	for _, voice := range ymxs.Voices {
@@ -662,21 +691,29 @@ func voices(at *members, key string, rows, version, first int, noun,
 		}
 		values, err := sized(column, rows, named)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for row := 0; row < rows; row++ {
 			value, err := whole(values[row], fmt.Sprintf("%s at row %d", named, row))
 			if err != nil {
-				return nil, err
+				return err
 			}
-			if value != 0 && value != 1 {
-				return nil, fmt.Errorf("%s at row %d is %d, and %s is 0 or 1", named, row,
-					value, one)
+			if err := cell(voice, row, value); err != nil {
+				return err
 			}
-			out[row][voice] = value == 1
 		}
 	}
-	return out, nil
+	return nil
+}
+
+// binary is a value of a column of syncs or of even syncs, 0 or 1 (json.md
+// 5.4): whether it is 1. one is the singular of the error of another value.
+func binary(key string, voice ymxs.Voice, row, value int, one string) (bool, error) {
+	if value != 0 && value != 1 {
+		return false, fmt.Errorf("%s %s at row %d is %d, and %s is 0 or 1", key,
+			SyncName(voice), row, value, one)
+	}
+	return value == 1, nil
 }
 
 // sized reads a column, which is one value a row, so its length is the

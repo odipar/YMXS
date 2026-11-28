@@ -82,9 +82,15 @@ class ConformanceTest {
                             + " syncToneB, and a row that syncs a voice an effect runs on, the"
                             + " sync recorded as the frame leaves it to the effect (3.9, 7.4)"),
             new Source("even-syncs", 1, 17,
-                    "copy from frame on syncToneA whose syncs are even on two rows, an even"
-                            + " sync of voice B at a frame, and a row that lists voice C among"
-                            + " its even syncs without a sync, recorded as even (3.9, 7.4)"));
+                    "a file of version 11: copy from frame on syncToneA whose syncs are even"
+                            + " on two rows, an even sync of voice B at a frame, and a row that"
+                            + " lists voice C among its even syncs without a sync, each even"
+                            + " sync recorded as a sync length of 2 (json.md 2.4, 3.9, 7.4)"),
+            new Source("sync-steps", 1, 17,
+                    "copy from frame on syncToneA at sync lengths of 2, 8, 1 and 3, syncs"
+                            + " of voice B at a frame at 3 and at 16 and of voice C at 1, and a"
+                            + " row that has a sync length of voice C without a sync, recorded"
+                            + " as lengths (3.9, 7.4)"));
 
     /** The tune the source names, read out of the kit. */
     private static Tune tune(Source source) throws IOException {

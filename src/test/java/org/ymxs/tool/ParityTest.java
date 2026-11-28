@@ -513,32 +513,73 @@ final class ParityTest {
                 "syncC at row 0 is 3, and a sync is 1 or empty"));
     }
 
-    /** A row's even syncs, the kit's tune of them: the two trees cross the
+    /** A row's sync lengths, the kit's tune of them: the two trees cross the
      *  forms and check it to the same bytes, and report the same line for
-     *  each error of the forms (json.md 2.4, 5.5, csv.md 3.7, SPEC.md
-     *  3.9.2). */
+     *  each error of the forms and of a sync length outside 1 to 16 (json.md
+     *  2.4, 5.5, csv.md 3.7, SPEC.md 1.11). */
     @Test
-    void anEvenSyncReadsTheSameInBothTrees() throws Exception {
-        byte[] kit = file("doc/conformance/tunes/even-syncs.json");
+    void aSyncLengthReadsTheSameInBothTrees() throws Exception {
+        byte[] kit = file("doc/conformance/tunes/sync-steps.json");
         String csv = new String(both("ymxs-json-to-csv", kit), StandardCharsets.UTF_8);
         String json = new String(both("ymxs-csv-to-json", csv.getBytes(StandardCharsets.UTF_8)),
                 StandardCharsets.UTF_8);
         both("ymxs-check", kit);
-        String a = "\"a\": [0,0,1,1,0,0,0,0],";
-        String four = "4,,,,,,,,,,,,,,,1,,,1,\n";
-        assertTrue(json.contains("\"evenSyncs\": {") && json.contains(a), json);
-        assertTrue(csv.contains(",r13,syncB,syncC,evenSyncA,evenSyncB,evenSyncC\n") &&
+        assertEquals(new String(kit, StandardCharsets.UTF_8), json,
+                "the kit's tune crosses the forms and back");
+        String a = "\"a\": [1,2,8,1,3,1,1,1],";
+        String four = "4,,,,,,,,,,,,,,,1,1,3,16,\n";
+        assertTrue(json.contains("\"syncSteps\": {") && json.contains(a), json);
+        assertTrue(csv.contains(",r13,syncB,syncC,syncStepsA,syncStepsB,syncStepsC\n") &&
                 csv.contains(four), csv);
         wrongInBothTrees(new Wrong("ymxs-check", json.replace("\"version\": " + Json.VERSION,
-                "\"version\": 10"), "evenSyncs, and version 10 has no even syncs"));
+                "\"version\": 11"), "syncSteps, and version 11 has no sync lengths"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json",
-                csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,10,1"),
-                "evenSyncA, and version 10 has no even syncs"));
+                csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,11,1"),
+                "syncStepsA, and version 11 has no sync lengths"));
         wrongInBothTrees(new Wrong("ymxs-check", json.replace(a,
+                "\"a\": [1,2,8,1,3,1,1,17],"),
+                "tune 1: row 7: a sync length of 17 for voice A: a sync is 1 to 16 steps"));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(four,
+                "4,,,,,,,,,,,,,,,1,1,x,8,\n"),
+                "syncStepsA is \"x\", and this form requires a whole number"));
+    }
+
+    /** A file of version 11, the kit's tune of even syncs: the two trees read
+     *  each even sync as a sync length of 2 in both forms, write the tune
+     *  at this version to the same bytes, and report the same line for each
+     *  error of the forms (json.md 2.4, csv.md 3.10). */
+    @Test
+    void anEvenSyncOfVersionElevenReadsTheSameInBothTrees() throws Exception {
+        byte[] kit = file("doc/conformance/tunes/even-syncs.json");
+        String eleven = new String(kit, StandardCharsets.UTF_8);
+        String csv = new String(both("ymxs-json-to-csv", kit), StandardCharsets.UTF_8);
+        String json = new String(both("ymxs-csv-to-json", csv.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8);
+        both("ymxs-check", kit);
+        assertTrue(json.contains("\"a\": [1,1,2,2,1,1,1,1],") && !json.contains("evenSyncs"),
+                json);
+        String tables = csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,11,1")
+                .replace("syncStepsA,syncStepsB,syncStepsC", "evenSyncA,evenSyncB,evenSyncC")
+                .replace("\n2,,,,,,,,,,,,,,,,,2,,\n", "\n2,,,,,,,,,,,,,,,,,1,,\n")
+                .replace("\n3,190,,,,,,,,,,,,,,,,2,,\n", "\n3,190,,,,,,,,,,,,,,,,1,,\n")
+                .replace("\n4,,,,,,,,,,,,,,,1,,,2,\n", "\n4,,,,,,,,,,,,,,,1,,,1,\n")
+                .replace("\n6,,,,,,,,,,,,,,,,,,,2\n", "\n6,,,,,,,,,,,,,,,,,,,1\n");
+        assertEquals(json, new String(both("ymxs-csv-to-json",
+                tables.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
+                "the tables of version 11 read as the file of version 11");
+        wrongInBothTrees(new Wrong("ymxs-check", eleven.replace("\"version\": 11",
+                "\"version\": " + Json.VERSION),
+                "evenSyncs, and version " + Json.VERSION + " has no even syncs"));
+        wrongInBothTrees(new Wrong("ymxs-check", eleven.replace("\"version\": 11",
+                "\"version\": 10"), "evenSyncs, and version 10 has no even syncs"));
+        wrongInBothTrees(new Wrong("ymxs-check", eleven.replace("\"a\": [0,0,1,1,0,0,0,0],",
                 "\"a\": [0,0,1,1,0,0,0,2],"),
                 "evenSyncs a at row 7 is 2, and an even sync is 0 or 1"));
-        wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(four,
-                "4,,,,,,,,,,,,,,,1,,,3,\n"),
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", tables.replace("ymxs,11,1",
+                "ymxs," + Json.VERSION + ",1"),
+                "evenSyncA, and version " + Json.VERSION + " has no even syncs"));
+        wrongInBothTrees(new Wrong("ymxs-csv-to-json", tables.replace(
+                "\n4,,,,,,,,,,,,,,,1,,,1,\n", "\n4,,,,,,,,,,,,,,,1,,,3,\n"),
                 "evenSyncB at row 4 is 3, and an even sync is 1 or empty"));
     }
 
@@ -640,8 +681,8 @@ final class ParityTest {
         String unused = "transformation 2, other, is used by no row, and a transformation a"
                 + " tune does not map through is dropped where this form is read";
         for (Wrong wrong : List.of(
-                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":12"),
-                        "version 12, and this reads 3, 4, 5, 6, 7, 8, 9, 10 or 11"),
+                new Wrong("ymxs-check", json.replace("\"version\":7", "\"version\":13"),
+                        "version 13, and this reads 3, 4, 5, 6, 7, 8, 9, 10, 11 or 12"),
                 new Wrong("ymxs-check", json.replace(transformations, ""),
                         "transformations is null" + array),
                 new Wrong("ymxs-check", json.replace(transformations,
@@ -1162,8 +1203,8 @@ final class ParityTest {
                         "tune 1: row 0: Timer A: a source on setR8 whose row 0 is 16, and a key"
                                 + " is 0 to 15"),
                 new Wrong("ymxs-csv-to-json",
-                        csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,12,1"),
-                        "version 12, and this reads 3, 4, 5, 6, 7, 8, 9, 10 or 11"),
+                        csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,13,1"),
+                        "version 13, and this reads 3, 4, 5, 6, 7, 8, 9, 10, 11 or 12"),
                 new Wrong("ymxs-csv-to-json", csv.replace(opens, opens + "other\n"),
                         "tune 1 opens a transformation with 2 rows, and one row opens it"),
                 new Wrong("ymxs-csv-to-json", csv.replace(opens, ""),

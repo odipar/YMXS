@@ -78,14 +78,14 @@ final class Fade {
     static Tune tune() {
         List<Row> rows = new ArrayList<>();
         rows.add(new Row(Map.of(Register.R7, 62),
-                Map.of(Timer.A, voice(NOTE, Tunes.NO_PARTS)), Set.of(), Set.of()));
+                Map.of(Timer.A, voice(NOTE, Tunes.NO_PARTS)), Set.of(), Map.of()));
         for (int n = 15; n >= 0; n--) {
-            rows.add(new Row(Map.of(), Map.of(Timer.A, new Remap(volume(n))), Set.of(), Set.of()));
+            rows.add(new Row(Map.of(), Map.of(Timer.A, new Remap(volume(n))), Set.of(), Map.of()));
         }
         while (rows.size() < ROWS - 1) {
             rows.add(Tunes.EMPTY);
         }
-        rows.add(new Row(Map.of(Register.R8, 0), Map.of(Timer.A, Tunes.STOP), Set.of(), Set.of()));
+        rows.add(new Row(Map.of(Register.R8, 0), Map.of(Timer.A, Tunes.STOP), Set.of(), Map.of()));
         return new Tune("a fade", "", "Fade", 50, Tunes.once(rows));
     }
 
@@ -93,7 +93,7 @@ final class Fade {
      *  0 of two rows that repeat to row 0. */
     static Tune wide() {
         return new Tune("a quieter chord", "", "Fade", 50, Tunes.repeating(List.of(
-                new Row(Map.of(Register.R7, 62), Map.of(Timer.A, voice(CHORD, volume(5))), Set.of(), Set.of()),
+                new Row(Map.of(Register.R7, 62), Map.of(Timer.A, voice(CHORD, volume(5))), Set.of(), Map.of()),
                 Tunes.EMPTY), 0));
     }
 }

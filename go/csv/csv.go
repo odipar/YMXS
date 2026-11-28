@@ -97,9 +97,10 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 	}
 
 	rows := ymxs.Rows(tune)
-	// a voice's sync cell where some row syncs that voice, and its even sync
-	// cell where some row lists it among the even syncs (csv.md 3.8)
-	var synced, evened []ymxs.Voice
+	// a voice's sync cell where some row syncs that voice, and its sync
+	// length cell where its sync length at some row is other than 1 (csv.md
+	// 3.8)
+	var synced, stepped []ymxs.Voice
 	for _, voice := range ymxs.Voices {
 		for _, one := range rows {
 			if one.Syncs[voice] {
@@ -108,8 +109,8 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 			}
 		}
 		for _, one := range rows {
-			if one.EvenSyncs[voice] {
-				evened = append(evened, voice)
+			if ymxs.Steps(one, voice) != 1 {
+				stepped = append(stepped, voice)
 				break
 			}
 		}
@@ -121,12 +122,12 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 	for _, voice := range synced {
 		named = append(named, SyncName(voice))
 	}
-	for _, voice := range evened {
-		named = append(named, EvenName(voice))
+	for _, voice := range stepped {
+		named = append(named, StepsName(voice))
 	}
 	table(out, named...)
 	for line, one := range rows {
-		if len(one.Registers) == 0 && one.Syncs == [3]bool{} && one.EvenSyncs == [3]bool{} {
+		if len(one.Registers) == 0 && one.Syncs == [3]bool{} && !lengthened(one, stepped) {
 			continue
 		}
 		said := []any{line}
@@ -144,9 +145,9 @@ func written(out *strings.Builder, tune ymxs.Tune) {
 				said = append(said, "")
 			}
 		}
-		for _, voice := range evened {
-			if one.EvenSyncs[voice] {
-				said = append(said, 1)
+		for _, voice := range stepped {
+			if steps := ymxs.Steps(one, voice); steps != 1 {
+				said = append(said, steps)
 			} else {
 				said = append(said, "")
 			}
@@ -399,10 +400,11 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	registers := make([]map[ymxs.Register]int, max(count, 0))
 	effects := make([]map[ymxs.Timer]ymxs.Effect, max(count, 0))
 	syncs := make([][3]bool, max(count, 0))
-	evens := make([][3]bool, max(count, 0))
+	lengths := make([]map[ymxs.Voice]int, max(count, 0))
 	for at := 0; at < count; at++ {
 		registers[at] = map[ymxs.Register]int{}
 		effects[at] = map[ymxs.Timer]ymxs.Effect{}
+		lengths[at] = map[ymxs.Voice]int{}
 	}
 	var acts []*block
 	for _, one := range mine {
@@ -490,7 +492,11 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 					return ymxs.Tune{}, fmt.Errorf("%s, and version %d has no syncs",
 						SyncName(voice), version)
 				}
-				if version < text.Even && slices.Contains(one.columns, EvenName(voice)) {
+				if version < text.Steps && slices.Contains(one.columns, StepsName(voice)) {
+					return ymxs.Tune{}, fmt.Errorf("%s, and version %d has no sync lengths",
+						StepsName(voice), version)
+				}
+				if version != text.Even && slices.Contains(one.columns, EvenName(voice)) {
 					return ymxs.Tune{}, fmt.Errorf("%s, and version %d has no even syncs",
 						EvenName(voice), version)
 				}
@@ -520,9 +526,24 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 						return ymxs.Tune{}, fmt.Errorf("%s at row %d is %s, and a sync is 1"+
 							" or empty", SyncName(voice), at, said)
 					}
+					// csv.md 3.8: 1 is the voice left out, and every other
+					// whole number its sync length
+					if said := one.of(line, StepsName(voice)); said != "" {
+						length, err := whole(said, StepsName(voice))
+						if err != nil {
+							return ymxs.Tune{}, err
+						}
+						if length == 1 {
+							delete(lengths[at], voice)
+						} else {
+							lengths[at][voice] = length
+						}
+					}
+					// csv.md 3.10: an even sync of version 11 is a sync
+					// length of 2
 					even := one.of(line, EvenName(voice))
 					if even == "1" {
-						evens[at][voice] = true
+						lengths[at][voice] = 2
 					} else if even != "" {
 						return ymxs.Tune{}, fmt.Errorf("%s at row %d is %s, and an even sync"+
 							" is 1 or empty", EvenName(voice), at, even)
@@ -568,7 +589,7 @@ func tuneOf(told *block, mine []*block, number int, version int) (ymxs.Tune, err
 	rows := make([]ymxs.Row, max(count, 0))
 	for at := 0; at < count; at++ {
 		rows[at] = ymxs.Row{Registers: registers[at], Effects: effects[at], Syncs: syncs[at],
-			EvenSyncs: evens[at]}
+			SyncSteps: lengths[at]}
 	}
 	rate, err := whole(told.of(one, "rate"), "rate")
 	if err != nil {
@@ -597,10 +618,27 @@ func SyncName(voice ymxs.Voice) string {
 	return "sync" + voice.String()
 }
 
-// EvenName is the cell of a voice's even sync in the registers block,
-// evenSyncA to evenSyncC (csv.md 3.8).
+// StepsName is the cell of a voice's sync length in the registers block,
+// syncStepsA to syncStepsC (csv.md 3.8).
+func StepsName(voice ymxs.Voice) string {
+	return "syncSteps" + voice.String()
+}
+
+// EvenName is the cell of a voice's even sync in the registers block of a
+// file of version 11, evenSyncA to evenSyncC (csv.md 3.10).
 func EvenName(voice ymxs.Voice) string {
 	return "evenSync" + voice.String()
+}
+
+// lengthened is whether one of the voices has a sync length other than 1 at
+// the row.
+func lengthened(row ymxs.Row, voices []ymxs.Voice) bool {
+	for _, voice := range voices {
+		if ymxs.Steps(row, voice) != 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // foreign is the error of a block of tune number, its name outside those

@@ -849,9 +849,11 @@ after a sync at the row's length and after one at the row before's, but
 where the timer starts on the row. A row's length is then part of the next
 row's condition, and a writer chooses the lengths of all rows together.
 The steps between two ticks are a fraction, and the whole steps between
-two syncs are its floor or its ceiling; a writer allows 2 steps either way
-of that fraction for the latency of the timer's interrupt, which varies
-from tick to tick.
+two syncs are its floor or its ceiling; a writer allows up to 5 steps
+either way of that fraction, the widest margin a length meets on the row,
+for the latency of the timer's interrupt: a 68000 serves an interrupt
+after the instruction it is running, and its longest instructions run
+about 5 steps.
 
 **3.9.5 Uses (informative).** In `doc/conformance/tunes/sync.json` a row
 syncs the three voices; copy from frame runs on `syncToneA`, and on

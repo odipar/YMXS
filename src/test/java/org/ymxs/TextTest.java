@@ -911,10 +911,10 @@ final class TextTest {
                         Map.of(Voice.B, 3, Voice.C, 8))), 0));
     }
 
-    /** A row's sync lengths are {@code syncSteps}, a column of 1 to 8 for
+    /** A row's sync lengths are {@code syncSteps}, a column of 1 to 16 for
      *  each voice of a sync length other than 1 at some row; in a file of
      *  version 11 or before it is an error of the form, and a value outside
-     *  1 to 8 an error of the structure (json.md 2.4, 5.5). */
+     *  1 to 16 an error of the structure (json.md 2.4, 5.5). */
     @Test
     void aSyncLengthCrossesTheForm() {
         String text = Text.write(Tunes.multi(syncSteps()));
@@ -939,11 +939,11 @@ final class TextTest {
         assertEquals("syncSteps a at row 1 is 2.5, and this form requires a whole number",
                 String.valueOf(assertThrows(IllegalArgumentException.class,
                         () -> Text.read(half)).getMessage()));
-        String nine = text.replace("\"a\": [1,2,1],", "\"a\": [0,9,1],");
-        assertEquals("tune 1: row 0: a sync length of 0 for voice A: a sync is 1 to 8 steps\n"
-                + "tune 1: row 1: a sync length of 9 for voice A: a sync is 1 to 8 steps",
+        String outside = text.replace("\"a\": [1,2,1],", "\"a\": [0,17,1],");
+        assertEquals("tune 1: row 0: a sync length of 0 for voice A: a sync is 1 to 16 steps\n"
+                + "tune 1: row 1: a sync length of 17 for voice A: a sync is 1 to 16 steps",
                 String.valueOf(assertThrows(IllegalArgumentException.class,
-                        () -> Text.read(nine)).getMessage()));
+                        () -> Text.read(outside)).getMessage()));
         String flat = text.replace("\"syncSteps\": {", "\"syncSteps\": 1, \"x\": {");
         assertEquals("syncSteps is 1, and this form requires a column a voice",
                 String.valueOf(assertThrows(IllegalArgumentException.class,

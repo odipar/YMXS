@@ -240,7 +240,7 @@ func tuneOf(tree any, version int) (ymxs.Tune, error) {
 		return ymxs.Tune{}, err
 	}
 	// json.md 5.5: 1 is the voice left out, and every other whole number its
-	// sync length, so one outside 1 to 8 is an error of the structure
+	// sync length, so one outside 1 to 16 is an error of the structure
 	err = voices(at, "syncSteps", rows, version, version >= Steps, "sync lengths",
 		func(voice ymxs.Voice, row, value int) error {
 			if value != 1 {

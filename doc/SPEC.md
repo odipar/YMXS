@@ -184,7 +184,7 @@ and where absent the table has ended.
 **1.6 A row.** `registers` maps each register to the value the row sets;
 `effects` maps each timer to its operation; `syncs` is the voices whose
 square the row syncs at step 4 of its frame (3.9); `syncSteps` maps a
-voice to its sync length, 1 to 8 steps (3.9.1), for the sync of its frame
+voice to its sync length, 1 to 16 steps (3.9.1), for the sync of its frame
 and the syncs of a sync target at the ticks 3.9.4 defines. An absent
 register keeps its value; an absent timer continues unchanged; an absent
 voice has a sync length of 1. A row sets each register at most once and
@@ -280,7 +280,7 @@ and of its part, from 0.
 | the last row L of the cut of a `Recut` is below its first row F | `a cut of rows F to L: a cut ends at or after the row it begins at` |
 | the first row of the cut of a `Recut` is F, outside 0 to R - 1, R the rows, 1 or more, of the source of a `Start` on its timer | `the source has R rows and the cut begins at row F` |
 | the last row of the cut of a `Recut` is L, outside 0 to R - 1, R the rows, 1 or more, of the source of a `Start` on its timer | `the source has R rows and the cut ends at row L` |
-| a row's sync length of voice V is D, outside 1 to 8 | `a sync length of D for voice V: a sync is 1 to 8 steps` |
+| a row's sync length of voice V is D, outside 1 to 16 | `a sync length of D for voice V: a sync is 1 to 16 steps` |
 
 The mapping of a `Remap` is read against each `Start` on its timer at any
 row of the tune, before or after the `Remap`, with the target and the source
@@ -331,7 +331,7 @@ Report each condition present, in this order:
             the first `Start` that connects it, prefixed `start of row
             S: `, where that source has a row, the first row outside 0
             to R - 1, then the last row outside it.
-      3. Sync lengths outside 1 to 8, voices A to C.
+      3. Sync lengths outside 1 to 16, voices A to C.
 
 N is the tune or row number; X is the timer's letter; F is the
 transformation's number (1.9) and NAME its name, each line feed in it
@@ -773,7 +773,7 @@ through a mapping.
 generator at a period: the frame's at a frame (3.9.3) and the row's of a
 source at a tick (3.9.4). A *step* of the tone generator is 8 cycles of
 the chip's clock, 32 cycles of an 8 MHz 68000 on an ST, and n is the
-voice's *sync length*, 1 to 8 (1.6). A sync is four writes, in this order
+voice's *sync length*, 1 to 16 (1.6). A sync is four writes, in this order
 and at these times:
 
 1. 0 to the coarse register of the voice's period: R1 for voice A, R3 for
@@ -861,7 +861,7 @@ syncs the three voices; copy from frame runs on `syncToneA`, and on
 and a row syncs voice A while Timer A runs on it, which rule 1(f) reports.
 In `doc/conformance/tunes/sync-steps.json` copy from frame on `syncToneA`
 syncs at 2, 8, 1 and 3 steps on rows 1 to 4; rows 0 and 4 sync voice B at
-a frame at 3 and at 8 steps, row 4 voice C at 1; and row 5 has a sync
+a frame at 3 and at 16 steps, row 4 voice C at 1; and row 5 has a sync
 length of voice C without a sync. `doc/conformance/tunes/even-syncs.json`
 is a file of version 11, whose even syncs read as sync lengths of 2
 (json.md 2.4). A sync of 1 step is the technique of gwEm ([Alive

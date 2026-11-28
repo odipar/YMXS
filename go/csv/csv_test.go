@@ -675,7 +675,7 @@ func TestACutAndARecutCrossTheTables(t *testing.T) {
 // A row's sync lengths are the cells syncStepsA to syncStepsC of the
 // registers block, empty or a whole number, after the sync cells; in a file
 // of version 11 or before such a column is an error of the form, and a
-// length outside 1 to 8 an error of the structure (csv.md 3.7, 5.1). The
+// length outside 1 to 16 an error of the structure (csv.md 3.7, 5.1). The
 // kit's tune of them crosses to the tables and back.
 func TestASyncLengthCrossesTheTables(t *testing.T) {
 	said, err := os.ReadFile("../../doc/conformance/tunes/sync-steps.json")
@@ -690,7 +690,7 @@ func TestASyncLengthCrossesTheTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	four := "4,,,,,,,,,,,,,,,1,1,3,8,\n"
+	four := "4,,,,,,,,,,,,,,,1,1,3,16,\n"
 	if !strings.Contains(written, ",r13,syncB,syncC,syncStepsA,syncStepsB,syncStepsC\n") ||
 		!strings.Contains(written, four) {
 		t.Fatalf("the tables are\n%s", written)
@@ -712,15 +712,15 @@ func TestASyncLengthCrossesTheTables(t *testing.T) {
 		err.Error() != "syncStepsA, and version 11 has no sync lengths" {
 		t.Errorf("a file of version 11 with sync lengths reads as %v", err)
 	}
-	x := strings.Replace(written, four, "4,,,,,,,,,,,,,,,1,1,x,8,\n", 1)
+	x := strings.Replace(written, four, "4,,,,,,,,,,,,,,,1,1,x,16,\n", 1)
 	if _, err := csv.Read(x); err == nil ||
 		err.Error() != `syncStepsA is "x", and this form requires a whole number` {
 		t.Errorf("a sync length cell of x reads as %v", err)
 	}
-	nine := strings.Replace(written, four, "4,,,,,,,,,,,,,,,1,1,9,8,\n", 1)
-	if _, err := csv.Read(nine); err == nil || err.Error() !=
-		"tune 1: row 4: a sync length of 9 for voice A: a sync is 1 to 8 steps" {
-		t.Errorf("a sync length cell of 9 reads as %v", err)
+	outside := strings.Replace(written, four, "4,,,,,,,,,,,,,,,1,1,17,16,\n", 1)
+	if _, err := csv.Read(outside); err == nil || err.Error() !=
+		"tune 1: row 4: a sync length of 17 for voice A: a sync is 1 to 16 steps" {
+		t.Errorf("a sync length cell of 17 reads as %v", err)
 	}
 }
 

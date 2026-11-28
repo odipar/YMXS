@@ -88,7 +88,7 @@ class ConformanceTest {
                             + " sync recorded as a sync length of 2 (json.md 2.4, 3.9, 7.4)"),
             new Source("sync-steps", 1, 17,
                     "copy from frame on syncToneA at sync lengths of 2, 8, 1 and 3, syncs"
-                            + " of voice B at a frame at 3 and at 8 and of voice C at 1, and a"
+                            + " of voice B at a frame at 3 and at 16 and of voice C at 1, and a"
                             + " row that has a sync length of voice C without a sync, recorded"
                             + " as lengths (3.9, 7.4)"));
 

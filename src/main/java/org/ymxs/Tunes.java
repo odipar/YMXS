@@ -134,7 +134,7 @@ public final class Tunes {
 
     /** The most steps of a sync length, which is 1 to this (SPEC.md 1.6,
      *  1.11). */
-    public static final int MOST_STEPS = 8;
+    public static final int MOST_STEPS = 16;
 
     /** The sync length of a voice at this row: its entry in {@code
      *  syncSteps}, and 1 where the row leaves the voice out (SPEC.md

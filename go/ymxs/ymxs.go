@@ -72,7 +72,7 @@ func (t Table[T]) Repeat() (int, bool) {
 // Row is one row: the registers it sets, its operation on the effect of
 // each timer, the voices whose square it syncs before it writes their
 // periods (SPEC.md 3.9), and the sync length of a voice's syncs during the
-// row, 1 to 8 steps (3.9.1). A register absent from the first map is one
+// row, 1 to 16 steps (3.9.1). A register absent from the first map is one
 // the row does not write; a timer absent from the second is one the row
 // leaves running; a voice absent from the last has a sync length of 1.
 // Syncs is true at the index of each voice the row syncs.

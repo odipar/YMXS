@@ -601,7 +601,7 @@ public final class Json {
                     }
                 });
         // 5.5: 1 is the voice left out, and every other whole number its
-        // sync length, so one outside 1 to 8 is an error of the structure
+        // sync length, so one outside 1 to 16 is an error of the structure
         voices(tree, "syncSteps", count, version, version >= STEPS, "sync lengths",
                 (voice, at, value) -> {
                     if (value != 1) {

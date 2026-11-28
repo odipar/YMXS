@@ -950,30 +950,30 @@ func TestASyncOfAVoiceAnEffectRunsOnIsLeftToTheEffect(t *testing.T) {
 		50)), []string{"row 2: Timer A runs on R0" + left})
 }
 
-// A sync length is 1 to 8 steps, and one outside that is an error of its row
+// A sync length is 1 to 16 steps, and one outside that is an error of its row
 // after the lines of its timers, in voice order; a voice left out has a sync
 // length of 1, and a sync length without a sync is within every rule
 // (SPEC.md 1.6, 1.11, 1.12). The lines are those of the Java tree's
 // CheckTest.
-func TestASyncLengthIsOneToEightSteps(t *testing.T) {
-	eight := ymxs.Row{Syncs: [3]bool{true, false, false}, SyncSteps: map[ymxs.Voice]int{
-		ymxs.VoiceA: 8, ymxs.VoiceB: 1, ymxs.VoiceC: 2}}
-	lines(t, "1, 2 and 8 steps", check.Tune(tune([]ymxs.Row{eight}, 50)), nil)
+func TestASyncLengthIsOneToSixteenSteps(t *testing.T) {
+	top := ymxs.Row{Syncs: [3]bool{true, false, false}, SyncSteps: map[ymxs.Voice]int{
+		ymxs.VoiceA: 16, ymxs.VoiceB: 1, ymxs.VoiceC: 2}}
+	lines(t, "1, 2 and 16 steps", check.Tune(tune([]ymxs.Row{top}, 50)), nil)
 	lines(t, "a sync length of a voice the row leaves alone",
-		check.Writing(tune([]ymxs.Row{eight, {}}, 50)), nil)
+		check.Writing(tune([]ymxs.Row{top, {}}, 50)), nil)
 	if steps := ymxs.Steps(ymxs.Row{}, ymxs.VoiceB); steps != 1 {
 		t.Errorf("a voice left out has a sync length of %d", steps)
 	}
 	wrong := ymxs.Row{Registers: map[ymxs.Register]int{ymxs.R8: 99},
 		Effects:   map[ymxs.Timer]ymxs.Effect{ymxs.TimerA: ymxs.Bend(ymxs.By4, 400)},
-		SyncSteps: map[ymxs.Voice]int{ymxs.VoiceC: 0, ymxs.VoiceA: 9}}
-	lines(t, "a sync length outside 1 to 8", check.Tune(tune([]ymxs.Row{wrong}, 50)),
+		SyncSteps: map[ymxs.Voice]int{ymxs.VoiceC: 0, ymxs.VoiceA: 17}}
+	lines(t, "a sync length outside 1 to 16", check.Tune(tune([]ymxs.Row{wrong}, 50)),
 		[]string{
 			"row 0: R8 is 0 to 31, and this row sets it to 99",
 			"row 0: Timer A: a count of 400: a timer's data register is a byte, 0 to 255," +
 				" and 0 counts 256",
-			"row 0: a sync length of 9 for voice A: a sync is 1 to 8 steps",
-			"row 0: a sync length of 0 for voice C: a sync is 1 to 8 steps"})
+			"row 0: a sync length of 17 for voice A: a sync is 1 to 16 steps",
+			"row 0: a sync length of 0 for voice C: a sync is 1 to 16 steps"})
 }
 
 // A target of a sync writes the registers of a tone target, and is

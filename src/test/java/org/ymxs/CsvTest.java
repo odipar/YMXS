@@ -887,7 +887,7 @@ final class CsvTest {
     /** A row's sync lengths are the cells {@code syncStepsA} to {@code
      *  syncStepsC} of the registers block, empty or a whole number, after
      *  the sync cells; in a file of version 11 or before such a column is an
-     *  error of the form, and a length outside 1 to 8 an error of the
+     *  error of the form, and a length outside 1 to 16 an error of the
      *  structure (csv.md 3.7, 5.1). */
     @Test
     void aSyncLengthCrossesTheForm() {
@@ -913,10 +913,10 @@ final class CsvTest {
         assertEquals("syncStepsA is \"x\", and this form requires a whole number",
                 String.valueOf(assertThrows(IllegalArgumentException.class,
                         () -> Csv.read(x)).getMessage()));
-        String nine = csv.replace("\n1,,,,,,,,,,,,,,,,,,2,,\n", "\n1,,,,,,,,,,,,,,,,,,9,,\n");
-        assertEquals("tune 1: row 1: a sync length of 9 for voice A: a sync is 1 to 8 steps",
+        String outside = csv.replace("\n1,,,,,,,,,,,,,,,,,,2,,\n", "\n1,,,,,,,,,,,,,,,,,,17,,\n");
+        assertEquals("tune 1: row 1: a sync length of 17 for voice A: a sync is 1 to 16 steps",
                 String.valueOf(assertThrows(IllegalArgumentException.class,
-                        () -> Csv.read(nine)).getMessage()));
+                        () -> Csv.read(outside)).getMessage()));
     }
 
     /** Row {@code at} of the first tune of a CSV file. */

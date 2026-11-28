@@ -163,14 +163,14 @@ that sets a register, syncs a voice or has a sync length other than 1
 | `row` | a whole number from 0 to R minus 1 | the row of the tune |
 | `r0` to `r13` | empty, or a whole number in the range of the register | empty: the row leaves that register unchanged; a number: the value the row sets that register to |
 | `syncA`, `syncB`, `syncC` | empty, or 1 | empty: the row leaves the square of voice A, B or C as it is; 1: the row syncs that voice (SPEC.md 3.9) |
-| `syncStepsA`, `syncStepsB`, `syncStepsC` | empty, or a whole number from 1 to 8 | empty or 1: the sync length of voice A, B or C at the row is 1; another number: the sync length (SPEC.md 1.6, 3.9.1) |
+| `syncStepsA`, `syncStepsB`, `syncStepsC` | empty, or a whole number from 1 to 16 | empty or 1: the sync length of voice A, B or C at the row is 1; another number: the sync length (SPEC.md 1.6, 3.9.1) |
 
 **3.8** A reader reads each row line of a `registers` block in file order;
 a row line sets, for the row its `row` cell names, each register whose
 cell is filled, syncs each voice whose sync cell is 1, and sets the sync
 length of each voice whose sync length cell is filled: a cell of 1 leaves
 the voice out of the row's `syncSteps`, and every other whole number is
-its sync length, so one outside 1 to 8 is an error of the structure (5.3).
+its sync length, so one outside 1 to 16 is an error of the structure (5.3).
 Where two row lines of the `registers` blocks of one tune name one row,
 the later in file order sets a register or a sync length both fill.
 

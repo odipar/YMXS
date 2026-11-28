@@ -225,7 +225,7 @@ the form (8.1).
 `a`, `b` and `c`, each with a column for voice A, B and C: index i is the
 sync length of the voice at row i (SPEC.md 1.6, 3.9.1). A reader reads 1
 as the voice absent from the row's `syncSteps`, a sync length of 1, and
-every other whole number as its sync length, so one outside 1 to 8 is an
+every other whole number as its sync length, so one outside 1 to 16 is an
 error of the structure (8.3). An emitter emits the column of each voice
 of a sync length other than 1 at some row, those alone, with 1 at each
 row where the sync length is 1; a reader reads an absent column as 1 at

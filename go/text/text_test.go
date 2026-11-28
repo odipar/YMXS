@@ -585,9 +585,9 @@ func TestASyncCrossesTheForm(t *testing.T) {
 	}
 }
 
-// A row's sync lengths are syncSteps, a column of 1 to 8 for each voice of a
+// A row's sync lengths are syncSteps, a column of 1 to 16 for each voice of a
 // sync length other than 1 at some row; in a file of version 11 or before it
-// is an error of the form, and a value outside 1 to 8 an error of the
+// is an error of the form, and a value outside 1 to 16 an error of the
 // structure (json.md 2.4, 5.5). The kit's tune of them writes back as it
 // reads.
 func TestASyncLengthCrossesTheForm(t *testing.T) {
@@ -605,7 +605,7 @@ func TestASyncLengthCrossesTheForm(t *testing.T) {
 	rows := read.Tunes[0].Table.Rows
 	if !maps.Equal(rows[0].SyncSteps, map[ymxs.Voice]int{ymxs.VoiceB: 3}) ||
 		!maps.Equal(rows[2].SyncSteps, map[ymxs.Voice]int{ymxs.VoiceA: 8}) ||
-		!maps.Equal(rows[4].SyncSteps, map[ymxs.Voice]int{ymxs.VoiceA: 3, ymxs.VoiceB: 8}) ||
+		!maps.Equal(rows[4].SyncSteps, map[ymxs.Voice]int{ymxs.VoiceA: 3, ymxs.VoiceB: 16}) ||
 		len(rows[3].SyncSteps) != 0 || ymxs.Steps(rows[3], ymxs.VoiceA) != 1 {
 		t.Errorf("the sync lengths read as %v, %v, %v and %v", rows[0].SyncSteps,
 			rows[2].SyncSteps, rows[4].SyncSteps, rows[3].SyncSteps)
@@ -621,11 +621,11 @@ func TestASyncLengthCrossesTheForm(t *testing.T) {
 		"syncSteps a at row 1 is 2.5, and this form requires a whole number" {
 		t.Errorf("a sync length of 2.5 reads as %v", err)
 	}
-	nine := strings.Replace(string(said), a, `"a": [0,9,8,1,3,1,1,1],`, 1)
-	if _, err := text.Read(nine); err == nil || err.Error() !=
-		"tune 1: row 0: a sync length of 0 for voice A: a sync is 1 to 8 steps\n"+
-			"tune 1: row 1: a sync length of 9 for voice A: a sync is 1 to 8 steps" {
-		t.Errorf("sync lengths of 0 and 9 read as %v", err)
+	outside := strings.Replace(string(said), a, `"a": [0,17,8,1,3,1,1,1],`, 1)
+	if _, err := text.Read(outside); err == nil || err.Error() !=
+		"tune 1: row 0: a sync length of 0 for voice A: a sync is 1 to 16 steps\n"+
+			"tune 1: row 1: a sync length of 17 for voice A: a sync is 1 to 16 steps" {
+		t.Errorf("sync lengths of 0 and 17 read as %v", err)
 	}
 }
 

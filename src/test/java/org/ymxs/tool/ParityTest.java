@@ -515,7 +515,7 @@ final class ParityTest {
 
     /** A row's sync lengths, the kit's tune of them: the two trees cross the
      *  forms and check it to the same bytes, and report the same line for
-     *  each error of the forms and of a sync length outside 1 to 8 (json.md
+     *  each error of the forms and of a sync length outside 1 to 16 (json.md
      *  2.4, 5.5, csv.md 3.7, SPEC.md 1.11). */
     @Test
     void aSyncLengthReadsTheSameInBothTrees() throws Exception {
@@ -527,7 +527,7 @@ final class ParityTest {
         assertEquals(new String(kit, StandardCharsets.UTF_8), json,
                 "the kit's tune crosses the forms and back");
         String a = "\"a\": [1,2,8,1,3,1,1,1],";
-        String four = "4,,,,,,,,,,,,,,,1,1,3,8,\n";
+        String four = "4,,,,,,,,,,,,,,,1,1,3,16,\n";
         assertTrue(json.contains("\"syncSteps\": {") && json.contains(a), json);
         assertTrue(csv.contains(",r13,syncB,syncC,syncStepsA,syncStepsB,syncStepsC\n") &&
                 csv.contains(four), csv);
@@ -537,8 +537,8 @@ final class ParityTest {
                 csv.replace("ymxs," + Json.VERSION + ",1", "ymxs,11,1"),
                 "syncStepsA, and version 11 has no sync lengths"));
         wrongInBothTrees(new Wrong("ymxs-check", json.replace(a,
-                "\"a\": [1,2,8,1,3,1,1,9],"),
-                "tune 1: row 7: a sync length of 9 for voice A: a sync is 1 to 8 steps"));
+                "\"a\": [1,2,8,1,3,1,1,17],"),
+                "tune 1: row 7: a sync length of 17 for voice A: a sync is 1 to 16 steps"));
         wrongInBothTrees(new Wrong("ymxs-csv-to-json", csv.replace(four,
                 "4,,,,,,,,,,,,,,,1,1,x,8,\n"),
                 "syncStepsA is \"x\", and this form requires a whole number"));

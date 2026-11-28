@@ -23,7 +23,7 @@ func NewRow(registers map[Register]int) Row {
 
 // MostSteps is the most steps of a sync length, which is 1 to this (SPEC.md
 // 1.6, 1.11).
-const MostSteps = 8
+const MostSteps = 16
 
 // Steps is the sync length of a voice at this row: its entry in SyncSteps,
 // and 1 where the row leaves the voice out (SPEC.md 1.6).

@@ -1310,26 +1310,26 @@ final class CheckTest {
                 Check.writing(of(sets, sync, syncA)), "copy from frame on syncToneA");
     }
 
-    /** A sync length is 1 to 8 steps, and one outside that is an error of
+    /** A sync length is 1 to 16 steps, and one outside that is an error of
      *  its row after the lines of its timers, in voice order; a voice left
      *  out has a sync length of 1, and a sync length without a sync is
      *  within every rule (SPEC.md 1.6, 1.11, 1.12). */
     @Test
-    void aSyncLengthIsOneToEightSteps() {
-        Row eight = new Row(Map.of(), Map.of(), Set.of(Voice.A),
-                Map.of(Voice.A, 8, Voice.B, 1, Voice.C, 2));
-        assertEquals(List.of(), Check.of(of(eight)), "1, 2 and 8 steps");
-        assertEquals(List.of(), Check.writing(of(eight, Tunes.EMPTY)),
+    void aSyncLengthIsOneToSixteenSteps() {
+        Row top = new Row(Map.of(), Map.of(), Set.of(Voice.A),
+                Map.of(Voice.A, 16, Voice.B, 1, Voice.C, 2));
+        assertEquals(List.of(), Check.of(of(top)), "1, 2 and 16 steps");
+        assertEquals(List.of(), Check.writing(of(top, Tunes.EMPTY)),
                 "a sync length of a voice the row leaves alone");
         assertEquals(1, Tunes.steps(Tunes.EMPTY, Voice.B), "a voice left out");
         Row wrong = new Row(Map.of(Register.R8, 99), Map.of(Timer.A, Tunes.bend(
-                Prescaler.BY_4, 400)), Set.of(), Map.of(Voice.C, 0, Voice.A, 9));
+                Prescaler.BY_4, 400)), Set.of(), Map.of(Voice.C, 0, Voice.A, 17));
         assertEquals(List.of(
                 "row 0: R8 is 0 to 31, and this row sets it to 99",
                 "row 0: Timer A: a count of 400: a timer's data register is a byte, 0 to"
                         + " 255, and 0 counts 256",
-                "row 0: a sync length of 9 for voice A: a sync is 1 to 8 steps",
-                "row 0: a sync length of 0 for voice C: a sync is 1 to 8 steps"),
+                "row 0: a sync length of 17 for voice A: a sync is 1 to 16 steps",
+                "row 0: a sync length of 0 for voice C: a sync is 1 to 16 steps"),
                 Check.of(of(wrong)));
     }
 
